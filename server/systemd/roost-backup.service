@@ -1,0 +1,8 @@
+[Unit]
+Description=Roost nightly SQLite backup
+
+[Service]
+Type=oneshot
+User=roost
+Group=roost
+ExecStart=/opt/roost/server/backup.sh

@@ -1,0 +1,15 @@
+{
+  "name": "roost-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Roost sync API: chores, completions, device tokens. Node + built-in sqlite, no dependencies.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning src/server.js",
+    "test": "node --no-warnings=ExperimentalWarning --test",
+    "mktoken": "node --no-warnings=ExperimentalWarning src/mktoken.js"
+  }
+}

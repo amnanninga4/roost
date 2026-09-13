@@ -1,0 +1,26 @@
+[Unit]
+Description=Roost sync API (household chores for Anne & Wes)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=roost
+Group=roost
+WorkingDirectory=/opt/roost/server
+Environment=ROOST_HOST=127.0.0.1
+Environment=ROOST_PORT=8790
+Environment=ROOST_DB=/var/lib/roost/roost.db
+Environment=ROOST_CHORES=/opt/roost/data/chores.json
+Environment=ROOST_TOKENS=/etc/roost/tokens.json
+ExecStart=@NODE@ --no-warnings=ExperimentalWarning /opt/roost/server/src/server.js
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/roost
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

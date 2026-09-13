@@ -30,7 +30,7 @@ Everything else is fair-game split; only those two weekly tasks are pinned.
 
 ### Mockup ≠ master list
 
-`roost-app-mockup.html` is **illustrative UX only**. Its sample rows (e.g. “Recycling out”, “Wash dishes”, “Order cat litter”) are **not** in the locked 32-task list. Do **not** seed product data from the mockup.
+`roost-app-mockup.html` is **illustrative UX only**. Its sample rows (e.g. “Recycling out”, “Wash dishes”, “Order cat litter”) are **not** in the locked 31-task list. Do **not** seed product data from the mockup.
 
 ## Mockup product ideas worth keeping
 
@@ -64,7 +64,7 @@ Other open items:
 
 Don’t boil the ocean. Smallest useful app:
 
-1. Seed the **locked 32 chores** (from master list, not mockup) as recurring tasks with cadence + fixed assignees.
+1. Seed the **locked 31 chores** (from master list, not mockup) as recurring tasks with cadence + fixed assignees.
 2. Two-person lists + check-off + shared “done this week” tally.
 3. Cat-care block + simple overdue escalation (no bonuses yet).
 

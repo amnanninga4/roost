@@ -20,7 +20,7 @@ Pinned from the master list: **Laundry → anne**, **Garbage can to street, Sund
 
 Do **not** seed from `roost-app-mockup.html` sample rows.
 
-Count note: the HTML meta / NOTES say “32 tasks”, but the list body has **31** items (11+9+5+6). This file matches the body.
+Count: **31** items (11+9+5+6). The master list header originally said 32; Anne corrected it to 31 on 2026-09-13.
 
 ## Validate
 
