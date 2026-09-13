@@ -77,12 +77,9 @@ jobs:
       - name: Committed pbxproj matches project.yml
         run: git diff --exit-code Roost/Roost.xcodeproj/project.pbxproj
 
-      # Non-fatal for now: the tree predates the format gate and 47 of 50 Swift
-      # files need reformatting. Landing that sweep (and flipping this step to
-      # fatal) is a pending follow-up — it would touch nearly every file, so it
-      # does not belong in the CI change.
+      # Fatal: PR #59 landed the baseline sweep, so the whole tree is clean and a
+      # hit here is a file that missed the hook in .claude/hooks/swift-format.sh.
       - name: swiftformat --lint
-        continue-on-error: true
         run: swiftformat --lint .
 
       # SwiftLint errors are fatal; warnings are not (no --strict). Whole tree:
