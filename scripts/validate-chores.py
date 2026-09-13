@@ -117,6 +117,11 @@ def main() -> None:
         if category not in VALID_CATEGORIES:
             fail(f"{loc}.category invalid: {category!r} (want {sorted(VALID_CATEGORIES)})")
 
+    # Exactly two pinned tasks exist in the master list; a third is a data error
+    pinned = [c["id"] for c in chores if c["fixedAssignee"] is not None]
+    if len(pinned) != 2:
+        fail(f"expected exactly 2 pinned chores, got {len(pinned)}: {pinned}")
+
     # Spot-check pinned assignees from the master list
     by_id = {c["id"]: c for c in chores}
     laundry = by_id.get("laundry")
