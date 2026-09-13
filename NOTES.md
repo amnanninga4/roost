@@ -44,14 +44,15 @@ Visual system already has light/dark tokens, Fraunces + IBM Plex Mono, accent / 
 
 ## Gaps / open questions (Wes + Anne)
 
-Platform/stack is **Wes’s call** (not agent-owned). Until he picks:
+**Decided by Wes, 2026-09-13:** native iOS, SwiftUI. Wes has an Apple Developer account. Web/PWA is off the table.
 
-- Orchestrator lean: **web/PWA first** (Anne already shipping HTML; shared “visible to both” screen is easy on web; no signing/TestFlight for a two-person app; low exit cost; native wrap later if earned).
-- Apple Dev lean: fine with web-first; will own Swift/signing/TestFlight **if** Wes chooses native or a later native shell. Not pushing native unprompted.
+**Sync:** not CloudKit by default. Both phones can go on Wes's Tailscale, so the leading option is a self-hosted sync API on the fleet reached over the tailnet, with the app offline-first (local store, queued writes). Push for overdue escalation goes through APNs. Final call pending on issue #1.
+
+**Distribution while building:** TestFlight to Anne's and Wes's phones. Apple Dev 3.0 owns signing. No Team ID, certs, or provisioning material in this repo.
 
 Other open items:
 
-- **Auth / sync:** once platform is picked.
+- **Sync transport:** confirm tailnet self-hosted vs CloudKit; name the fleet host.
 - **Two users only?** Assume Anne + Wes forever, or invite model later.
 - **Streak rules:** what breaks a streak? midnight CT? any incomplete daily? only assigned-to-me?
 - **Auto-assign fairness:** round-robin, least-busy this week, or random?
