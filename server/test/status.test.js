@@ -146,3 +146,29 @@ test("GET /favicon.ico returns SVG before auth with long cache", async () => {
   assert.match(body, /<svg/i);
   assert.match(body, /#2F8F72/i);
 });
+
+test("status.json includes activeFrom and board honors meta value", async () => {
+  const { setMeta } = await import("../src/db.js");
+  // Far-future activeFrom → nothing should be overdue yet relative to clock (Sep 14 2026)
+  setMeta(app.db, "activeFrom", "2026-09-14");
+
+  const res = await fetch(base + "/status.json");
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.activeFrom, "2026-09-14");
+
+  // With activeFrom = today, periods starting today are dueToday / not multi-day late.
+  // At minimum: overdue list should not treat pre-activeFrom history as ancient debt.
+  for (const p of body.people) {
+    for (const item of p.due) {
+      assert.notEqual(item.stage, "alert", "fresh household start should not show 5+ day alert for never-done chores yet");
+    }
+  }
+
+  // Push activeFrom back to Sep 1 and expect some overdue again
+  setMeta(app.db, "activeFrom", "2026-09-01");
+  const late = await (await fetch(base + "/status.json")).json();
+  assert.equal(late.activeFrom, "2026-09-01");
+  const anyDue = late.people.some((p) => p.due.length > 0);
+  assert.ok(anyDue, "earlier activeFrom surfaces due/overdue chores on the board");
+});

@@ -63,6 +63,7 @@ import {
 } from "./db.js";
 import { createTokenStore, bearerFrom, hashToken } from "./auth.js";
 import { statusHandler, statusJsonHandler, fontsHandler, faviconHandler } from "./status.js";
+import { chicagoDateString, DEFAULT_ACTIVE_FROM } from "./rules.js";
 import { bonusRoutes, bonusSync } from "./bonus.js";
 import { createPairing, pendingCodes } from "./pairing.js";
 import { createPush, pushRoutes } from "./push.js";
@@ -258,6 +259,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         tokensFileError,
         push: push.health(),
         rev: readDeployedRev(),
+        activeFrom: getMeta(db, "activeFrom") ?? chicagoDateString(DEFAULT_ACTIVE_FROM),
       });
     }
 
@@ -481,6 +483,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         serverTime: iso(),
         person: device.person,
         choresVersion: version,
+        activeFrom: getMeta(db, "activeFrom") ?? chicagoDateString(DEFAULT_ACTIVE_FROM),
         cursor: maxSeq || Math.min(cursor, currentSeq(db)),
         completions: rows.map(shapeCompletion),
         shopping: lists.shopping.map(shapeShopping),

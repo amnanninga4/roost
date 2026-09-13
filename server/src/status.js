@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PEOPLE, listChores, getMeta } from "./db.js";
-import { boardStats, DEFAULT_ACTIVE_FROM } from "./rules.js";
+import { boardStats, DEFAULT_ACTIVE_FROM, parseActiveFrom, chicagoDateString } from "./rules.js";
 import { listHandoffs, expireOpenHandoffs } from "./handoffs.js";
 
 const TZ = "America/Chicago";
@@ -148,10 +148,16 @@ function loadOpenBonus(db) {
 }
 
 function resolveActiveFrom(db, opts) {
-  if (opts.activeFrom) return new Date(opts.activeFrom);
-  const meta = getMeta(db, "activeFrom");
-  if (meta) return new Date(meta);
-  return DEFAULT_ACTIVE_FROM;
+  if (opts.activeFrom != null && opts.activeFrom !== "") return parseActiveFrom(opts.activeFrom);
+  return parseActiveFrom(getMeta(db, "activeFrom"));
+}
+
+/** YYYY-MM-DD string for status.json / board consumers. */
+function resolveActiveFromString(db, opts) {
+  if (opts.activeFrom != null && opts.activeFrom !== "") {
+    return chicagoDateString(parseActiveFrom(opts.activeFrom));
+  }
+  return getMeta(db, "activeFrom") ?? chicagoDateString(DEFAULT_ACTIVE_FROM);
 }
 
 /**
@@ -221,6 +227,7 @@ export function buildStatusBoard(db, opts = {}) {
   return {
     date: formatChicagoDateHeading(now),
     updated: formatChicagoUpdated(now),
+    activeFrom: resolveActiveFromString(db, opts),
     people,
     bonus: sharedBonus,
     recent,

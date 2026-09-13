@@ -246,3 +246,29 @@ test("devices table records lastSeen per token, throttled to once a minute", () 
     assert.notEqual(app.db.prepare("SELECT lastSeen FROM devices WHERE person='anne'").get().lastSeen, seenBefore, "written after 60s");
   })();
 });
+
+test("/sync carries activeFrom; /health does too", async () => {
+  const { chicagoDateString, DEFAULT_ACTIVE_FROM } = await import("../src/rules.js");
+  const fallback = chicagoDateString(DEFAULT_ACTIVE_FROM);
+
+  const health = await call("GET", "/health");
+  assert.equal(health.status, 200);
+  assert.equal(typeof health.body.activeFrom, "string");
+  assert.match(health.body.activeFrom, /^\d{4}-\d{2}-\d{2}$/);
+
+  // Unset in this suite → default fallback until stamped
+  const before = app.db.prepare("SELECT value FROM meta WHERE key = ?").get("activeFrom")?.value;
+  if (!before) {
+    assert.equal(health.body.activeFrom, fallback);
+  }
+
+  const sync = await call("GET", "/sync", { token: ANNE });
+  assert.equal(sync.status, 200);
+  assert.equal(sync.body.activeFrom, health.body.activeFrom, "/sync top-level activeFrom matches /health");
+
+  // Stamp via setMeta and confirm both endpoints update
+  const { setMeta } = await import("../src/db.js");
+  setMeta(app.db, "activeFrom", "2026-09-10");
+  assert.equal((await call("GET", "/health")).body.activeFrom, "2026-09-10");
+  assert.equal((await call("GET", "/sync", { token: ANNE })).body.activeFrom, "2026-09-10");
+});

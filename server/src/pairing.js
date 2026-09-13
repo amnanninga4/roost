@@ -15,7 +15,7 @@
 //
 // No `seq` on either table: neither codes nor tokens reach the phones through /sync.
 import { randomBytes, randomInt } from "node:crypto";
-import { PEOPLE } from "./db.js";
+import { PEOPLE, ensureActiveFrom } from "./db.js";
 
 // No people CHECK in either table, for the reason bonus.js gives: db.js imports this file for
 // PAIRING_SCHEMA, so PEOPLE is not initialised while this module evaluates (module cycle).
@@ -131,6 +131,7 @@ export function storePairedToken(db, { tokenHash, person, label, code }, nowIso)
       nowIso
     );
     db.prepare("UPDATE pairing_codes SET consumedAt = ?, tokenHash = ? WHERE code = ?").run(nowIso, tokenHash, code);
+    ensureActiveFrom(db, new Date(nowIso));
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");

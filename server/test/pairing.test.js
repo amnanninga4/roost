@@ -325,3 +325,53 @@ test("no proxy header: the socket address is the rate-limit bucket", async () =>
   for (let i = 1; i <= 10; i++) assert.equal((await attempt()).status, 404, `attempt ${i} is answered`);
   assert.equal((await attempt()).status, 429);
 });
+
+test("first pair sets activeFrom to Chicago today; second pair leaves it unchanged", async () => {
+  // Earlier tests in this file may already have paired — clear so we exercise the first-set path.
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run("activeFrom");
+  assert.equal(app.db.prepare("SELECT value FROM meta WHERE key = ?").get("activeFrom"), undefined);
+
+  const t1 = await pairDevice("anne", "Anne phone A", "iPhone", "203.0.113.40");
+  assert.ok(t1);
+  const first = app.db.prepare("SELECT value FROM meta WHERE key = ?").get("activeFrom")?.value;
+  assert.match(first, /^\d{4}-\d{2}-\d{2}$/, "stored as YYYY-MM-DD");
+
+  const { chicagoDateString } = await import("../src/rules.js");
+  assert.equal(first, chicagoDateString(clock), "matches Chicago calendar day of pair");
+
+  const health = await call("GET", "/health");
+  assert.equal(health.body.activeFrom, first, "/health exposes meta activeFrom");
+
+  const t2 = await pairDevice("wes", "Wes phone B", "Pixel", "203.0.113.41");
+  assert.ok(t2);
+  const second = app.db.prepare("SELECT value FROM meta WHERE key = ?").get("activeFrom")?.value;
+  assert.equal(second, first, "second pair must not change activeFrom");
+});
+
+test("mktoken CLI stamps activeFrom once, then leaves it alone", () => {
+  // Clear so mint path can set it (pair tests above may have set meta already — delete then mint)
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run("activeFrom");
+  assert.equal(app.db.prepare("SELECT value FROM meta WHERE key = ?").get("activeFrom"), undefined);
+
+  const out1 = cli("mktoken.js", "anne", "Minted once");
+  assert.match(out1, /activeFrom: (\d{4}-\d{2}-\d{2})/);
+  const stamped = /^activeFrom: (\d{4}-\d{2}-\d{2})$/m.exec(out1)[1];
+  assert.equal(app.db.prepare("SELECT value FROM meta WHERE key = ?").get("activeFrom")?.value, stamped);
+
+  const out2 = cli("mktoken.js", "wes", "Minted twice");
+  assert.match(out2, new RegExp(`activeFrom: ${stamped}`));
+  assert.equal(app.db.prepare("SELECT value FROM meta WHERE key = ?").get("activeFrom")?.value, stamped);
+});
+
+test("household.js active-from prints and sets the meta date", () => {
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run("activeFrom");
+  const printed = cli("household.js", "active-from");
+  assert.match(printed, /activeFrom: \d{4}-\d{2}-\d{2} \(default\)/);
+
+  const setOut = cli("household.js", "active-from", "2026-09-01");
+  assert.match(setOut, /activeFrom set to 2026-09-01/);
+  assert.equal(app.db.prepare("SELECT value FROM meta WHERE key = ?").get("activeFrom")?.value, "2026-09-01");
+
+  const again = cli("household.js", "active-from");
+  assert.match(again, /activeFrom: 2026-09-01 \(meta\)/);
+});

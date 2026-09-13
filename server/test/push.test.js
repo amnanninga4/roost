@@ -224,6 +224,30 @@ test("red-alert sweep notifies partner for stage>=3; collapse-id; persists acros
   assert.ok(firstCount > 0);
 });
 
+test("red-alert sweep respects meta activeFrom (no spam on fresh pair)", async () => {
+  const { setMeta } = await import("../src/db.js");
+  const { chicagoDateString } = await import("../src/rules.js");
+  sent.length = 0;
+  app.db.prepare("DELETE FROM push_alerts").run();
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+
+  const asOf = new Date("2026-09-20T17:00:00.000Z"); // Chicago afternoon Sep 20
+  setMeta(app.db, "activeFrom", chicagoDateString(asOf));
+  await app.push.runRedAlertSweep(asOf);
+  assert.equal(sent.length, 0, "activeFrom=today with no completions must not red-alert");
+
+  // Meta absent → parseActiveFrom falls back to DEFAULT_ACTIVE_FROM (same as before).
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run("activeFrom");
+  sent.length = 0;
+  app.db.prepare("DELETE FROM push_alerts").run();
+  await app.push.runRedAlertSweep(asOf);
+  assert.ok(sent.length >= 1, "without activeFrom meta, far asOf still red-alerts as before");
+
+  // Leave meta cleared so later sweeps keep DEFAULT_ACTIVE_FROM behavior.
+  app.db.prepare("DELETE FROM push_alerts").run();
+});
+
 test("deliver prunes dead tokens on 410 and 400 BadDeviceToken / DeviceTokenNotForTopic", async () => {
   assert.equal(shouldPruneToken(410, undefined), true);
   assert.equal(shouldPruneToken(400, "BadDeviceToken"), true);
