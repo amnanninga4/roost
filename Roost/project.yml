@@ -2,7 +2,7 @@ name: Roost
 options:
   bundleIdPrefix: xyz.hinescreative
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "26.0"
   xcodeVersion: "26.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true

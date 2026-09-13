@@ -1,4 +1,7 @@
-// A preview surface: every color token in the current scheme, the semantic pairs, and the type ramp.
+// The design system, on one scrollable page: colour roles in both schemes, the raw tokens,
+// the type ramp (and what it does at three Dynamic Type sizes), the spacing and radius
+// scales, the elevation steps, the four springs on a row that actually checks off, and a
+// glass sample. If something is in RoostDesign and not on this page, that is a bug.
 import SwiftUI
 
 public struct RoostSwatchbook: View {
@@ -8,104 +11,112 @@ public struct RoostSwatchbook: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                Text("ROOST DESIGN · \(scheme == .dark ? "DARK" : "LIGHT")")
-                    .font(RoostFont.mono(size: RoostFont.Size.eyebrow, weight: .semibold))
-                    .kerning(1.2)
-                    .foregroundStyle(RoostColor.accent)
-
-                section("Tokens") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 12)], spacing: 12) {
-                        ForEach(RoostColor.all, id: \.name) { token in
-                            swatch(token)
-                        }
-                    }
-                }
-
-                section("Pairs") {
-                    VStack(spacing: 8) {
-                        ForEach(RoostColor.pairs, id: \.strong.name) { pair in
-                            HStack {
-                                Text(pair.strong.name.uppercased())
-                                    .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .semibold))
-                                    .foregroundStyle(pair.strong.color)
-                                Spacer()
-                                Text(pair.strong.hex(scheme) + " on " + pair.soft.hex(scheme))
-                                    .font(RoostFont.mono(size: RoostFont.Size.caption))
-                                    .foregroundStyle(pair.strong.color)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(pair.soft.color, in: RoundedRectangle(cornerRadius: 8))
-                        }
-                    }
-                }
-
-                section("Type") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Chores, cat care, and a little competition")
-                            .font(RoostFont.display(size: RoostFont.Size.title, weight: .bold))
-                        Text("Section title").font(RoostFont.display(size: RoostFont.Size.sectionTitle, weight: .semibold))
-                        Text("Body copy at fifteen points, the size every task row uses.")
-                            .font(RoostFont.body(size: RoostFont.Size.body))
-                        Text("Meta at 13.5 · Nunito Sans")
-                            .font(RoostFont.body(size: RoostFont.Size.meta))
-                            .foregroundStyle(RoostColor.inkSoft)
-                        Text("EYEBROW · IBM PLEX MONO")
-                            .font(RoostFont.mono(size: RoostFont.Size.eyebrow, weight: .semibold))
-                            .kerning(1.2)
-                            .foregroundStyle(RoostColor.accent)
-                        Text(fontStatus)
-                            .font(RoostFont.mono(size: RoostFont.Size.caption))
-                            .foregroundStyle(RoostColor.inkSoft)
-                    }
-                    .foregroundStyle(RoostColor.ink)
-                }
+            VStack(alignment: .leading, spacing: RoostSpacing.xl) {
+                header
+                RolesSection()
+                TokensSection(scheme: scheme)
+                PairsSection(scheme: scheme)
+                TypeSection()
+                DynamicTypeSection()
+                SpacingSection()
+                RadiusSection()
+                ElevationSection()
+                MotionSection()
+                GlassSection()
+                Text(fontStatus)
+                    .roostType(.caption)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
             }
-            .padding(24)
+            .padding(RoostSpacing.screenMargin)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(RoostColor.bg)
+        .background(RoostColor.Role.background.color)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: RoostSpacing.xs) {
+            Text("ROOST DESIGN · \(scheme == .dark ? "DARK" : "LIGHT")")
+                .roostType(.monoLabel)
+                .foregroundStyle(RoostColor.Role.accent.color)
+            Text("Chores, cat care, and a little competition")
+                .roostType(.displayLarge)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
+        }
     }
 
     private var fontStatus: String {
-        let d = RoostFont.isAvailable(RoostFont.Family.display) ? "Fraunces ✓" : "Fraunces → serif fallback"
-        let b = RoostFont.isAvailable(RoostFont.Family.body) ? "Nunito Sans ✓" : "Nunito Sans → system fallback"
-        let m = RoostFont.isAvailable(RoostFont.Family.mono) ? "Plex Mono ✓" : "Plex Mono → mono fallback"
-        return [d, b, m].joined(separator: " · ")
-    }
-
-    @ViewBuilder
-    private func section<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(RoostFont.display(size: RoostFont.Size.sectionTitle, weight: .semibold))
-                .foregroundStyle(RoostColor.ink)
-            content()
+        RoostType.Face.allCases.map { face in
+            face.isAvailable ? "\(face.family) ✓" : "\(face.family) → system \(face.fallbackDesign)"
         }
-    }
-
-    private func swatch(_ token: RoostColorToken) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(token.color)
-                .frame(height: 44)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(RoostColor.line, lineWidth: 1))
-            Text(token.name).font(RoostFont.body(size: RoostFont.Size.caption, weight: .semibold))
-            Text(token.hex(scheme)).font(RoostFont.mono(size: RoostFont.Size.badge))
-                .foregroundStyle(RoostColor.inkSoft)
-        }
-        .foregroundStyle(RoostColor.ink)
-        .padding(8)
-        .background(RoostColor.surface, in: RoundedRectangle(cornerRadius: 10))
+        .joined(separator: " · ")
     }
 }
 
+// MARK: - Shared chrome
+
+struct SwatchSection<Content: View>: View {
+    let title: String
+    let note: String?
+    @ViewBuilder var content: Content
+
+    init(_ title: String, note: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.note = note
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: RoostSpacing.md) {
+            VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                Text(title)
+                    .roostType(.title)
+                    .foregroundStyle(RoostColor.Role.textPrimary.color)
+                if let note {
+                    Text(note)
+                        .roostType(.footnote)
+                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                }
+            }
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct SwatchCard<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .padding(RoostSpacing.cardPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoostColor.Role.surface.color, in: RoostRadius.cardShape)
+            .roostElevation(.card, cornerRadius: RoostRadius.card)
+    }
+}
+
+// MARK: - Previews
+
 #Preview("Light") {
+    // swiftlint:disable:next redundant_discardable_let - a ViewBuilder needs a declaration here.
     let _ = try? RoostFonts.register()
     RoostSwatchbook().preferredColorScheme(.light)
 }
 
 #Preview("Dark") {
+    // swiftlint:disable:next redundant_discardable_let - a ViewBuilder needs a declaration here.
     let _ = try? RoostFonts.register()
     RoostSwatchbook().preferredColorScheme(.dark)
+}
+
+#Preview("Accessibility 3") {
+    // swiftlint:disable:next redundant_discardable_let - a ViewBuilder needs a declaration here.
+    let _ = try? RoostFonts.register()
+    RoostSwatchbook()
+        .preferredColorScheme(.light)
+        .dynamicTypeSize(.accessibility3)
+}
+
+#Preview("System fonts (unregistered)") {
+    RoostSwatchbook().preferredColorScheme(.light)
 }
