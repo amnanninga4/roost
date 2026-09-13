@@ -122,6 +122,9 @@ struct SettingsScreen: View {
             #if DEBUG
                 TextField(Strings.Settings.serverField, text: $serverDraft)
                     .roostType(.callout)
+                    // A placeholder is not a label: it goes away the moment there is a URL in the field,
+                    // and then VoiceOver reads the URL with nothing to say what it is.
+                    .accessibilityLabel(Strings.Settings.serverField)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()

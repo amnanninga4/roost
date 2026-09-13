@@ -43,10 +43,9 @@ struct CodeStep: View {
                 }
 
                 Button(Strings.Onboarding.tokenLink) { showingTokenSheet = true }
-                    .buttonStyle(.plain)
                     .roostType(.footnote)
                     .foregroundStyle(RoostColor.Role.textSecondary.color)
-                    .frame(minHeight: RoostSpacing.minTapTarget, alignment: .leading)
+                    .buttonStyle(.roostTextAction)
             }
             .roostAnimation(.standard, value: AnimationKey(failure: model.failure, submitting: model.isSubmitting))
         }
@@ -88,7 +87,7 @@ private struct FailureNote: View {
                 Button(Strings.Onboarding.retry, action: retry)
                     .roostType(.headline)
                     .foregroundStyle(RoostColor.Role.accent.color)
-                    .frame(minHeight: RoostSpacing.minTapTarget, alignment: .leading)
+                    .buttonStyle(.roostTextAction)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

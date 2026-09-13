@@ -15,6 +15,7 @@
 		0D18EC24F9FB1BB35C396681 /* PushTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC7EF81E36E1517F9EC7528 /* PushTests.swift */; };
 		0D3864D2C93A09F703225872 /* StreakHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D07271A0DB7B2161F47FEC0 /* StreakHeaderView.swift */; };
 		0D41DD073E07E3B8421C62CC /* WidgetStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8039038BD9D6EB376251654 /* WidgetStrings.swift */; };
+		0FC2976B5FCBF3D1CF4F53B9 /* AccessibilityAuditTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D0D5CF694EBC454F1EE4D5 /* AccessibilityAuditTests.swift */; };
 		12096F825D02A2B92130DA28 /* ActiveFromTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90392A653A8DFE39392DDF97 /* ActiveFromTests.swift */; };
 		122C556EB733BF68D6564E88 /* HandoffPlanningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43E00B3E9B1753F2ABC5091F /* HandoffPlanningTests.swift */; };
 		14873D0E5201F3E0FB530E81 /* PushService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A61A06C665B3EA1D63BBC4F /* PushService.swift */; };
@@ -46,6 +47,7 @@
 		4C25971AEC9CDF6ACC9626E7 /* PersonColumnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48A55826328A91D661A3B83 /* PersonColumnView.swift */; };
 		4E249EBF76630E883E798BB8 /* RoostAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08D23A2D3FFCC9B7EDDDA809 /* RoostAppDelegate.swift */; };
 		4EBFF4F44A18F066B0E62638 /* HandoffActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8A96DE8278AB9B883E7B09 /* HandoffActions.swift */; };
+		4F98BA692C456D6EFC7C2475 /* ScrollPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F0EB3D5158830950CE9F299 /* ScrollPerformanceTests.swift */; };
 		51CB33641254A3B45130E629 /* SyncStatusCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AFCE9C866EBFF99D6AF71CE /* SyncStatusCopyTests.swift */; };
 		52B72B23F1E34310AB575E93 /* ListCraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA7C1B8D87C1351A417B2668 /* ListCraftTests.swift */; };
 		58B88FBE84B836D932320CFB /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 951289C9D2B9387F66FF2924 /* SnapshotStore.swift */; };
@@ -120,7 +122,9 @@
 		F33831CE8230577DE97A12D9 /* HandoffOfferCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D5790C8BCC584A338E1C947 /* HandoffOfferCard.swift */; };
 		F3B5069105664800E18076A6 /* SyncAPI+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59C7E3B2C6B03A58C3A3C989 /* SyncAPI+Push.swift */; };
 		F6E54746BBAAC8A68678C7D2 /* EscalationCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAABFF10436145260720977A /* EscalationCopy.swift */; };
+		FC2B40D169C2C3363B47D235 /* RoostUITestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5380BD30CE2B5F3D6A2DEED /* RoostUITestCase.swift */; };
 		FE732B3691A48C147D082A40 /* SeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEB1E461FBB61E46D4B13B15 /* SeedTests.swift */; };
+		FF6A4AEE0D4490B5F9ED580F /* UITestSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = C35BCAC455C547C3717FD7C8 /* UITestSeed.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -132,6 +136,13 @@
 			remoteInfo = RoostWidget;
 		};
 		DFB8516C985251BD049EDDC2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 13589255EB34057BBBF23F9E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7F5ADA688353B94FA4937F08;
+			remoteInfo = Roost;
+		};
+		E9C314E0BD1EF7DF95E59923 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 13589255EB34057BBBF23F9E /* Project object */;
 			proxyType = 1;
@@ -171,6 +182,7 @@
 		363D5D355D39B62D4830AA8F /* PairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingTests.swift; sourceTree = "<group>"; };
 		3AFCB4C23BE3B1B703EA7582 /* RoostCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoostCore; path = ../Packages/RoostCore; sourceTree = SOURCE_ROOT; };
 		3D5790C8BCC584A338E1C947 /* HandoffOfferCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffOfferCard.swift; sourceTree = "<group>"; };
+		3F0EB3D5158830950CE9F299 /* ScrollPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollPerformanceTests.swift; sourceTree = "<group>"; };
 		41A208594856956F7ED982DE /* ShoppingScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingScreen.swift; sourceTree = "<group>"; };
 		437D3C9DA2143287D04065E3 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		43E00B3E9B1753F2ABC5091F /* HandoffPlanningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffPlanningTests.swift; sourceTree = "<group>"; };
@@ -224,6 +236,7 @@
 		A0B51DECE9534ADC90073D27 /* HandoffPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffPresentation.swift; sourceTree = "<group>"; };
 		A10E35F985A65EA17D991EC0 /* StreakHeaderModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakHeaderModel.swift; sourceTree = "<group>"; };
 		A3A83AF60338C3D3E81A5795 /* ListCreateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListCreateTests.swift; sourceTree = "<group>"; };
+		A5380BD30CE2B5F3D6A2DEED /* RoostUITestCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostUITestCase.swift; sourceTree = "<group>"; };
 		A6F339EC29A50E64FE45C5FA /* RootTabsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabsTests.swift; sourceTree = "<group>"; };
 		A7168ED6D6C114A915763462 /* Records.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Records.swift; sourceTree = "<group>"; };
 		A71B879CE7DB2DB09F27382D /* ServerEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerEndpoint.swift; sourceTree = "<group>"; };
@@ -239,6 +252,7 @@
 		C0B250C6201CB77F9FC9A682 /* TodayPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlannerTests.swift; sourceTree = "<group>"; };
 		C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListFailureTests.swift; sourceTree = "<group>"; };
 		C322C42624D2C3E5EF44F476 /* SyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAPI.swift; sourceTree = "<group>"; };
+		C35BCAC455C547C3717FD7C8 /* UITestSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSeed.swift; sourceTree = "<group>"; };
 		C48A55826328A91D661A3B83 /* PersonColumnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonColumnView.swift; sourceTree = "<group>"; };
 		C56F18DF87B379A6F7A5447A /* SettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModel.swift; sourceTree = "<group>"; };
 		C8039038BD9D6EB376251654 /* WidgetStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetStrings.swift; sourceTree = "<group>"; };
@@ -258,10 +272,12 @@
 		EABB822893431DD76826FD3E /* StubURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubURLProtocol.swift; sourceTree = "<group>"; };
 		EC8A96DE8278AB9B883E7B09 /* HandoffActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffActions.swift; sourceTree = "<group>"; };
 		F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationCopyTests.swift; sourceTree = "<group>"; };
+		F2D0D5CF694EBC454F1EE4D5 /* AccessibilityAuditTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityAuditTests.swift; sourceTree = "<group>"; };
 		F40FBE395869733B4F7A6B18 /* TodayWidgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayWidgetView.swift; sourceTree = "<group>"; };
 		F646A9ADB3D39E2B899084CA /* ListReplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListReplayTests.swift; sourceTree = "<group>"; };
 		F8892EAFB22A5A81918BEFED /* ListSync+Records.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ListSync+Records.swift"; sourceTree = "<group>"; };
 		F8AFF8B396782198DAA9C8BE /* RemoteNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteNotifications.swift; sourceTree = "<group>"; };
+		F920647E80A14DF154B4C6BA /* RoostUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RoostUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FA7C1B8D87C1351A417B2668 /* ListCraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListCraftTests.swift; sourceTree = "<group>"; };
 		FAABFF10436145260720977A /* EscalationCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationCopy.swift; sourceTree = "<group>"; };
 		FB7E2D2040607F9F3DD01B58 /* RoostTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RoostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -323,11 +339,22 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
+		2EECE1332EE723CFA38F8BC4 /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				F2D0D5CF694EBC454F1EE4D5 /* AccessibilityAuditTests.swift */,
+				A5380BD30CE2B5F3D6A2DEED /* RoostUITestCase.swift */,
+				3F0EB3D5158830950CE9F299 /* ScrollPerformanceTests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
 		3D8301237CD261C84483E298 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				76764903F0C41339B67FE451 /* Roost.app */,
 				FB7E2D2040607F9F3DD01B58 /* RoostTests.xctest */,
+				F920647E80A14DF154B4C6BA /* RoostUITests.xctest */,
 				231ABF1630AD2D0B8F297B07 /* RoostWidget.appex */,
 			);
 			name = Products;
@@ -349,6 +376,7 @@
 				BB7CD878D6E5D1D301380265 /* RoostApp.swift */,
 				7A3CD8363F11629A32892822 /* RoostAppMarker.swift */,
 				9775AC21FAD79898ED7EB5F1 /* Strings.swift */,
+				94E0CAB97F317C48E7DD625B /* Debug */,
 				AF4BEF1CC404F47F087A13FB /* Models */,
 				E2182AB46D74977CE4573709 /* Notifications */,
 				BE3FEEFAC6EFAC1F8F9C7FA5 /* Onboarding */,
@@ -414,6 +442,7 @@
 				159FDBA45C2FC925272A7F5A /* Shared */,
 				6241ECDA17F81DF137471249 /* Sources */,
 				B40D66069CFD722AE875E8A9 /* Tests */,
+				2EECE1332EE723CFA38F8BC4 /* UITests */,
 				1283FBFCFA4EFA100B520573 /* Widget */,
 				3D8301237CD261C84483E298 /* Products */,
 			);
@@ -425,6 +454,14 @@
 				437D3C9DA2143287D04065E3 /* RootTabView.swift */,
 			);
 			path = Root;
+			sourceTree = "<group>";
+		};
+		94E0CAB97F317C48E7DD625B /* Debug */ = {
+			isa = PBXGroup;
+			children = (
+				C35BCAC455C547C3717FD7C8 /* UITestSeed.swift */,
+			);
+			path = Debug;
 			sourceTree = "<group>";
 		};
 		AF4BEF1CC404F47F087A13FB /* Models */ = {
@@ -567,6 +604,24 @@
 			productReference = 231ABF1630AD2D0B8F297B07 /* RoostWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		312522D8BCE81EC26C63096D /* RoostUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5B9D57DCED3BCF32E1D394D3 /* Build configuration list for PBXNativeTarget "RoostUITests" */;
+			buildPhases = (
+				7F962EE9B4921EB4F397F964 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AE9A4AC367AC8BF6F275A245 /* PBXTargetDependency */,
+			);
+			name = RoostUITests;
+			packageProductDependencies = (
+			);
+			productName = RoostUITests;
+			productReference = F920647E80A14DF154B4C6BA /* RoostUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		74C11D5CE8E591EC145C8DB4 /* RoostTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A43D1DDEBA273D14EF356F57 /* Build configuration list for PBXNativeTarget "RoostTests" */;
@@ -622,6 +677,11 @@
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
+					312522D8BCE81EC26C63096D = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = 7F5ADA688353B94FA4937F08;
+					};
 					74C11D5CE8E591EC145C8DB4 = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
@@ -654,6 +714,7 @@
 				7F5ADA688353B94FA4937F08 /* Roost */,
 				25C317265ED30F3BFD7C16E7 /* RoostWidget */,
 				74C11D5CE8E591EC145C8DB4 /* RoostTests */,
+				312522D8BCE81EC26C63096D /* RoostUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -744,6 +805,7 @@
 				2FDAD84700E94823972F0DED /* TodayWidgetView.swift in Sources */,
 				C853344873DAF928B5A701AA /* TokenSheet.swift in Sources */,
 				E35E03E05E5B7C537A12365E /* TokenStore.swift in Sources */,
+				FF6A4AEE0D4490B5F9ED580F /* UITestSeed.swift in Sources */,
 				A9ABFEEFF2D1A273421DA4CD /* WelcomeStep.swift in Sources */,
 				0D41DD073E07E3B8421C62CC /* WidgetStrings.swift in Sources */,
 				45080C95C6C2271E4D6C5254 /* WidgetStyle.swift in Sources */,
@@ -761,6 +823,16 @@
 				AAD4E63D814A2EAD1E3612A2 /* TodayWidgetView.swift in Sources */,
 				2318818D8FCC06D80C2BC34B /* WidgetStrings.swift in Sources */,
 				616D3FC636B72C719EC2D8EE /* WidgetStyle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7F962EE9B4921EB4F397F964 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0FC2976B5FCBF3D1CF4F53B9 /* AccessibilityAuditTests.swift in Sources */,
+				FC2B40D169C2C3363B47D235 /* RoostUITestCase.swift in Sources */,
+				4F98BA692C456D6EFC7C2475 /* ScrollPerformanceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -811,6 +883,11 @@
 			isa = PBXTargetDependency;
 			target = 25C317265ED30F3BFD7C16E7 /* RoostWidget */;
 			targetProxy = 9E0E8B216BCE5639944F5779 /* PBXContainerItemProxy */;
+		};
+		AE9A4AC367AC8BF6F275A245 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7F5ADA688353B94FA4937F08 /* Roost */;
+			targetProxy = E9C314E0BD1EF7DF95E59923 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -881,6 +958,23 @@
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
+		};
+		4A1831281FD9AD0E664B44C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.hinescreative.roost.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Roost;
+			};
+			name = Release;
 		};
 		4D7C7E4376A98CA1C47FCADF /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -1052,6 +1146,23 @@
 			};
 			name = Debug;
 		};
+		EA46E327AFCD85AFF29B9FBA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.hinescreative.roost.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Roost;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1060,6 +1171,15 @@
 			buildConfigurations = (
 				D6D804210941AC585D9F04F7 /* Debug */,
 				4D7C7E4376A98CA1C47FCADF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5B9D57DCED3BCF32E1D394D3 /* Build configuration list for PBXNativeTarget "RoostUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EA46E327AFCD85AFF29B9FBA /* Debug */,
+				4A1831281FD9AD0E664B44C4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

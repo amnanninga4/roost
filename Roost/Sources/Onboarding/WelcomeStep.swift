@@ -37,17 +37,31 @@ struct WelcomeStep: View {
 private struct PersonChip: View {
     let person: Person
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
     var body: some View {
         HStack(spacing: RoostSpacing.sm) {
-            Text(person.initial)
-                .roostType(.headline)
-                .foregroundStyle(person.design.color)
-                .frame(minWidth: RoostSpacing.xl, minHeight: RoostSpacing.xl)
-                .background(person.design.softColor, in: Circle())
+            // The initial is the name again, in a circle — decoration, and the first thing to go, the same
+            // rule the chore rows follow for their category badge. It goes at accessibility sizes because a
+            // `Circle` background takes the smaller side of the text's box, so a letter that is taller than
+            // it is wide grows out of its own circle.
+            if !typeSize.isAccessibilitySize {
+                Text(person.initial)
+                    .roostType(.headline)
+                    .foregroundStyle(person.design.color)
+                    .frame(minWidth: RoostSpacing.xl, minHeight: RoostSpacing.xl)
+                    .background(person.design.softColor, in: Circle())
+                    .accessibilityHidden(true)
+            }
             Text(person.displayName)
                 .roostType(.rowTitle)
                 .foregroundStyle(RoostColor.Role.textPrimary.color)
-                .lineLimit(1)
+                // No `lineLimit(1)`: it was here to stop "Wes" breaking in two, but a line limit is also
+                // what stopped `ViewThatFits` above from ever choosing the stacked layout — a truncating
+                // HStack always "fits" — so the chips squeezed instead of stacking, and the name was
+                // clipped at the text sizes the stack exists for. Letting the word measure itself is what
+                // makes the fallback fire.
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.vertical, RoostSpacing.sm)
         .padding(.horizontal, RoostSpacing.md)

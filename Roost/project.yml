@@ -145,6 +145,24 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: xyz.hinescreative.roost.tests
         GENERATE_INFOPLIST_FILE: YES
 
+  # The accessibility audit, one XCUITest per screen, plus the Shopping list's scroll metrics. Each test
+  # launches the app with `-roostUITestState <name>` (Sources/Debug/UITestSeed.swift), which is an
+  # in-memory store with a fixed set of records and no server to reach, so the suite needs no network.
+  RoostUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget:
+      iOS: "26.0"
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Roost
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.hinescreative.roost.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Roost
+
 schemes:
   Roost:
     build:
@@ -153,9 +171,11 @@ schemes:
         # So the one `xcodebuild ... test` line in CLAUDE.md compiles the widget too.
         RoostWidget: all
         RoostTests: [test]
+        RoostUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
         - RoostTests
+        - RoostUITests

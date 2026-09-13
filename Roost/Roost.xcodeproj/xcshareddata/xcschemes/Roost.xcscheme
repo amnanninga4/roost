@@ -37,6 +37,20 @@
          </BuildActionEntry>
          <BuildActionEntry
             buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "312522D8BCE81EC26C63096D"
+               BuildableName = "RoostUITests.xctest"
+               BlueprintName = "RoostUITests"
+               ReferencedContainer = "container:Roost.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
             buildForRunning = "YES"
             buildForProfiling = "YES"
             buildForArchiving = "YES"
@@ -75,6 +89,17 @@
                BlueprintIdentifier = "74C11D5CE8E591EC145C8DB4"
                BuildableName = "RoostTests.xctest"
                BlueprintName = "RoostTests"
+               ReferencedContainer = "container:Roost.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "312522D8BCE81EC26C63096D"
+               BuildableName = "RoostUITests.xctest"
+               BlueprintName = "RoostUITests"
                ReferencedContainer = "container:Roost.xcodeproj">
             </BuildableReference>
          </TestableReference>

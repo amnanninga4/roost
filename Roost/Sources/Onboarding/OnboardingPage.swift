@@ -135,6 +135,10 @@ struct OnboardingActionButton: View {
 
 /// Where the reader is. Dots, not a bar: four steps is a count, not a percentage. The current dot is wider,
 /// which says "you are here" without a caption.
+///
+/// The dots are 8 pt tall and the row they sit in is 44. It is one VoiceOver element — "Step 2 of 4" — and
+/// an element that small is one the accessibility audit calls out however little it wants a tap, so the
+/// band it lives in is the size a band should be. It also stops the dots sitting right under the status bar.
 struct OnboardingProgress: View {
     let step: Int
     let total: Int
@@ -149,7 +153,11 @@ struct OnboardingProgress: View {
                     .frame(width: index == step ? RoostSpacing.xl : RoostSpacing.sm, height: RoostSpacing.sm)
             }
         }
+        .frame(maxWidth: .infinity, minHeight: RoostSpacing.minTapTarget)
         .roostAnimation(.standard, value: step)
+        // `.accessibility` rather than the default kinds: this sets the frame the accessibility element
+        // reports, which otherwise hugs the 8-pt dots however tall the band around them is.
+        .contentShape(.accessibility, Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Strings.Onboarding.progress(step + 1, of: total))
     }
