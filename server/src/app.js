@@ -1,6 +1,7 @@
 // HTTP surface. Plain node:http, JSON in/out.
 //
 //   GET    /health                        no auth
+//   GET    /favicon.ico                   no auth — tiny SVG icon (before bearer)
 //   GET    /status                        no auth — kitchen status board (HTML)
 //   GET    /status.json                   no auth — same board data as JSON (names/titles)
 //   GET    /fonts/<file>                  no auth — RoostDesign font files (allowlisted)
@@ -61,7 +62,7 @@ import {
   listsAfter,
 } from "./db.js";
 import { createTokenStore, bearerFrom, hashToken } from "./auth.js";
-import { statusHandler, statusJsonHandler, fontsHandler } from "./status.js";
+import { statusHandler, statusJsonHandler, fontsHandler, faviconHandler } from "./status.js";
 import { bonusRoutes, bonusSync } from "./bonus.js";
 import { createPairing, pendingCodes } from "./pairing.js";
 import { createPush, pushRoutes } from "./push.js";
@@ -259,6 +260,8 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         rev: readDeployedRev(),
       });
     }
+
+    if (req.method === "GET" && path === "/favicon.ico") return faviconHandler(req, res);
 
     if (req.method === "GET" && path === "/status") return statusHandler(db, req, res, { now });
     if (req.method === "GET" && path === "/status.json") return statusJsonHandler(db, req, res, { now });

@@ -82,25 +82,25 @@ function stageLabel(stage) {
     case "dueToday":
       return "due today";
     case "nudge":
-      return "nudge";
+      return "1 day late";
     case "pointed":
-      return "pointed";
+      return "3 days late";
     case "alert":
-      return "alert";
+      return "5+ days late";
     default:
       return stage;
   }
 }
 
-/** Semantic class for escalation stage (warning @ nudge/tease, danger @ alert). */
+/** Semantic class for escalation stage (warning @ 3 days / pointed, danger @ 5+ / alert). */
 function stageClass(stage) {
   switch (stage) {
     case "dueToday":
       return "stage-due";
     case "nudge":
-      return "stage-nudge warning";
+      return "stage-nudge";
     case "pointed":
-      return "stage-pointed";
+      return "stage-pointed warning";
     case "alert":
       return "stage-alert danger";
     default:
@@ -254,6 +254,19 @@ export function fontsHandler(_req, res, path) {
 /**
  * GET /status.json — same data the page renders; no auth; names and titles only.
  */
+/** Plain green-circle SVG favicon; served before auth. */
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#2F8F72"/></svg>`;
+
+export function faviconHandler(_req, res) {
+  const buf = Buffer.from(FAVICON_SVG, "utf8");
+  res.writeHead(200, {
+    "content-type": "image/svg+xml; charset=utf-8",
+    "content-length": buf.byteLength,
+    "cache-control": "public, max-age=31536000, immutable",
+  });
+  res.end(buf);
+}
+
 export function statusJsonHandler(db, _req, res, opts = {}) {
   const board = buildStatusBoard(db, opts);
   const json = JSON.stringify(board);
@@ -290,7 +303,7 @@ export function statusHandler(db, _req, res, opts = {}) {
                 const arrow = i.viaHandoff
                   ? ` <span class="handoff">→ ${escapeHtml(displayName(i.person))}</span>`
                   : "";
-                return `<li class="${escapeHtml(stageClass(i.stage))}"><span class="due-title">${escapeHtml(i.title)}</span>${arrow} <span class="stage">(${escapeHtml(stageLabel(i.stage))})</span></li>`;
+                return `<li class="${escapeHtml(stageClass(i.stage))}"><span class="due-title">${escapeHtml(i.title)}</span>${arrow} <span class="stage-chip">${escapeHtml(stageLabel(i.stage))}</span></li>`;
               })
               .join("")}</ul>`;
 
@@ -516,12 +529,23 @@ export function statusHandler(db, _req, res, opts = {}) {
     }
     li:first-child { border-top: 0; }
     li.empty, .meta-empty { color: var(--ink-soft); font-style: italic; margin: 0; }
-    .stage { font-size: 0.9em; }
-    .stage-due .stage { color: var(--ink-soft); }
-    .stage-nudge .stage, .warning .stage { color: var(--tease); }
-    .stage-pointed .stage { color: var(--gold); }
-    .stage-alert .stage, .danger .stage { color: var(--alert); }
-    .stage-nudge, .warning { background: var(--tease-soft); margin: 0 -0.35rem; padding-left: 0.35rem; padding-right: 0.35rem; border-radius: 6px; }
+    .stage-chip {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      line-height: 1.2;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--ink-soft);
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .stage-due .stage-chip { color: var(--ink-soft); background: var(--surface-2); }
+    .stage-nudge .stage-chip { color: var(--ink-soft); background: var(--line); }
+    .stage-pointed .stage-chip, .warning .stage-chip { color: var(--gold); background: var(--gold-soft); }
+    .stage-alert .stage-chip, .danger .stage-chip { color: var(--alert); background: var(--alert-soft); }
+    .stage-pointed, .warning { background: var(--gold-soft); margin: 0 -0.35rem; padding-left: 0.35rem; padding-right: 0.35rem; border-radius: 6px; }
     .stage-alert, .danger { background: var(--alert-soft); margin: 0 -0.35rem; padding-left: 0.35rem; padding-right: 0.35rem; border-radius: 6px; }
     .handoff { color: var(--accent); font-weight: 600; font-size: 0.95em; }
     .pts { color: var(--gold); font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; }
@@ -531,6 +555,10 @@ export function statusHandler(db, _req, res, opts = {}) {
       grid-template-columns: 4.5rem 1fr auto;
       gap: 0.75rem;
       align-items: baseline;
+    }
+    .recent li.empty {
+      display: block;
+      grid-template-columns: none;
     }
     .who { font-weight: 600; color: var(--accent); }
     .what { color: var(--ink); }

@@ -69,7 +69,8 @@ test("GET /status shows overdue stage labels when chores are past due", async ()
   // clock is Mon Sep 14 afternoon CT; activeFrom Sep 7 → weekly of Sep 7 ended Sun Sep 13 → 1 day overdue
   const res = await fetch(base + "/status");
   const html = await res.text();
-  assert.match(html, /\(nudge\)|\(pointed\)|\(alert\)/);
+  assert.match(html, /1 day late|3 days late|5\+ days late|due today/);
+  assert.match(html, /stage-chip/);
   assert.match(html, /Streak/);
 });
 
@@ -131,4 +132,17 @@ test("GET /status HTML has Anne and Wes columns plus stage class names", async (
   assert.match(html, /Fraunces/);
   assert.match(html, /Nunito Sans/);
   assert.match(html, /IBM Plex Mono/);
+});
+
+test("GET /favicon.ico returns SVG before auth with long cache", async () => {
+  const res = await fetch(base + "/favicon.ico");
+  assert.equal(res.status, 200);
+  const ct = res.headers.get("content-type") || "";
+  assert.match(ct, /image\/svg\+xml/);
+  const cache = res.headers.get("cache-control") || "";
+  assert.match(cache, /max-age=31536000/i);
+  assert.match(cache, /immutable/i);
+  const body = await res.text();
+  assert.match(body, /<svg/i);
+  assert.match(body, /#2F8F72/i);
 });
