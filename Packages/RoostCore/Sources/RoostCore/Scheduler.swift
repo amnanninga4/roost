@@ -48,7 +48,8 @@ extension DueItem {
 /// `plan(on:completions:handoffs:)` then runs the optional `balancer` over the whole day's list, which can move
 /// an item that is unpinned, un-handed-off, and still inside its period. Nothing else consults the balancer:
 /// `assignee(for:periodIndex:)` and `dueItem(...)` answer for one chore at a time and cannot balance a list
-/// they cannot see, so `Tallies` and anything else walking history gets the plain rotation answer.
+/// they cannot see, so `Tallies` and anything else walking history gets the unbalanced answer: handoff, then
+/// pin, then rotation.
 public struct Scheduler: Sendable {
     public let chores: [Chore]
     public let rotation: Rotation
