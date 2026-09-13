@@ -178,8 +178,9 @@ export function insertHandoff(db, { id, choreId, fromPerson, toPerson, periodInd
 }
 
 /**
- * Accept or decline. Returns { status, row }:
+ * Accept or decline. Returns { status, row, changed? }:
  *   ok         answered (or already in the requested state — replay)
+ *              changed=true only when state actually moved pending→accepted/declined
  *   expired    period ended (row marked expired if it was still open)
  *   forbidden  caller is not the offer's `to`
  *   not_pending already answered differently / not pending
@@ -199,10 +200,11 @@ export function resolveHandoff(db, id, decision, person, now) {
   if (row.toPerson !== person) return { status: "forbidden", row };
 
   const want = decision === "accept" ? "accepted" : "declined";
-  if (row.state === want) return { status: "ok", row };
-  if (row.state !== "pending") return { status: "not_pending", row };
+  // Replay of an already-answered decision: ok but unchanged (do not re-push).
+  if (row.state === want) return { status: "ok", row, changed: false };
+  if (row.state !== "pending") return { status: "not_pending", row, changed: false };
 
-  return { status: "ok", row: update(db, id, { state: want }, now) };
+  return { status: "ok", row: update(db, id, { state: want }, now), changed: true };
 }
 
 /**
@@ -247,7 +249,7 @@ const ACTION_RE = /^\/handoffs\/([A-Za-z0-9._~:@+-]{1,64})\/(accept|decline)$/;
  *   POST /handoffs/:id/accept   to-person only -> 200
  *   POST /handoffs/:id/decline  to-person only -> 200
  */
-export async function handoffRoutes({ req, res, path, db, device, send, readJson, now }) {
+export async function handoffRoutes({ req, res, path, db, device, send, readJson, now, push, log = console.error }) {
   const iso = () => now().toISOString();
 
   if (req.method === "POST" && path === "/handoffs") {
@@ -296,7 +298,13 @@ export async function handoffRoutes({ req, res, path, db, device, send, readJson
     else if (error === "cadence_mismatch") send(res, 400, { error: "cadence must match the chore" });
     else if (error === "not_owner") send(res, 403, { error: "only the current owner may offer this chore" });
     else if (error === "open_exists") send(res, 409, { error: "an open handoff already exists for this chore and period" });
-    else send(res, created ? 201 : 200, shapeHandoff(row));
+    else {
+      send(res, created ? 201 : 200, shapeHandoff(row));
+      // Offer push only on real create (201), not idempotent replay (200).
+      if (created && push) {
+        push.notifyHandoff(row, "offer").catch((err) => log(iso(), "push handoff offer", err));
+      }
+    }
     return true;
   }
 
@@ -304,12 +312,19 @@ export async function handoffRoutes({ req, res, path, db, device, send, readJson
   if (req.method === "POST" && action) {
     const [, id, verb] = action;
     expireOpenHandoffs(db, now());
-    const { status, row } = resolveHandoff(db, id, verb, device.person, iso());
+    const { status, row, changed } = resolveHandoff(db, id, verb, device.person, iso());
     if (status === "missing") send(res, 404, { error: "not found" });
     else if (status === "forbidden") send(res, 403, { error: "only the person offered the handoff may answer" });
     else if (status === "expired") send(res, 409, { error: "handoff period has ended", handoff: shapeHandoff(row) });
     else if (status === "not_pending") send(res, 409, { error: "handoff is not pending", handoff: shapeHandoff(row) });
-    else send(res, 200, shapeHandoff(row));
+    else {
+      send(res, 200, shapeHandoff(row));
+      // Accept/decline push only when state newly changed (not replay).
+      if (changed && push) {
+        const kind = row.state === "accepted" ? "accepted" : "declined";
+        push.notifyHandoff(row, kind).catch((err) => log(iso(), `push handoff ${kind}`, err));
+      }
+    }
     return true;
   }
 

@@ -320,6 +320,45 @@ export function createPush({
     });
   }
 
+  /** daily→today, weekly|biweekly→this week, monthly→this month. */
+  function periodPhrase(cadence) {
+    if (cadence === "daily") return "today";
+    if (cadence === "weekly" || cadence === "biweekly") return "this week";
+    if (cadence === "monthly") return "this month";
+    return "this period";
+  }
+
+  /**
+   * Handoff push. kind: "offer" | "accepted" | "declined".
+   * Offer → toPerson; accept/decline → fromPerson. Collapse id handoff-<id>.
+   * Callers fire only on real transitions (created offer; newly accepted/declined).
+   */
+  async function notifyHandoff(row, kind) {
+    if (!row) return;
+    const chore = db.prepare("SELECT title FROM chores WHERE id = ?").get(row.choreId);
+    const title = chore?.title ?? row.choreId;
+    const phrase = periodPhrase(row.cadence);
+    const headers = { "apns-collapse-id": `handoff-${row.id}` };
+    if (kind === "offer") {
+      const who = NAME[row.fromPerson] ?? row.fromPerson;
+      await deliver(row.toPerson, {
+        title: "Roost",
+        body: `${who} asked you to take ${title} ${phrase}`,
+        headers,
+      });
+      return;
+    }
+    if (kind === "accepted" || kind === "declined") {
+      const who = NAME[row.toPerson] ?? row.toPerson;
+      const verb = kind === "accepted" ? "accepted" : "declined";
+      await deliver(row.fromPerson, {
+        title: "Roost",
+        body: `${who} ${verb} ${title} ${phrase}`,
+        headers,
+      });
+    }
+  }
+
   /**
    * Red-alert: stage >= 3 ("alert", daysOverdue >= 5). Notify the assignee's partner.
    * Idempotent across restarts via push_alerts (choreId, periodIndex).
@@ -378,6 +417,7 @@ export function createPush({
   return {
     health: () => health,
     notifyCompletion,
+    notifyHandoff,
     runRedAlertSweep,
     deliver,
     startSweep,
