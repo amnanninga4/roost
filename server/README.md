@@ -142,6 +142,46 @@ Backups: `roost-backup.timer` runs `backup.sh` at 03:30 host-local time (theoldo
 
 Logs: `journalctl -u roost -f`.
 
-## Not in this ticket
+## Push (APNs)
 
-Push notifications (APNs) are R-6 and need the key from Wes's developer account placed on the host outside the repo.
+Optional. Without a key on the host, the API stays healthy and `/health` reports `push: "no key"`; sends are no-ops that log once and never throw.
+
+### Host files (never in git)
+
+`/etc/roost/apns.json` (root:roost `0640`):
+
+```json
+{
+  "keyPath": "/etc/roost/AuthKey_XXXXXXXXXX.p8",
+  "keyId": "XXXXXXXXXX",
+  "teamId": "XXXXXXXXXX",
+  "bundleId": "xyz.hinescreative.roost",
+  "env": "sandbox"
+}
+```
+
+`env` is `"sandbox"` or `"production"`. Put the matching `.p8` next to the JSON (path in `keyPath`), also **root:roost `0640`**. The process user `roost` must be able to read both.
+
+### Health
+
+`GET /health` includes `push`:
+
+| Value | Meaning |
+|---|---|
+| `no key` | `apns.json` or `.p8` missing/invalid; sends disabled |
+| `sandbox` | key loaded, sandbox APNs host |
+| `production` | key loaded, production APNs host |
+
+### Register / unregister
+
+Authenticated device:
+
+- `POST /push/token` `{ "token": "<64-hex>", "platform": "ios" }` — upsert
+- `DELETE /push/token` `{ "token": "<64-hex>" }` — unregister (own tokens only)
+
+Dead tokens are pruned automatically when APNs returns `410`, or `400` with reason `BadDeviceToken` / `DeviceTokenNotForTopic`.
+
+### Behaviour
+
+- Completion create notifies the other person (`apns-expiration` = now+3600 seconds).
+- Every 15 minutes, stage ≥ 3 overdue chores notify the assignee's partner (`apns-collapse-id` = `red-<choreId>`). Sent pairs are stored in `push_alerts` so restarts do not re-blast.

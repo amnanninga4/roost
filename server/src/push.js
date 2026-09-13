@@ -16,6 +16,8 @@ import { dueItems } from "./rules.js";
 export const DEFAULT_APNS_PATH = "/etc/roost/apns.json";
 export const DEFAULT_BUNDLE_ID = "xyz.hinescreative.roost";
 export const RED_ALERT_MS = 15 * 60 * 1000;
+export const APNS_REQUEST_TIMEOUT_MS = 10_000;
+export const COMPLETION_EXPIRATION_SEC = 3600;
 
 /** dueToday=0, nudge=1, pointed=2, alert=3 — red-alert is stage >= 3. */
 export const STAGE_RANK = Object.freeze({ dueToday: 0, nudge: 1, pointed: 2, alert: 3 });
@@ -28,11 +30,18 @@ CREATE TABLE IF NOT EXISTS push_tokens (
   updatedAt TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS push_tokens_person ON push_tokens(person);
+CREATE TABLE IF NOT EXISTS push_alerts (
+  choreId     TEXT NOT NULL,
+  periodIndex INTEGER NOT NULL,
+  sentAt      TEXT NOT NULL,
+  PRIMARY KEY (choreId, periodIndex)
+);
 `;
 
 const PLATFORMS = new Set(["ios"]);
 const TOKEN_RE = /^[0-9a-fA-F]{64}$/;
 const NAME = { anne: "Anne", wes: "Wes" };
+const DEAD_TOKEN_REASONS = new Set(["BadDeviceToken", "DeviceTokenNotForTopic"]);
 
 export function partnerOf(person) {
   return person === "anne" ? "wes" : "anne";
@@ -56,6 +65,24 @@ export function deletePushToken(db, { token, person }) {
 
 export function tokensForPerson(db, person) {
   return db.prepare("SELECT token, person, platform, updatedAt FROM push_tokens WHERE person = ?").all(person);
+}
+
+/** True when APNs says the device token is permanently dead and should be pruned. */
+export function shouldPruneToken(status, reason) {
+  if (status === 410) return true;
+  if (status === 400 && DEAD_TOKEN_REASONS.has(reason)) return true;
+  return false;
+}
+
+export function hasPushAlert(db, choreId, periodIndex) {
+  return !!db.prepare("SELECT 1 FROM push_alerts WHERE choreId = ? AND periodIndex = ?").get(choreId, periodIndex);
+}
+
+export function recordPushAlert(db, choreId, periodIndex, sentAt) {
+  db.prepare(
+    `INSERT INTO push_alerts (choreId, periodIndex, sentAt) VALUES (?, ?, ?)
+     ON CONFLICT(choreId, periodIndex) DO NOTHING`
+  ).run(choreId, periodIndex, sentAt);
 }
 
 function b64url(data) {
@@ -107,9 +134,20 @@ function apnsHost(env) {
   return env === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
 }
 
+function parseApnsReason(resp) {
+  if (!resp) return undefined;
+  try {
+    const parsed = JSON.parse(resp);
+    return typeof parsed?.reason === "string" ? parsed.reason : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Real HTTP/2 APNs sender. Injectable `connect` for tests that still want the request shape
  * without talking to Apple; production uses node:http2.connect.
+ * Resolves { status, reason } where reason is the APNs JSON body `reason` field (if any).
  */
 export function createHttp2Sender(config, { connect = http2.connect, now = () => new Date(), log = console.error } = {}) {
   let jwt = null;
@@ -128,9 +166,35 @@ export function createHttp2Sender(config, { connect = http2.connect, now = () =>
   return async function sendApns({ deviceToken, headers, body }) {
     const host = apnsHost(config.env);
     const client = connect(`https://${host}`);
-    await new Promise((resolve, reject) => {
-      client.on("error", reject);
-      const req = client.request({
+    return await new Promise((resolve, reject) => {
+      let settled = false;
+      const fail = (err) => {
+        if (settled) return;
+        settled = true;
+        try {
+          client.close();
+        } catch {
+          /* ignore */
+        }
+        reject(err);
+      };
+      const succeed = (value) => {
+        if (settled) return;
+        settled = true;
+        try {
+          client.close();
+        } catch {
+          /* ignore */
+        }
+        resolve(value);
+      };
+
+      client.on("error", fail);
+      if (typeof client.setTimeout === "function") {
+        client.setTimeout(APNS_REQUEST_TIMEOUT_MS, () => fail(new Error("apns client timeout")));
+      }
+
+      const reqHeaders = {
         ":method": "POST",
         ":path": `/3/device/${deviceToken}`,
         authorization: `bearer ${bearer()}`,
@@ -138,7 +202,11 @@ export function createHttp2Sender(config, { connect = http2.connect, now = () =>
         "apns-push-type": headers["apns-push-type"] ?? "alert",
         "apns-priority": headers["apns-priority"] ?? "10",
         "content-type": "application/json",
-      });
+      };
+      if (headers["apns-collapse-id"]) reqHeaders["apns-collapse-id"] = headers["apns-collapse-id"];
+      if (headers["apns-expiration"]) reqHeaders["apns-expiration"] = headers["apns-expiration"];
+
+      const req = client.request(reqHeaders);
       let status = 0;
       let resp = "";
       req.on("response", (h) => {
@@ -147,20 +215,20 @@ export function createHttp2Sender(config, { connect = http2.connect, now = () =>
       req.setEncoding("utf8");
       req.on("data", (c) => (resp += c));
       req.on("end", () => {
-        client.close();
+        const reason = parseApnsReason(resp);
         if (status >= 400) log(`apns ${status} for …${deviceToken.slice(-8)}: ${resp || "(empty)"}`);
-        resolve();
+        succeed({ status, reason });
       });
-      req.on("error", (err) => {
-        client.close();
-        reject(err);
-      });
+      req.on("error", fail);
+      if (typeof req.setTimeout === "function") {
+        req.setTimeout(APNS_REQUEST_TIMEOUT_MS, () => fail(new Error("apns request timeout")));
+      }
       req.end(JSON.stringify(body));
     });
   };
 }
 
-/** No-op sender when the key is absent. Logs once, never throws. */
+/** No-op sender when the key is absent. Logs once, never throws. Resolves { status: 0 }. */
 export function createDisabledSender({ log = console.error } = {}) {
   let logged = false;
   return async function sendDisabled() {
@@ -168,6 +236,7 @@ export function createDisabledSender({ log = console.error } = {}) {
       logged = true;
       log("push disabled: no apns key (sends are no-ops)");
     }
+    return { status: 0 };
   };
 }
 
@@ -213,7 +282,7 @@ export function createPush({
   let config = built.config;
   const bundleId = () => config?.bundleId ?? DEFAULT_BUNDLE_ID;
 
-  async function deliver(person, { title, body }) {
+  async function deliver(person, { title, body, headers: extraHeaders = {} }) {
     const rows = tokensForPerson(db, person);
     if (rows.length === 0) return;
     const payload = alertBody(title, body);
@@ -221,10 +290,16 @@ export function createPush({
       "apns-topic": bundleId(),
       "apns-push-type": "alert",
       "apns-priority": "10",
+      ...extraHeaders,
     };
     for (const row of rows) {
       try {
-        await sender({ deviceToken: row.token, headers, body: payload });
+        const result = await sender({ deviceToken: row.token, headers, body: payload });
+        const status = result?.status;
+        const reason = result?.reason;
+        if (shouldPruneToken(status, reason)) {
+          db.prepare("DELETE FROM push_tokens WHERE token = ?").run(row.token);
+        }
       } catch (err) {
         log(`push send failed for ${person}: ${err.message}`);
       }
@@ -237,35 +312,48 @@ export function createPush({
     const title = chore?.title ?? row.choreId;
     const who = NAME[row.person] ?? row.person;
     const other = partnerOf(row.person);
-    await deliver(other, { title: "Roost", body: `${who} did ${title}` });
+    const expiration = String(Math.floor(now().getTime() / 1000) + COMPLETION_EXPIRATION_SEC);
+    await deliver(other, {
+      title: "Roost",
+      body: `${who} did ${title}`,
+      headers: { "apns-expiration": expiration },
+    });
   }
 
   /**
    * Red-alert: stage >= 3 ("alert", daysOverdue >= 5). Notify the assignee's partner.
-   * Idempotent within a process for the same chore+period until the period changes.
+   * Idempotent across restarts via push_alerts (choreId, periodIndex).
+   * Re-entrancy guarded: a second tick while a sweep is awaiting sends is a no-op.
    */
-  const alerted = new Set();
+  let sweeping = false;
   async function runRedAlertSweep(asOf = now()) {
-    const chores = db
-      .prepare("SELECT id, title, cadence, fixedAssignee, category FROM chores WHERE retired = 0 ORDER BY sortOrder")
-      .all();
-    const completions = db
-      .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
-      .all();
-    const due = dueItems({ chores, completions, asOf });
-    for (const person of PEOPLE) {
-      for (const item of due[person] ?? []) {
-        if ((STAGE_RANK[item.stage] ?? -1) < 3) continue;
-        const key = `${item.chore.id}:${item.periodIndex}`;
-        if (alerted.has(key)) continue;
-        alerted.add(key);
-        const other = partnerOf(item.person);
-        const who = NAME[item.person] ?? item.person;
-        await deliver(other, {
-          title: "Roost red alert",
-          body: `${who}'s chore is overdue: ${item.chore.title}`,
-        });
+    if (sweeping) return;
+    sweeping = true;
+    try {
+      const chores = db
+        .prepare("SELECT id, title, cadence, fixedAssignee, category FROM chores WHERE retired = 0 ORDER BY sortOrder")
+        .all();
+      const completions = db
+        .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
+        .all();
+      const due = dueItems({ chores, completions, asOf });
+      const sentAt = asOf.toISOString();
+      for (const person of PEOPLE) {
+        for (const item of due[person] ?? []) {
+          if ((STAGE_RANK[item.stage] ?? -1) < 3) continue;
+          if (hasPushAlert(db, item.chore.id, item.periodIndex)) continue;
+          recordPushAlert(db, item.chore.id, item.periodIndex, sentAt);
+          const other = partnerOf(item.person);
+          const who = NAME[item.person] ?? item.person;
+          await deliver(other, {
+            title: "Roost red alert",
+            body: `${who}'s chore is overdue: ${item.chore.title}`,
+            headers: { "apns-collapse-id": `red-${item.chore.id}` },
+          });
+        }
       }
+    } finally {
+      sweeping = false;
     }
   }
 

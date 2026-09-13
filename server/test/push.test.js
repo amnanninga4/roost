@@ -11,9 +11,13 @@ import {
   loadApnsConfig,
   createDisabledSender,
   buildSender,
+  createPush,
   STAGE_RANK,
   partnerOf,
   upsertPushToken,
+  shouldPruneToken,
+  hasPushAlert,
+  COMPLETION_EXPIRATION_SEC,
 } from "../src/push.js";
 import { escalationStage } from "../src/rules.js";
 
@@ -24,6 +28,7 @@ const ANNE = "anne-token-0123456789abcdef";
 const WES = "wes-token-0123456789abcdef";
 const ANNE_PUSH = "a".repeat(64);
 const WES_PUSH = "b".repeat(64);
+const DEAD_PUSH = "d".repeat(64);
 
 let dir, base, app, tokensPath, sent, clock;
 const logged = [];
@@ -39,6 +44,7 @@ before(async () => {
   sent = [];
   const mockSender = async (req) => {
     sent.push(req);
+    return { status: 200 };
   };
   app = createApp({
     dbPath: join(dir, "roost.db"),
@@ -139,7 +145,7 @@ test("POST /push/token upserts; DELETE unregisters; auth required", async () => 
   assert.equal((await call("DELETE", "/push/token", { token: ANNE, body: { token: ANNE_PUSH } })).status, 404);
 });
 
-test("POST /completions notifies the other person with payload + apns-topic; no network", async () => {
+test("POST /completions notifies the other person with payload + apns-topic + expiration; no network", async () => {
   sent.length = 0;
   // Re-register both so delivery has somewhere to go
   await call("POST", "/push/token", { token: ANNE, body: { token: ANNE_PUSH, platform: "ios" } });
@@ -159,6 +165,8 @@ test("POST /completions notifies the other person with payload + apns-topic; no 
   assert.equal(req.deviceToken, WES_PUSH, "Anne's completion notifies Wes");
   assert.equal(req.headers["apns-topic"], "xyz.hinescreative.roost");
   assert.equal(req.headers["apns-push-type"], "alert");
+  const expectedExp = String(Math.floor(clock.getTime() / 1000) + COMPLETION_EXPIRATION_SEC);
+  assert.equal(req.headers["apns-expiration"], expectedExp, "completion apns-expiration = now+3600");
   assert.equal(req.body.aps.alert.title, "Roost");
   assert.equal(req.body.aps.alert.body, "Anne did Scoop litter");
 
@@ -173,7 +181,7 @@ test("POST /completions notifies the other person with payload + apns-topic; no 
   assert.equal(sent.length, 0, "idempotent replay does not push again");
 });
 
-test("red-alert sweep notifies partner for stage>=3 overdue chores", async () => {
+test("red-alert sweep notifies partner for stage>=3; collapse-id; persists across restart", async () => {
   sent.length = 0;
   // Far past activeFrom (2026-09-07) so a daily chore with no completions is deeply overdue.
   const asOf = new Date("2026-09-20T17:00:00.000Z"); // Chicago afternoon Sep 20
@@ -183,12 +191,135 @@ test("red-alert sweep notifies partner for stage>=3 overdue chores", async () =>
     assert.equal(req.headers["apns-topic"], "xyz.hinescreative.roost");
     assert.match(req.body.aps.alert.title, /red alert/i);
     assert.ok(req.body.aps.alert.body.includes("overdue"));
+    assert.match(req.headers["apns-collapse-id"], /^red-.+/, "red alerts set apns-collapse-id");
   }
   const firstCount = sent.length;
+  const alertRows = app.db.prepare("SELECT choreId, periodIndex, sentAt FROM push_alerts").all();
+  assert.equal(alertRows.length, firstCount, "each send recorded in push_alerts");
+  for (const row of alertRows) {
+    assert.ok(hasPushAlert(app.db, row.choreId, row.periodIndex));
+  }
+
   sent.length = 0;
   await app.push.runRedAlertSweep(asOf);
   assert.equal(sent.length, 0, "same period is not re-alerted in-process");
+
+  // Simulate restart: new createPush on the same db must not re-send.
+  const restartSent = [];
+  const push2 = createPush({
+    db: app.db,
+    apnsPath: join(dir, "missing-apns.json"),
+    sender: async (req) => {
+      restartSent.push(req);
+      return { status: 200 };
+    },
+    now: () => clock,
+    log: () => {},
+    sweepIntervalMs: 0,
+  });
+  await push2.runRedAlertSweep(asOf);
+  assert.equal(restartSent.length, 0, "restart must not re-send every stage>=3 alert");
+  push2.stopSweep();
   assert.ok(firstCount > 0);
+});
+
+test("deliver prunes dead tokens on 410 and 400 BadDeviceToken / DeviceTokenNotForTopic", async () => {
+  assert.equal(shouldPruneToken(410, undefined), true);
+  assert.equal(shouldPruneToken(400, "BadDeviceToken"), true);
+  assert.equal(shouldPruneToken(400, "DeviceTokenNotForTopic"), true);
+  assert.equal(shouldPruneToken(400, "BadTopic"), false);
+  assert.equal(shouldPruneToken(200, undefined), false);
+  assert.equal(shouldPruneToken(500, "InternalServerError"), false);
+
+  const pruneToken = DEAD_PUSH;
+  upsertPushToken(app.db, { token: pruneToken, person: "wes", platform: "ios" }, clock.toISOString());
+  assert.ok(app.db.prepare("SELECT 1 FROM push_tokens WHERE token = ?").get(pruneToken));
+
+  const statuses = [
+    { status: 410, reason: "Unregistered" },
+    { status: 400, reason: "BadDeviceToken" },
+    { status: 400, reason: "DeviceTokenNotForTopic" },
+  ];
+  for (const { status, reason } of statuses) {
+    const tok = (status === 410 ? "e" : status === 400 && reason === "BadDeviceToken" ? "f" : "g").repeat(64);
+    upsertPushToken(app.db, { token: tok, person: "anne", platform: "ios" }, clock.toISOString());
+    const prunePush = createPush({
+      db: app.db,
+      apnsPath: join(dir, "missing-apns.json"),
+      sender: async () => ({ status, reason }),
+      now: () => clock,
+      log: () => {},
+      sweepIntervalMs: 0,
+    });
+    await prunePush.deliver("anne", { title: "t", body: "b" });
+    assert.equal(
+      app.db.prepare("SELECT 1 FROM push_tokens WHERE token = ?").get(tok),
+      undefined,
+      `token pruned on ${status} ${reason ?? ""}`
+    );
+    // Good token for same person must survive if sender returns 200 for it — deliver walks all rows;
+    // here only anne tokens that match our inject. Re-check ANNE_PUSH still present if registered.
+    prunePush.stopSweep();
+  }
+
+  // 400 with a non-dead reason must NOT prune
+  const keep = "h".repeat(64);
+  upsertPushToken(app.db, { token: keep, person: "wes", platform: "ios" }, clock.toISOString());
+  const keepPush = createPush({
+    db: app.db,
+    apnsPath: join(dir, "missing-apns.json"),
+    sender: async () => ({ status: 400, reason: "PayloadTooLarge" }),
+    now: () => clock,
+    log: () => {},
+    sweepIntervalMs: 0,
+  });
+  await keepPush.deliver("wes", { title: "t", body: "b" });
+  assert.ok(app.db.prepare("SELECT 1 FROM push_tokens WHERE token = ?").get(keep), "non-dead 400 keeps token");
+  keepPush.stopSweep();
+});
+
+test("red-alert sweep is not re-entrant while awaiting sends", async () => {
+  let release;
+  const gate = new Promise((r) => {
+    release = r;
+  });
+  let entered = 0;
+  const slowPush = createPush({
+    db: app.db,
+    apnsPath: join(dir, "missing-apns.json"),
+    sender: async () => {
+      entered += 1;
+      await gate;
+      return { status: 200 };
+    },
+    now: () => clock,
+    log: () => {},
+    sweepIntervalMs: 0,
+  });
+  // Clear prior alerts for a fresh overdue sweep would be hard; instead call deliver path via
+  // overlapping runRedAlertSweep: first call holds sweeping=true while sender awaits.
+  // Seed one overdue path by wiping push_alerts so sweep has work (or use deliver directly).
+  // Simpler: monkey-patch via overlapping runRedAlertSweep when alerts already recorded —
+  // sweeping guard still trips even when there is no work if we inject a slow first iteration.
+  // Force work: delete push_alerts so stage>=3 items fire again.
+  app.db.prepare("DELETE FROM push_alerts").run();
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+
+  const asOf = new Date("2026-09-20T17:00:00.000Z");
+  const first = slowPush.runRedAlertSweep(asOf);
+  // Give the first sweep a chance to set sweeping=true and hit the first await deliver
+  await new Promise((r) => setTimeout(r, 20));
+  const second = slowPush.runRedAlertSweep(asOf);
+  await second; // must resolve immediately as no-op
+  release();
+  await first;
+  assert.ok(entered >= 1, "first sweep sent at least once");
+  // Second tick did nothing while first was awaiting — entered equals only first sweep's sends
+  const enteredAfterFirst = entered;
+  await slowPush.runRedAlertSweep(asOf);
+  assert.equal(entered, enteredAfterFirst, "after completion, same period not re-sent; re-entrancy held");
+  slowPush.stopSweep();
 });
 
 test("makeApnsJwt is ES256 and loadApnsConfig disables cleanly", () => {
