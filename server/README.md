@@ -87,7 +87,7 @@ sudo -u roost ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/device
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, pendingCodes, tokensFileError }` |
+| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, pendingCodes, tokensFileError, push, rev, activeFrom, digestLastSent }` |
 | POST | `/pair` | no | body `{ code, deviceName }` → `{ token, person }`; one `404 invalid or expired code` for unknown, already used and expired alike; `400` unless `code` is 6 digits and `deviceName` is 1-60 chars; `429` over 10 answered attempts a minute from one address or 30 across all of them |
 | DELETE | `/pair/self` | yes | unpairs the calling device: its `paired_tokens` row is marked revoked, its `devices` row is dropped, and the next request with it is `401`; `403` for a hand-minted token, which only the tokens file can revoke |
 | GET | `/chores` | yes | full list + version |
@@ -206,4 +206,4 @@ Dead tokens are pruned automatically when APNs returns `410`, or `400` with reas
 - Completion create notifies the other person (`apns-expiration` = now+3600 seconds).
 - Handoff offer (201 only) notifies `to`; accept/decline (real state change only) notify `from`. Bodies use display names (Anne/Wes) and a period phrase from cadence (`today` / `this week` / `this month`). All handoff pushes set `apns-collapse-id: handoff-<id>`. Expiry is silent — no push when `expireOpenHandoffs` runs.
 - Every 15 minutes, stage ≥ 3 overdue chores notify the assignee's partner (`apns-collapse-id` = `red-<choreId>`). Sent pairs are stored in `push_alerts` so restarts do not re-blast.
-- At/after 08:00 America/Chicago, one push per person with anything due today or overdue (`apns-collapse-id digest-<person>`). Expires at the next Chicago midnight. Meta `digestLastSent` (Chicago date) prevents resends across restarts; nobody with zero items gets one.
+- At/after 08:00 America/Chicago, one push per person with anything due today or overdue (`apns-collapse-id digest-<person>`). Expires at the next Chicago midnight. Meta `digestLastSent` (Chicago date) prevents resends across restarts; nobody with zero items gets one. Exposed on `GET /health` and `GET /status.json` as a YYYY-MM-DD string or `null`.
