@@ -1,8 +1,16 @@
-// Root screen: what each person owes today, with check-off, escalation color, and the weekly tally.
-import SwiftUI
-import SwiftData
+// The Tasks tab: what each of them owes today, and the one control the app is really about — checking
+// a chore off.
+//
+// Both columns are always on screen, each on its own card, so nobody has to switch a filter to see
+// whether the other person is keeping up. Order, the celebration rule, and the status line come from
+// TodayBoard; the row is ChoreRowView; colours, type, spacing, motion, and haptics are RoostDesign's.
+//
+// A minute-by-minute TimelineView re-renders the screen, so the date line, the days-late counts, and
+// the "synced 5 minutes ago" wording stay honest without the store changing.
 import RoostCore
 import RoostDesign
+import SwiftData
+import SwiftUI
 
 struct TodayScreen: View {
     @Environment(\.modelContext) private var context
@@ -17,226 +25,148 @@ struct TodayScreen: View {
 
     @State private var showPairing = false
     @State private var showKitchen = false
-    @State private var now = Date()
+    /// Two counters and a gate, so the feel of a tap is decided once and never on a cold launch:
+    /// a haptic fires when one of these changes, and they only change under a finger.
+    @State private var checkOffs = 0
+    @State private var undos = 0
+    @State private var celebrations = 0
+    @State private var celebration = TodayBoard.Celebration()
 
     private let calendar = HouseholdCalendar()
 
-    private var state: SyncState? { syncStates.first }
-    private var me: Person? { state?.person.flatMap(Person.init(rawValue:)) }
+    private var state: SyncState? {
+        syncStates.first
+    }
 
-    private var plan: TodayPlan {
-        let chores = choreRecords.compactMap { try? $0.toChore() }
-        let completions = completionRecords.compactMap { try? $0.toCompletion() }
-        let activeFrom = state?.activeFrom ?? calendar.startOfDay(now)
-        return TodayPlanner.plan(chores: chores, completions: completions, asOf: now, activeFrom: activeFrom, calendar: calendar)
+    private var me: Person? {
+        state?.person.flatMap(Person.init(rawValue:))
     }
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    header
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 8, trailing: 20))
-                }
-                let plan = self.plan
-                ForEach(Person.allCases, id: \.self) { person in
-                    Section {
-                        let rows = plan.rows(for: person)
-                        if rows.isEmpty {
-                            Text("Nothing due. Nice.")
-                                .font(RoostFont.body(size: RoostFont.Size.meta))
-                                .foregroundStyle(RoostColor.inkSoft)
-                                .listRowBackground(RoostColor.surface)
-                        }
-                        ForEach(rows) { row in
-                            TodayRowView(row: row) { toggle(row) }
-                                .listRowBackground(RoostColor.surface)
-                        }
-                    } header: {
-                        personHeader(person, plan: plan)
-                    }
-                }
+            TimelineView(.periodic(from: .now, by: 60)) { context in
+                content(asOf: context.date)
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(RoostColor.bg)
-            .navigationTitle("Roost")
+            .background(RoostColor.Role.background.color)
+            .navigationTitle(Strings.appTitle)
             .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button(Strings.Kitchen.menuEntry) { showKitchen = true }
-                        NavigationLink("All chores") { ChoreListScreen() }
-                        Button("Pairing…") { showPairing = true }
-                        Button("Sync now") { sync.syncSoon() }
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                }
-            }
+            .toolbar { gear }
             .sheet(isPresented: $showPairing) { PairingScreen() }
             .fullScreenCover(isPresented: $showKitchen) { KitchenScreen() }
         }
-        .tint(RoostColor.accent)
+        .tint(RoostColor.Role.accent.color)
+        .overlay { CelebrationView(trigger: $celebrations) }
+        .roostHaptic(.checkOff, trigger: checkOffs)
+        .roostHaptic(.undo, trigger: undos)
+        .roostHaptic(.milestone, trigger: celebrations)
         .task {
             ensureActiveFrom()
             await sync.syncNow()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                now = Date()
                 sync.syncSoon()
             }
         }
     }
 
-    // MARK: header
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(now.formatted(.dateTime.weekday(.wide).month(.wide).day().locale(.autoupdatingCurrent)).uppercased())
-                .font(RoostFont.mono(size: RoostFont.Size.eyebrow, weight: .semibold))
-                .kerning(1.2)
-                .foregroundStyle(RoostColor.accent)
-            Text("Today")
-                .font(RoostFont.display(size: RoostFont.Size.title, weight: .bold))
-                .foregroundStyle(RoostColor.ink)
-            StreakHeaderView(model: StreakHeaderModel(plan: plan))
-                .padding(.top, 6)
-            Text(sync.statusLine)
-                .font(RoostFont.body(size: RoostFont.Size.caption))
-                .foregroundStyle(RoostColor.inkSoft)
-                .padding(.top, 2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func personHeader(_ person: Person, plan: TodayPlan) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(person.displayName)
-                .font(RoostFont.display(size: RoostFont.Size.sectionTitle, weight: .semibold))
-                .foregroundStyle(RoostColor.ink)
-            if person == me {
-                Text("YOU")
-                    .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .semibold))
-                    .foregroundStyle(RoostColor.accent)
+    private func content(asOf now: Date) -> some View {
+        let plan = plan(asOf: now)
+        return ScrollView {
+            VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
+                TodayHeaderView(date: now, streaks: StreakHeaderModel(plan: plan), notice: notice(asOf: now))
+                ForEach(Person.allCases, id: \.self) { person in
+                    let rows = TodayBoard.ordered(plan.rows(for: person))
+                    PersonColumnView(
+                        person: person,
+                        rows: rows,
+                        dueCount: plan.dueCount(for: person),
+                        isMine: person == me,
+                        toggle: { row in toggle(row, among: rows) }
+                    )
+                }
             }
-            Spacer()
-            Text("\(plan.dueCount(for: person)) DUE")
-                .font(RoostFont.mono(size: RoostFont.Size.eyebrow, weight: .semibold))
-                .kerning(1)
-                .foregroundStyle(RoostColor.inkSoft)
+            .padding(.horizontal, RoostSpacing.screenMargin)
+            .padding(.top, RoostSpacing.sm)
+            .padding(.bottom, RoostSpacing.xxl)
         }
-        .textCase(nil)
+        .scrollBounceBehavior(.basedOnSize)
+        .refreshable { await sync.syncNow() }
     }
 
-    // MARK: actions
+    private var gear: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button(Strings.Kitchen.menuEntry, systemImage: "rectangle.on.rectangle") { showKitchen = true }
+                NavigationLink {
+                    ChoreListScreen()
+                } label: {
+                    Label(Strings.Tasks.allChores, systemImage: "list.bullet")
+                }
+                Button(Strings.Tasks.pairing, systemImage: "iphone.and.arrow.forward") { showPairing = true }
+                Button(Strings.Tasks.syncNow, systemImage: "arrow.triangle.2.circlepath") { sync.syncSoon() }
+            } label: {
+                Label(Strings.Tasks.settings, systemImage: "gearshape")
+            }
+        }
+    }
 
-    private func toggle(_ row: TodayRow) {
+    // MARK: - Derived state
+
+    private func plan(asOf now: Date) -> TodayPlan {
+        let chores = choreRecords.compactMap { try? $0.toChore() }
+        let completions = completionRecords.compactMap { try? $0.toCompletion() }
+        let activeFrom = state?.activeFrom ?? calendar.startOfDay(now)
+        return TodayPlanner.plan(
+            chores: chores, completions: completions, asOf: now, activeFrom: activeFrom, calendar: calendar
+        )
+    }
+
+    private func notice(asOf now: Date) -> TodayBoard.Notice {
+        TodayBoard.notice(
+            isPaired: state?.isPaired ?? false,
+            isSyncing: sync.isSyncing,
+            outcome: sync.lastOutcome,
+            lastSyncAt: sync.lastSyncAt,
+            now: now
+        )
+    }
+
+    // MARK: - Actions
+
+    /// Check off, or un-check. `rows` is the column the row was tapped in, as it stood a moment ago:
+    /// the store's query has not caught up yet, so the celebration rule is decided from what was drawn.
+    private func toggle(_ row: TodayRow, among rows: [TodayRow]) {
+        let now = Date()
         switch row.kind {
         case .due:
-            let record = CompletionRecord(id: UUID().uuidString, choreId: row.chore.id, person: row.person.rawValue, completedAt: Date())
+            let record = CompletionRecord(
+                id: UUID().uuidString, choreId: row.chore.id, person: row.person.rawValue, completedAt: now
+            )
             context.insert(record)
-        case .done(let completionId):
+            checkOffs += 1
+            if celebration.fires(when: rows, checking: row, as: me, on: calendar.startOfDay(now)) {
+                celebrations += 1
+            }
+        case let .done(completionId):
             if let record = completionRecords.first(where: { $0.id == completionId }) {
                 record.removed = true
-                if record.syncedAt == nil && !record.rejected {
+                if record.syncedAt == nil, !record.rejected {
                     record.deleteSynced = true // never reached the server; nothing to replay
                 }
             }
+            undos += 1
         }
         try? context.save()
-        now = Date()
         sync.syncSoon()
     }
 
     /// The household start date, fixed the first time the screen renders (or the earliest completion, if any).
     private func ensureActiveFrom() {
         guard let state, state.activeFrom == nil else { return }
+        let now = Date()
         let earliest = completionRecords.map(\.completedAt).min() ?? now
         state.activeFrom = calendar.startOfDay(min(earliest, now))
         try? context.save()
-    }
-}
-
-private struct TodayRowView: View {
-    let row: TodayRow
-    let onToggle: () -> Void
-
-    private var isCatCare: Bool { row.chore.category == .catCare }
-
-    private var stageColor: Color {
-        switch row.stage {
-        case .dueToday: return RoostColor.ink
-        case .nudge: return RoostColor.gold
-        case .pointed: return RoostColor.tease
-        case .alert: return RoostColor.alert
-        }
-    }
-
-    private var stageSoft: Color {
-        switch row.stage {
-        case .dueToday: return RoostColor.surface2
-        case .nudge: return RoostColor.goldSoft
-        case .pointed: return RoostColor.teaseSoft
-        case .alert: return RoostColor.alertSoft
-        }
-    }
-
-    var body: some View {
-        Button(action: onToggle) {
-            HStack(spacing: 12) {
-                Image(systemName: row.isDone ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22, weight: .regular))
-                    .foregroundStyle(row.isDone ? RoostColor.accent : RoostColor.line)
-
-                Image(systemName: isCatCare ? "cat.fill" : "house.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(isCatCare ? RoostColor.tease : RoostColor.accent)
-                    .frame(width: 26, height: 26)
-                    .background(isCatCare ? RoostColor.teaseSoft : RoostColor.accentSoft, in: RoundedRectangle(cornerRadius: 8))
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(row.chore.title)
-                        .font(RoostFont.body(size: RoostFont.Size.body, weight: .semibold))
-                        .foregroundStyle(row.isDone ? RoostColor.inkSoft : stageColor)
-                        .strikethrough(row.isDone, color: RoostColor.inkSoft)
-                    if let subtitle = EscalationCopy.subtitle(for: row) {
-                        Text(subtitle)
-                            .font(RoostFont.body(size: RoostFont.Size.caption))
-                            .foregroundStyle(stageColor)
-                    }
-                }
-                .multilineTextAlignment(.leading)
-
-                Spacer(minLength: 8)
-
-                if row.daysOverdue > 0 {
-                    Text("\(row.daysOverdue)D LATE")
-                        .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .bold))
-                        .kerning(0.4)
-                        .foregroundStyle(stageColor)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(stageSoft, in: RoundedRectangle(cornerRadius: 5))
-                }
-
-                if let pinned = row.chore.fixedAssignee {
-                    Text(pinned.displayName.uppercased())
-                        .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .semibold))
-                        .kerning(0.5)
-                        .foregroundStyle(RoostColor.assign)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(RoostColor.assignSoft, in: RoundedRectangle(cornerRadius: 5))
-                        .accessibilityLabel("Always \(pinned.displayName)")
-                }
-            }
-            .padding(.vertical, 4)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(row.isDone ? "Undo \(row.chore.title)" : "Mark \(row.chore.title) done")
     }
 }

@@ -1,9 +1,9 @@
-// The one screen in R-2: every active chore grouped by cadence, proving the seed loaded.
-// No check-off, no tabs, no streaks yet.
-import SwiftUI
-import SwiftData
+// Gear → All chores: every active chore grouped by cadence, so the seed can be checked against
+// data/chores.json by eye. Read-only; check-off lives on the Tasks tab.
 import RoostCore
 import RoostDesign
+import SwiftData
+import SwiftUI
 
 struct ChoreListScreen: View {
     @Query(filter: #Predicate<ChoreRecord> { !$0.retired }, sort: \ChoreRecord.sortOrder)
@@ -19,104 +19,116 @@ struct ChoreListScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section {
-                    header
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 12, trailing: 20))
-                }
+        ScrollView {
+            VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
+                header
                 ForEach(grouped, id: \.cadence) { group in
-                    Section {
-                        ForEach(group.chores) { record in
-                            ChoreRow(record: record)
-                                .listRowBackground(RoostColor.surface)
+                    VStack(alignment: .leading, spacing: RoostSpacing.sm) {
+                        cadenceHeader(group.cadence, count: group.chores.count)
+                        VStack(spacing: 0) {
+                            ForEach(group.chores) { record in
+                                ChoreListRow(record: record)
+                            }
                         }
-                    } header: {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(group.cadence.label)
-                                .font(RoostFont.display(size: RoostFont.Size.sectionTitle, weight: .semibold))
-                                .foregroundStyle(RoostColor.ink)
-                            Spacer()
-                            Text("\(group.chores.count) TASKS")
-                                .font(RoostFont.mono(size: RoostFont.Size.eyebrow, weight: .semibold))
-                                .kerning(1)
-                                .foregroundStyle(RoostColor.inkSoft)
-                        }
-                        .textCase(nil)
+                        .padding(RoostSpacing.sm)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoostColor.Role.surface.color, in: RoostRadius.cardShape)
+                        .roostElevation(.card, cornerRadius: RoostRadius.card)
                     }
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(RoostColor.bg)
-            .navigationTitle("Roost")
-            .toolbarTitleDisplayMode(.inline)
+            .padding(.horizontal, RoostSpacing.screenMargin)
+            .padding(.top, RoostSpacing.sm)
+            .padding(.bottom, RoostSpacing.xxl)
         }
-        .tint(RoostColor.accent)
+        .background(RoostColor.Role.background.color)
+        .navigationTitle(Strings.Tasks.allChores)
+        .toolbarTitleDisplayMode(.inline)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("HOUSEHOLD TASKS")
-                .font(RoostFont.mono(size: RoostFont.Size.eyebrow, weight: .semibold))
-                .kerning(1.2)
-                .foregroundStyle(RoostColor.accent)
-            Text("\(records.count) chores seeded")
-                .font(RoostFont.display(size: RoostFont.Size.title, weight: .bold))
-                .foregroundStyle(RoostColor.ink)
+        VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+            Text(Strings.Chores.eyebrow)
+                .roostType(.monoLabel)
+                .foregroundStyle(RoostColor.Role.accent.color)
+            Text(Strings.Chores.seeded(records.count))
+                .roostType(.displayLarge)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
+                .accessibilityAddTraits(.isHeader)
             if let version = syncStates.first?.choresVersion {
-                Text("list version \(version) · local store only")
-                    .font(RoostFont.body(size: RoostFont.Size.meta))
-                    .foregroundStyle(RoostColor.inkSoft)
+                Text(Strings.Chores.version(version))
+                    .roostType(.footnote)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private func cadenceHeader(_ cadence: Cadence, count: Int) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(cadence.label)
+                .roostType(.title)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
+            Spacer(minLength: RoostSpacing.sm)
+            Text(Strings.Chores.tasks(count))
+                .roostType(.monoTally)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
 }
 
-private struct ChoreRow: View {
+private struct ChoreListRow: View {
     let record: ChoreRecord
 
-    private var isCatCare: Bool { record.category == ChoreCategory.catCare.rawValue }
-    private var pinnedTo: Person? { record.fixedAssignee.flatMap(Person.init(rawValue:)) }
+    private var category: RoostCategory {
+        record.category == ChoreCategory.catCare.rawValue ? .catCare : .home
+    }
+
+    private var pinnedTo: Person? {
+        record.fixedAssignee.flatMap(Person.init(rawValue:))
+    }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: isCatCare ? "cat.fill" : "house.fill")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(isCatCare ? RoostColor.tease : RoostColor.accent)
-                .frame(width: 30, height: 30)
-                .background(isCatCare ? RoostColor.teaseSoft : RoostColor.accentSoft, in: RoundedRectangle(cornerRadius: 9))
-
+        HStack(alignment: .firstTextBaseline, spacing: RoostSpacing.sm) {
+            Image(systemName: category.symbol)
+                .roostType(.caption)
+                .foregroundStyle(category.color)
+                .padding(RoostSpacing.xs)
+                .background(category.softColor, in: RoostRadius.shape(RoostRadius.sm))
+                .accessibilityHidden(true)
             Text(record.title)
-                .font(RoostFont.body(size: RoostFont.Size.body, weight: .semibold))
-                .foregroundStyle(RoostColor.ink)
-
-            Spacer(minLength: 8)
-
+                .roostType(.rowTitle)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: RoostSpacing.sm)
             if let person = pinnedTo {
                 Text(person.displayName.uppercased())
-                    .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .semibold))
-                    .kerning(0.5)
-                    .foregroundStyle(RoostColor.assign)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(RoostColor.assignSoft, in: RoundedRectangle(cornerRadius: 5))
-                    .accessibilityLabel("Always \(person.displayName)")
+                    .roostType(.monoLabel)
+                    .foregroundStyle(RoostColor.Role.assigned.color)
+                    .padding(.horizontal, RoostSpacing.sm)
+                    .padding(.vertical, RoostSpacing.xxs)
+                    .background(RoostColor.Role.assignedSoft.color, in: RoostRadius.shape(RoostRadius.sm))
+                    .fixedSize()
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, RoostSpacing.sm)
+        .padding(.vertical, RoostSpacing.sm)
+        .frame(minHeight: RoostSpacing.minTapTarget)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(record.title)
+        .accessibilityValue(pinnedTo.map { Strings.Tasks.always($0.displayName) } ?? "")
     }
 }
 
 extension Cadence {
     var label: String {
         switch self {
-        case .daily: "Daily"
-        case .weekly: "Weekly"
-        case .biweekly: "Biweekly"
-        case .monthly: "Monthly"
+        case .daily: Strings.Chores.daily
+        case .weekly: Strings.Chores.weekly
+        case .biweekly: Strings.Chores.biweekly
+        case .monthly: Strings.Chores.monthly
         }
     }
 }
@@ -124,14 +136,16 @@ extension Cadence {
 extension Person {
     var displayName: String {
         switch self {
-        case .anne: "Anne"
-        case .wes: "Wes"
+        case .anne: Strings.People.anne
+        case .wes: Strings.People.wes
         }
     }
 }
 
 #Preview {
-    ChoreListScreen().modelContainer(PreviewStore.container)
+    NavigationStack {
+        ChoreListScreen().modelContainer(PreviewStore.container)
+    }
 }
 
 @MainActor
@@ -144,7 +158,8 @@ private enum PreviewStore {
         let sample = ChoreList(version: 1, chores: [
             Chore(id: "scoop-litter", title: "Scoop litter", cadence: .daily, category: .catCare),
             Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore),
-            Chore(id: "garbage", title: "Garbage can to street, Sunday", cadence: .weekly, fixedAssignee: .wes, category: .chore),
+            Chore(id: "garbage", title: "Garbage can to street, Sunday", cadence: .weekly, fixedAssignee: .wes,
+                  category: .chore),
         ])
         try! ChoreSeeder.seed(sample, into: container.mainContext)
         return container

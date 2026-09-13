@@ -1,0 +1,257 @@
+@testable import Roost
+import RoostCore
+import RoostDesign
+import XCTest
+
+/// The Tasks tab's own rules: the card's order, the week bar's split, the escalation ladder's roles,
+/// the celebration gate, and the status line.
+///
+/// Rows come out of `TodayPlanner` rather than being hand-built, because `DueItem` is RoostCore's to
+/// make — which also means the stages under test are the real ones.
+final class TodayBoardTests: XCTestCase {
+    private let cal = HouseholdCalendar()
+
+    // MARK: - Fixture
+
+    /// Everything daily and pinned, so assignment is fixed, on a household that started Sep 1 2026.
+    /// Read on Sep 7, the completions below put one chore at every stage at once.
+    private let chores: [Chore] = [
+        Chore(id: "never-done", title: "Clean the oven", cadence: .daily, fixedAssignee: .anne, category: .chore),
+        Chore(id: "late-five", title: "Mop floors", cadence: .daily, fixedAssignee: .anne, category: .chore),
+        Chore(id: "late-three", title: "Wipe tables", cadence: .daily, fixedAssignee: .anne, category: .chore),
+        Chore(id: "late-one", title: "Scoop litter", cadence: .daily, fixedAssignee: .anne, category: .catCare),
+        Chore(id: "due-today", title: "Water plants", cadence: .daily, fixedAssignee: .anne, category: .chore),
+        Chore(id: "done-today", title: "Laundry", cadence: .daily, fixedAssignee: .anne, category: .chore),
+        Chore(id: "wes-chore", title: "Garbage out", cadence: .daily, fixedAssignee: .wes, category: .chore),
+    ]
+
+    private var activeFrom: Date {
+        cal.startOfDay(cal.date(year: 2026, month: 9, day: 1))
+    }
+
+    private var today: Date {
+        cal.date(year: 2026, month: 9, day: 7, hour: 18)
+    }
+
+    /// A completion of `choreId` on September `day`, which makes that day's period complete and moves the
+    /// chore's oldest incomplete period to the day after.
+    private func completion(_ choreId: String, day: Int, person: Person = .anne) -> Completion {
+        Completion(id: "c-\(choreId)", choreId: choreId, person: person,
+                   completedAt: cal.date(year: 2026, month: 9, day: day, hour: 9))
+    }
+
+    private func plan() -> TodayPlan {
+        TodayPlanner.plan(
+            chores: chores,
+            completions: [
+                completion("late-five", day: 1), // oldest incomplete Sep 2 -> 5 days late
+                completion("late-three", day: 3), // -> Sep 4 -> 3 days late
+                completion("late-one", day: 5), // -> Sep 6 -> 1 day late
+                completion("due-today", day: 6), // -> Sep 7 -> due today
+                completion("done-today", day: 7), // today: a done row, nothing due
+            ],
+            asOf: today,
+            activeFrom: activeFrom,
+            calendar: cal
+        )
+    }
+
+    private func row(_ choreId: String, of person: Person = .anne) throws -> TodayRow {
+        try XCTUnwrap(plan().rows(for: person).first { $0.chore.id == choreId }, choreId)
+    }
+
+    func testTheFixtureCoversEveryStage() throws {
+        XCTAssertEqual(try row("never-done").stage, .alert)
+        XCTAssertEqual(try row("never-done").daysOverdue, 6)
+        XCTAssertEqual(try row("late-five").stage, .alert)
+        XCTAssertEqual(try row("late-five").daysOverdue, 5)
+        XCTAssertEqual(try row("late-three").stage, .pointed)
+        XCTAssertEqual(try row("late-one").stage, .nudge)
+        XCTAssertEqual(try row("due-today").stage, .dueToday)
+        XCTAssertTrue(try row("done-today").isDone)
+    }
+
+    // MARK: - Order
+
+    func testAlertRowsMoveToTheTop() {
+        let planned = plan().rows(for: .anne)
+        let ordered = TodayBoard.ordered(planned)
+
+        XCTAssertNotEqual(planned.first?.stage, .alert, "the planner leads with cat care, not with the loudest row")
+        XCTAssertEqual(ordered.prefix(2).map(\.chore.id).sorted(), ["late-five", "never-done"])
+        XCTAssertTrue(ordered.prefix(2).allSatisfy { $0.stage == .alert })
+        XCTAssertFalse(ordered.dropFirst(2).contains { !$0.isDone && $0.stage == .alert })
+    }
+
+    func testDoneRowsSinkToTheBottom() throws {
+        let ordered = TodayBoard.ordered(plan().rows(for: .anne))
+        let firstDone = ordered.firstIndex(where: \.isDone)
+        XCTAssertNotNil(firstDone)
+        XCTAssertTrue(try ordered[XCTUnwrap(firstDone?...)].allSatisfy(\.isDone))
+    }
+
+    func testEverythingElseKeepsThePlannersOrder() {
+        let planned = plan().rows(for: .anne)
+        let quiet = { (rows: [TodayRow]) in rows.filter { !$0.isDone && $0.stage != .alert }.map(\.chore.id) }
+        XCTAssertEqual(quiet(TodayBoard.ordered(planned)), quiet(planned))
+    }
+
+    func testOrderLosesNothing() {
+        let planned = plan().rows(for: .anne)
+        XCTAssertEqual(TodayBoard.ordered(planned).count, planned.count)
+        XCTAssertEqual(Set(TodayBoard.ordered(planned).map(\.id)), Set(planned.map(\.id)))
+        XCTAssertTrue(TodayBoard.ordered([]).isEmpty)
+    }
+
+    // MARK: - Week bar
+
+    func testWeekShareSplitsTheBar() throws {
+        let share = try XCTUnwrap(TodayBoard.anneShare(doneThisWeek: [.anne: 14, .wes: 11]))
+        XCTAssertEqual(share, 14.0 / 25.0, accuracy: 0.0001)
+        XCTAssertEqual(TodayBoard.anneShare(doneThisWeek: [.anne: 3, .wes: 0]), 1)
+        XCTAssertEqual(TodayBoard.anneShare(doneThisWeek: [.wes: 3]), 0)
+    }
+
+    func testWeekShareIsNilBeforeAnybodyHasDoneAnything() {
+        XCTAssertNil(TodayBoard.anneShare(doneThisWeek: [:]))
+        XCTAssertNil(TodayBoard.anneShare(doneThisWeek: [.anne: 0, .wes: 0]))
+    }
+
+    // MARK: - The escalation ladder
+
+    func testEachStageWearsItsOwnRole() {
+        XCTAssertEqual(EscalationStage.dueToday.role, .textPrimary)
+        XCTAssertEqual(EscalationStage.nudge.role, .notice)
+        XCTAssertEqual(EscalationStage.pointed.role, .warning)
+        XCTAssertEqual(EscalationStage.alert.role, .danger)
+
+        XCTAssertNil(EscalationStage.dueToday.fillRole, "a row that is only due today carries no colour")
+        XCTAssertEqual(EscalationStage.nudge.fillRole, .noticeSoft)
+        XCTAssertEqual(EscalationStage.pointed.fillRole, .warningSoft)
+        XCTAssertEqual(EscalationStage.alert.fillRole, .dangerSoft)
+    }
+
+    func testSharedWithTheOtherFromThreeDaysLate() {
+        XCTAssertFalse(EscalationStage.dueToday.isSharedWithTheOther)
+        XCTAssertFalse(EscalationStage.nudge.isSharedWithTheOther)
+        XCTAssertTrue(EscalationStage.pointed.isSharedWithTheOther)
+        XCTAssertTrue(EscalationStage.alert.isSharedWithTheOther)
+    }
+
+    func testEachPersonHasTheirOwnColour() {
+        XCTAssertEqual(Person.anne.design, .anne)
+        XCTAssertEqual(Person.wes.design, .wes)
+        XCTAssertNotEqual(RoostPerson.anne.role, RoostPerson.wes.role)
+    }
+
+    // MARK: - Celebration
+
+    func testTheLastCheckOffClearsTheList() throws {
+        let last = try row("due-today")
+        XCTAssertTrue(try TodayBoard.clearsTheList([row("done-today"), last], checking: last))
+        XCTAssertFalse(try TodayBoard.clearsTheList([row("never-done"), last], checking: last),
+                       "something else is still due")
+        XCTAssertFalse(TodayBoard.clearsTheList(plan().rows(for: .anne), checking: last))
+    }
+
+    func testUnCheckingNeverClearsTheList() throws {
+        let done = try row("done-today")
+        XCTAssertFalse(TodayBoard.clearsTheList([done], checking: done))
+    }
+
+    func testCelebrationFiresOncePerDayForYourOwnColumn() throws {
+        let day = cal.startOfDay(today)
+        let mine = try row("due-today")
+        var gate = TodayBoard.Celebration()
+
+        XCTAssertTrue(gate.fires(when: [mine], checking: mine, as: .anne, on: day))
+        XCTAssertFalse(gate.fires(when: [mine], checking: mine, as: .anne, on: day),
+                       "un-checking and checking again the same day must not fire twice")
+
+        let tomorrow = cal.startOfDay(cal.date(year: 2026, month: 9, day: 8))
+        XCTAssertTrue(gate.fires(when: [mine], checking: mine, as: .anne, on: tomorrow))
+        XCTAssertEqual(gate.celebratedDay, tomorrow)
+    }
+
+    func testCelebrationIgnoresTheOtherPersonAndAnUnpairedPhone() throws {
+        let day = cal.startOfDay(today)
+        let theirs = try row("wes-chore", of: .wes)
+        var gate = TodayBoard.Celebration()
+
+        XCTAssertFalse(gate.fires(when: [theirs], checking: theirs, as: .anne, on: day),
+                       "clearing the other person's column is not your moment")
+        XCTAssertFalse(gate.fires(when: [theirs], checking: theirs, as: nil, on: day),
+                       "an unpaired phone has no column of its own")
+        XCTAssertNil(gate.celebratedDay)
+    }
+
+    // MARK: - Status line
+
+    func testUnpairedPointsAtTheGearMenu() {
+        let notice = TodayBoard.notice(isPaired: false, isSyncing: false, outcome: nil, lastSyncAt: nil, now: Date())
+        XCTAssertEqual(notice, TodayBoard.Notice(tone: .notice, text: "Not paired yet · gear menu → Pairing"))
+
+        let unpaired = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .unpaired,
+                                         lastSyncAt: Date(), now: Date())
+        XCTAssertEqual(unpaired.tone, .notice)
+    }
+
+    func testAFailedSyncIsANoticeCarryingTheLastSyncedTime() {
+        let now = Date()
+        let never = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .failed("timed out"),
+                                      lastSyncAt: nil, now: now)
+        XCTAssertEqual(never, TodayBoard.Notice(tone: .notice, text: "Offline · last synced never"))
+
+        let justNow = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .failed("timed out"),
+                                        lastSyncAt: now.addingTimeInterval(-5), now: now)
+        XCTAssertEqual(justNow, TodayBoard.Notice(tone: .notice, text: "Offline · last synced just now"))
+
+        let earlier = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .failed("timed out"),
+                                        lastSyncAt: now.addingTimeInterval(-300), now: now)
+        XCTAssertEqual(earlier.tone, .notice)
+        XCTAssertTrue(earlier.text.hasPrefix("Offline · last synced "), earlier.text)
+        XCTAssertFalse(earlier.text.hasSuffix("just now"), earlier.text)
+    }
+
+    func testASuccessfulSyncIsQuiet() {
+        let now = Date()
+        XCTAssertEqual(
+            TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .synced(posted: 1, deleted: 0, received: 2),
+                              lastSyncAt: now, now: now),
+            TodayBoard.Notice(tone: .quiet, text: "Synced just now")
+        )
+        XCTAssertEqual(
+            TodayBoard.notice(isPaired: true, isSyncing: false, outcome: nil, lastSyncAt: nil, now: now),
+            TodayBoard.Notice(tone: .quiet, text: "Not synced yet")
+        )
+    }
+
+    func testSyncingWinsOverEverythingElse() {
+        let now = Date()
+        XCTAssertEqual(
+            TodayBoard.notice(isPaired: false, isSyncing: true, outcome: .failed("x"), lastSyncAt: nil, now: now),
+            TodayBoard.Notice(tone: .quiet, text: "Syncing…")
+        )
+        XCTAssertEqual(
+            TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .coalesced, lastSyncAt: now, now: now).text,
+            "Syncing…"
+        )
+    }
+
+    func testLastSyncedWording() {
+        let now = Date()
+        XCTAssertEqual(TodayBoard.lastSynced(nil, now: now), "never")
+        XCTAssertEqual(TodayBoard.lastSynced(now.addingTimeInterval(-59), now: now), "just now")
+        XCTAssertNotEqual(TodayBoard.lastSynced(now.addingTimeInterval(-3600), now: now), "just now")
+    }
+
+    // MARK: - The overdue badge
+
+    func testDaysLateWordingIsSharedWithKitchenMode() {
+        XCTAssertEqual(Strings.daysLate(1), "1 DAY LATE")
+        XCTAssertEqual(Strings.daysLate(3), "3 DAYS LATE")
+        XCTAssertEqual(Strings.Kitchen.daysLate(4), Strings.daysLate(4))
+        XCTAssertEqual(Strings.Tasks.stateLate(1), "1 day late")
+        XCTAssertEqual(Strings.Tasks.stateLate(5), "5 days late")
+    }
+}

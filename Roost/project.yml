@@ -12,6 +12,12 @@ packages:
     path: ../Packages/RoostCore
   RoostDesign:
     path: ../Packages/RoostDesign
+  # The one approved third-party UI dependency: the confetti burst on the Tasks tab when you clear your
+  # own list for the day. Pinned to an exact version on purpose — Package.resolved is not committed, so
+  # the pin is what makes a fresh checkout and CI resolve the same code.
+  ConfettiSwiftUI:
+    url: https://github.com/simibac/ConfettiSwiftUI
+    exactVersion: 3.0.0
 
 settings:
   base:
@@ -33,6 +39,7 @@ targets:
     dependencies:
       - package: RoostCore
       - package: RoostDesign
+      - package: ConfettiSwiftUI
     info:
       path: Sources/Info.plist
       properties:

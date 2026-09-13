@@ -1,10 +1,15 @@
-// Every user-facing string R-10 and R-11 added, in one place so Anne can edit the copy without touching a screen.
+// Every user-facing string in the app, in one place so Anne can edit the copy without touching a screen.
 // Functions take a title or a count; edit the text inside the quotes and keep the \(...) where the value goes.
 import Foundation
 
 enum Strings {
     /// The bar title on every tab.
     static let appTitle = "Roost"
+
+    /// "1 DAY LATE" / "3 DAYS LATE". The overdue badge, worded the same on the Tasks tab and in Kitchen mode.
+    static func daysLate(_ days: Int) -> String {
+        days == 1 ? "1 DAY LATE" : "\(days) DAYS LATE"
+    }
 
     enum Tabs {
         static let tasks = "Tasks"
@@ -91,10 +96,100 @@ enum Strings {
         static let markNotDone = "Marks it not done"
     }
 
+    /// The two people. Reached through `Person.displayName`, never spelled out in a screen.
+    enum People {
+        static let anne = "Anne"
+        static let wes = "Wes"
+    }
+
+    /// The Tasks tab: the header, each person's section, the states, and the gear menu.
+    enum Tasks {
+        /// The screen's own title, under the date.
+        static let today = "Today"
+        /// The count on a person's section header: "12 DUE".
+        static func due(_ count: Int) -> String {
+            "\(count) DUE"
+        }
+
+        /// Tag on the paired person's own section, so you can tell the two apart at a glance.
+        static let you = "YOU"
+
+        /// A person's section when nothing is due and nothing was checked off today.
+        static let nothingDue = "Nothing due today"
+        /// A person's section once everything they owed today is checked off.
+        static let nothingLeft = "Nothing left"
+        /// Under the escalation copy from three days late: the other phone shows it too, and from five
+        /// days the server pushes it there.
+        static let onTheOtherPhone = "On the other phone too"
+
+        /// Gear menu, in order.
+        static let allChores = "All chores"
+        static let pairing = "Pairing…"
+        static let syncNow = "Sync now"
+        /// VoiceOver name for the gear button itself.
+        static let settings = "Settings"
+
+        /// Not paired: one line under the header pointing at the gear menu's Pairing item.
+        static let notPaired = "Not paired yet · gear menu → Pairing"
+        static let syncing = "Syncing…"
+        /// The last sync failed, or the server could not be reached. Never a modal: offline is normal here.
+        static func offline(_ lastSynced: String) -> String {
+            "Offline · last synced \(lastSynced)"
+        }
+
+        static func synced(_ lastSynced: String) -> String {
+            "Synced \(lastSynced)"
+        }
+
+        static let neverSynced = "Not synced yet"
+        static let justNow = "just now"
+        static let never = "never"
+
+        /// VoiceOver value for a row: what state it is in.
+        static let stateDone = "Done"
+        static let stateDueToday = "Due today"
+        /// VoiceOver value for an overdue row: "3 days late".
+        static func stateLate(_ days: Int) -> String {
+            days == 1 ? "1 day late" : "\(days) days late"
+        }
+
+        /// VoiceOver hints: what the tap does.
+        static let hintCheck = "Marks it done"
+        static let hintUncheck = "Puts it back on today's list"
+        /// VoiceOver label for the pinned badge.
+        static func always(_ name: String) -> String {
+            "Always \(name)"
+        }
+    }
+
+    /// Gear → All chores: the whole seeded list, grouped by cadence.
+    enum Chores {
+        static let eyebrow = "HOUSEHOLD LIST"
+        static func seeded(_ count: Int) -> String {
+            "\(count) chores"
+        }
+
+        static func version(_ version: Int) -> String {
+            "List version \(version)"
+        }
+
+        /// The count beside a cadence heading: "11 TASKS".
+        static func tasks(_ count: Int) -> String {
+            "\(count) TASKS"
+        }
+
+        static let daily = "Daily"
+        static let weekly = "Weekly"
+        static let biweekly = "Biweekly"
+        static let monthly = "Monthly"
+    }
+
     enum Streak {
         static let dayStreak = "day streak"
         static let ahead = "CURRENTLY AHEAD"
         static let versus = "VS"
+        /// Eyebrow over the two-colour week bar.
+        static let weekLabel = "TASKS DONE THIS WEEK"
         /// "Anne · 14   Wes · 11"
         static let tallySeparator = " · "
         static let tallyGap = "   "
@@ -130,9 +225,9 @@ enum Strings {
             "\(count) \(dueTodayLabel)"
         }
 
-        /// "1 DAY LATE" / "3 DAYS LATE", the stage label on an overdue card.
+        /// The stage label on an overdue card. Shared with the Tasks tab's badge.
         static func daysLate(_ days: Int) -> String {
-            days == 1 ? "1 DAY LATE" : "\(days) DAYS LATE"
+            Strings.daysLate(days)
         }
 
         /// Under a name when this person has nothing overdue but the other one does.
