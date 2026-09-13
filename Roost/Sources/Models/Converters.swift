@@ -63,7 +63,7 @@ extension CompletionRecord {
 
     /// Nil when soft-deleted: RoostCore never sees deleted completions.
     func toCompletion() throws -> Completion? {
-        guard !deleted else { return nil }
+        guard !removed else { return nil }
         guard let p = Person(rawValue: person) else { throw ConversionError.badPerson(person, id: id) }
         return Completion(id: id, choreId: choreId, person: p, completedAt: completedAt)
     }
