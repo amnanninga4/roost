@@ -6,10 +6,10 @@
 
 ## Org
 
-- **Orchestrator:** anne-app seat on Wes’s M3 — peers id `mac-anne-app-003` (Aesop / Fable; Wes’s Claude on `~/hines/projects/anne-app`). Drives roost; workers take assigned slices.
-- **Worker:** Apple Dev 3.0 — does not drive the project.
-- **Anne’s personal Claude:** not on claude-peers. Bridge to her is GitHub only → [issue #1](https://github.com/amnanninga4/roost/issues/1).
-- **Agent bus:** claude-peers for Wes-fleet seats; issue #1 for durable / Anne-facing thread.
+- **Orchestrator (Wes fleet):** anne-app seat on Wes’s M3 — peers id `mac-anne-app-003` (Aesop / Fable; Wes’s Claude on `~/hines/projects/anne-app`). Assigns work to workers over **claude-peers**.
+- **Worker:** Apple Dev 3.0 / peers id `grok_bot_app_dev3` — takes assigned slices; does not drive the project.
+- **Anne’s personal Claude:** **not on peers.** She watches through **GitHub repo comments/issues only** → [issue #1](https://github.com/amnanninga4/roost/issues/1). Do not expect her on the peer bus.
+- **Buses:** peers = Wes-fleet agent chat. GitHub = Anne-facing + durable human thread.
 
 ## What this is
 
