@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	Export options for `scripts/release.sh`. Every key here is one xcodebuild documents
+	under "Available keys for -exportOptionsPlist" (`xcodebuild -help`); the values were
+	read off Xcode 26.3 (build 17C529) on 2026-09-13, not recalled.
+
+	Deliberately absent: `teamID`. xcodebuild defaults it to "the team used to build the
+	archive", so the Team ID reaches this step from Roost/Config/Local.override.xcconfig and
+	never has to be written down here. No Team ID, key ID, or certificate name in the repo.
+-->
+<plist version="1.0">
+<dict>
+	<!--
+		`app-store-connect` is the current spelling. xcodebuild still accepts `app-store`
+		but lists it as "deprecated: use app-store-connect", so this is the one to use.
+	-->
+	<key>method</key>
+	<string>app-store-connect</string>
+
+	<!--
+		"Determines whether the app is exported locally or uploaded to Apple. Options are
+		export or upload." `upload` is what makes `xcodebuild -exportArchive` deliver the
+		build to App Store Connect itself — the same path Xcode's Distribute App > Upload
+		takes — so the release needs no second tool. See the header of release.sh for why
+		this is preferred over `xcrun altool --upload-app`.
+	-->
+	<key>destination</key>
+	<string>upload</string>
+
+	<!--
+		Xcode creates and updates the profiles for xyz.hinescreative.roost and .widget.
+		release.sh passes -allowProvisioningUpdates so it is allowed to.
+	-->
+	<key>signingStyle</key>
+	<string>automatic</string>
+
+	<!--
+		Defaults to YES, which lets Xcode rewrite the build number during upload. NO keeps
+		the number release.sh already wrote into project.yml, so the build in TestFlight
+		matches the commit count the script printed and the CFBundleVersion in the archive.
+	-->
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+
+	<!-- Symbolicated crash reports from Anne's and Wes's phones are the whole point. -->
+	<key>uploadSymbols</key>
+	<true/>
+
+	<key>stripSwiftSymbols</key>
+	<true/>
+
+	<!--
+		Also available, deliberately off: `testFlightInternalTestingOnly`. Setting it true
+		marks the build as internal-only and permanently bars it from external TestFlight
+		and the App Store. Roost has no external testers, so it would be honest — but it is
+		per-build and cannot be undone, so leave the decision to a person rather than have
+		a script make it silently on every release.
+
+		<key>testFlightInternalTestingOnly</key>
+		<true/>
+	-->
+</dict>
+</plist>

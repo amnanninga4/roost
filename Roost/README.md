@@ -50,6 +50,8 @@ The handoff shots are the two ends of one real offer against a local server whos
 Roost/
   project.yml                 XcodeGen spec — the source of truth for the project
   Roost.xcodeproj             generated; regenerate, don't hand-edit
+  Config/Local.xcconfig       committed, no values; `#include?`s the override below
+  Config/Local.override.xcconfig  gitignored: DEVELOPMENT_TEAM, and nothing else
   Sources/
     RoostApp.swift            @main: registers fonts, opens (or rebuilds) the store, seeds, owns SyncCoordinator, shows RootGate
     Strings.swift             every user-facing string: tab titles, list headers, placeholders and empty states, the undo and "Didn't sync" wording, streak labels, escalation copy, Kitchen mode, onboarding and Settings
@@ -159,6 +161,35 @@ brew install xcodegen            # once
 cd Roost && xcodegen generate     # after editing project.yml or adding files
 open Roost.xcodeproj
 ```
+
+### Signing, and the Team ID
+
+A fresh checkout has no team and needs none: the simulator applies entitlements from the
+binary, and `CODE_SIGNING_ALLOWED=NO` produces no entitlements at all. That is how CI
+builds and tests the whole thing without an Apple account.
+
+A real device, and `scripts/release.sh`, need a Team ID. It lives in
+`Config/Local.override.xcconfig`, which is gitignored:
+
+```bash
+cp Roost/Config/Local.override.xcconfig.example Roost/Config/Local.override.xcconfig
+$EDITOR Roost/Config/Local.override.xcconfig       # DEVELOPMENT_TEAM = ABCDE12345
+```
+
+`Config/Local.xcconfig` is the committed half. It holds no values and does one thing —
+`#include? "Local.override.xcconfig"` — and `project.yml` points both the app and the
+widget at it as their `configFiles` for Debug and Release. The `?` makes the include
+optional, so the file has to exist (xcodegen validates `configFiles` paths and fails the
+generate if one is missing) while the Team ID does not. A target xcconfig outranks the
+project-level `DEVELOPMENT_TEAM: ""`, so the override wins wherever it exists, and the
+generated `project.pbxproj` is byte-identical either way.
+
+It is in `Config/` rather than next to `project.yml` because xcodegen 2.46.0 gives a config
+file in the spec's own directory a fresh random `TEMP_<uuid>` object id on every run when
+`createIntermediateGroups` is on, which would break the CI step asserting that a
+regenerate is a no-op.
+
+Releases, the portal setup behind them, and pairing a new phone: `docs/RELEASE.md`.
 
 ## Test (headless)
 

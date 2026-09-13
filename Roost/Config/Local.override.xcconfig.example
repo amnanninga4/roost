@@ -1,0 +1,17 @@
+// Template for `Roost/Config/Local.override.xcconfig`, which is gitignored and holds the one
+// build setting that cannot be committed.
+//
+//     cp Roost/Config/Local.override.xcconfig.example Roost/Config/Local.override.xcconfig
+//
+// Then put the Team ID after the `=` below. It is ten characters, letters and digits,
+// and it is on developer.apple.com/account under Membership details — the same string
+// the host's `/etc/roost/apns.json` uses for `teamId`. A real one looks like
+// ABCDE12345; that is a placeholder, not anybody's team.
+//
+// Left blank, this file is harmless: the app still builds and tests exactly as CI does,
+// and `scripts/release.sh` refuses to run rather than archiving something unsigned.
+//
+// Nothing else belongs in here. Certificates, provisioning profiles, the APNs .p8, and
+// the App Store Connect API key stay out of the repo entirely — see `docs/RELEASE.md`.
+
+DEVELOPMENT_TEAM =

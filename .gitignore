@@ -16,3 +16,12 @@ Package.resolved
 # Claude Code: agent worktrees and per-user settings (project settings and hooks are committed)
 .claude/worktrees/
 .claude/settings.local.json
+
+# Release: the Team ID and the App Store Connect API key details.
+# Roost/Config/Local.xcconfig is committed and optionally includes the override;
+# docs/RELEASE.md explains both.
+Roost/Config/Local.override.xcconfig
+scripts/*.env
+
+# Archives and exported ipas from scripts/release.sh
+/build/

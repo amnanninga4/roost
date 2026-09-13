@@ -1,0 +1,20 @@
+// Per-machine build settings. Committed, and empty of values on purpose.
+//
+// `project.yml` points both shipping targets at this file. xcodegen validates every
+// `configFiles` path and fails the whole generate if one is missing, so this file has
+// to exist in a fresh checkout — which is why it is committed rather than ignored.
+//
+// It holds no settings itself. The one setting that differs per machine is
+// DEVELOPMENT_TEAM, and that lives in `Local.override.xcconfig`, which is gitignored.
+// The `?` in `#include?` means "include it if it is there": with no override file this
+// line resolves to nothing, DEVELOPMENT_TEAM stays unset, and the build is exactly what
+// CI builds — simulator tests and `CODE_SIGNING_ALLOWED=NO`, no team, no signing.
+//
+// To sign for a real device, or to run `scripts/release.sh`:
+//
+//     cp Roost/Config/Local.override.xcconfig.example Roost/Config/Local.override.xcconfig
+//     $EDITOR Roost/Config/Local.override.xcconfig        # paste the Team ID
+//
+// No Team ID is ever committed. See `docs/RELEASE.md`.
+
+#include? "Local.override.xcconfig"
