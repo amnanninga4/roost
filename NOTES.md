@@ -2,13 +2,14 @@
 
 **From:** Apple Dev 3.0 (Wes / Hines Creative)  
 **Date:** 2026-09-13  
-**Repo state:** concept HTML only (`roost-app-mockup.html`, `chore-master-list.html`), single commit, no issues yet.
+**Repo state:** concept HTML + this notes file; see commits on `main`.
 
 ## Org
 
-- **Orchestrator:** Anne-app / Aesop on Wes’s M3 (`mac-anne-app-003` on claude-peers)
-- **Worker:** Apple Dev 3.0 (this seat) — takes assigned slices; does not drive roost
-- Bridge: [issue #1](https://github.com/amnanninga4/roost/issues/1) + peers
+- **Orchestrator:** anne-app seat on Wes’s M3 — peers id `mac-anne-app-003` (Aesop / Fable; Wes’s Claude on `~/hines/projects/anne-app`). Drives roost; workers take assigned slices.
+- **Worker:** Apple Dev 3.0 — does not drive the project.
+- **Anne’s personal Claude:** not on claude-peers. Bridge to her is GitHub only → [issue #1](https://github.com/amnanninga4/roost/issues/1).
+- **Agent bus:** claude-peers for Wes-fleet seats; issue #1 for durable / Anne-facing thread.
 
 ## What this is
 
@@ -16,7 +17,7 @@ Shared household app for Anne & Wes: recurring chores + cat care, light competit
 
 ## What’s already locked in the chore list
 
-Source of truth for recurring tasks: `chore-master-list.html` (locked Sep 13, 2026).
+**Source of truth for task data:** `chore-master-list.html` (locked Sep 13, 2026). Seed from this list only.
 
 | Cadence   | Count | Notes |
 |-----------|------:|-------|
@@ -26,6 +27,10 @@ Source of truth for recurring tasks: `chore-master-list.html` (locked Sep 13, 20
 | Monthly   | 6     | Litter change, fridge, ovens, cushions, under couches, bar cart |
 
 Everything else is fair-game split; only those two weekly tasks are pinned.
+
+### Mockup ≠ master list
+
+`roost-app-mockup.html` is **illustrative UX only**. Its sample rows (e.g. “Recycling out”, “Wash dishes”, “Order cat litter”) are **not** in the locked 32-task list. Do **not** seed product data from the mockup.
 
 ## Mockup product ideas worth keeping
 
@@ -37,22 +42,28 @@ Everything else is fair-game split; only those two weekly tasks are pinned.
 
 Visual system already has light/dark tokens, Fraunces + IBM Plex Mono, accent / gold / meal / assign / alert colors — good seed for a real design system.
 
-## Gaps / open questions (for Anne’s Claude + humans)
+## Gaps / open questions (Wes + Anne)
 
-- **Platform:** native iOS/Mac (SwiftUI), shared web (PWA), or both? (I’m the Apple lane — happy to own Swift/signing if we go native.)
-- **Auth / sync:** Apple Sign In + CloudKit / private iCloud shared DB vs Firebase / Supabase vs local-first + sync.
+Platform/stack is **Wes’s call** (not agent-owned). Until he picks:
+
+- Orchestrator lean: **web/PWA first** (Anne already shipping HTML; shared “visible to both” screen is easy on web; no signing/TestFlight for a two-person app; low exit cost; native wrap later if earned).
+- Apple Dev lean: fine with web-first; will own Swift/signing/TestFlight **if** Wes chooses native or a later native shell. Not pushing native unprompted.
+
+Other open items:
+
+- **Auth / sync:** once platform is picked.
 - **Two users only?** Assume Anne + Wes forever, or invite model later.
 - **Streak rules:** what breaks a streak? midnight CT? any incomplete daily? only assigned-to-me?
 - **Auto-assign fairness:** round-robin, least-busy this week, or random?
 - **Notifications:** local vs push; who gets the red-alert ping.
 - **Naming:** mockup still says “Partner” on one streak side — should be Wes.
-- **Data seed:** promote `chore-master-list.html` → real structured data (`chores.json` / Swift models) before UI rewrite.
+- **Data seed:** promote `chore-master-list.html` → structured data (`chores.json` / app models) before UI rewrite.
 
 ## Suggested first build slice (proposal)
 
 Don’t boil the ocean. Smallest useful app:
 
-1. Seed the 32 chores as recurring tasks with cadence + fixed assignees.
+1. Seed the **locked 32 chores** (from master list, not mockup) as recurring tasks with cadence + fixed assignees.
 2. Two-person lists + check-off + shared “done this week” tally.
 3. Cat-care block + simple overdue escalation (no bonuses yet).
 
@@ -60,12 +71,9 @@ Shopping / meals / projects / streak gamification = next slices once the chore l
 
 ## How agents should talk here
 
-Use **GitHub Issues** on this repo as the shared notepad with Anne’s Claude session:
-
+- **Wes-fleet agents:** claude-peers; orchestrator is `mac-anne-app-003`.
+- **Durable + Anne’s Claude:** GitHub Issues — primary bridge is **[#1](https://github.com/amnanninga4/roost/issues/1)**.
 - One issue per decision or workstream (not a chat dump in commits).
-- Tag people/agents in the body; reply in-thread.
 - Keep secrets out (no keys, Apple Team IDs, passwords).
-
-Primary bridge issue: see open issues titled for Apple Dev 3.0 ↔ Anne’s Claude.
 
 — Apple Dev 3.0
