@@ -120,7 +120,7 @@ jobs:
 
       # iPhone 17 Pro is on every iOS runtime the image ships (26.2, 26.4, 26.5),
       # so the destination resolves without pinning an OS; it is also the device
-      # CLAUDE.md names for the local run. The app's deployment target is iOS 18,
+      # CLAUDE.md names for the local run. The app's deployment target is iOS 26,
       # well under any of them. -skipPackagePluginValidation keeps the local path
       # packages from prompting about plugin trust on a fresh machine.
       - name: xcodebuild test
