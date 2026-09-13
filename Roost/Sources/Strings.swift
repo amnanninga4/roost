@@ -196,6 +196,35 @@ enum Strings {
         static let neverSynced = "Not synced yet"
     }
 
+    /// The one-line sync status under every tab header. `SyncStatusCopy` picks which of the
+    /// "Synced …" forms to use; the wording lives here.
+    enum Sync {
+        static let syncing = "Syncing…"
+        static let neverSynced = "Not synced yet"
+        static let notPaired = "Not paired · tap the gear"
+        /// The reason comes from the failure itself, so it is the server's or the system's words.
+        static func offline(_ reason: String) -> String {
+            "Offline · will retry (\(reason))"
+        }
+
+        /// Synced, but the phone did not keep when.
+        static let synced = "Synced"
+        /// A pass that has only just landed: a moment, not a measurement.
+        static let syncedJustNow = "Synced just now"
+        static func syncedSecondsAgo(_ seconds: Int) -> String {
+            "Synced \(seconds) sec. ago"
+        }
+
+        static func syncedMinutesAgo(_ minutes: Int) -> String {
+            "Synced \(minutes) min. ago"
+        }
+
+        /// An hour or more later a count stops helping and the clock time takes over.
+        static func syncedAt(_ time: String) -> String {
+            "Synced at \(time)"
+        }
+    }
+
     /// First run: what this is, the pairing code, who the server says you are, notifications.
     /// Four screens, one job each. Sentence case in the body, no terminal period on a button.
     enum Onboarding {
