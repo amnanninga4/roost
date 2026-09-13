@@ -1,8 +1,9 @@
 // SQLite storage for Roost. All timestamps are ISO-8601 UTC strings.
 // Chicago-time logic (due today, streaks, escalation) lives in the app / RoostCore, not here.
 //
-// Sync cursor: every insert and soft-delete of a completion takes the next value of a
-// monotonic `seq` counter. Clients sync with `cursor=<last seq seen>`; wall-clock time is
+// Sync cursor: every insert, update and soft-delete of a synced row (completions, shopping items,
+// meals, projects, subtasks) takes the next value of ONE monotonic `seq` counter shared by every
+// table, so a single /sync call carries every delta. Clients sync with `cursor=<last seq seen>`; wall-clock time is
 // never used as a cursor, so same-millisecond writes and clock steps cannot lose rows.
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
@@ -42,6 +43,51 @@ CREATE TABLE IF NOT EXISTS devices (
   label     TEXT NOT NULL,
   lastSeen  TEXT
 );
+CREATE TABLE IF NOT EXISTS shopping_items (
+  id        TEXT PRIMARY KEY,
+  title     TEXT NOT NULL,
+  addedBy   TEXT NOT NULL CHECK (addedBy IN (${PEOPLE_SQL})),
+  bought    INTEGER NOT NULL DEFAULT 0 CHECK (bought IN (0,1)),
+  boughtBy  TEXT CHECK (boughtBy IN (${PEOPLE_SQL})),
+  boughtAt  TEXT,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL,
+  deletedAt TEXT,
+  seq       INTEGER NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS meals (
+  id         TEXT PRIMARY KEY,
+  title      TEXT NOT NULL,
+  tag        TEXT NOT NULL DEFAULT '',
+  lastMadeAt TEXT,
+  nextUp     INTEGER NOT NULL DEFAULT 0 CHECK (nextUp IN (0,1)),
+  createdAt  TEXT NOT NULL,
+  updatedAt  TEXT NOT NULL,
+  deletedAt  TEXT,
+  seq        INTEGER NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS projects (
+  id        TEXT PRIMARY KEY,
+  title     TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL,
+  deletedAt TEXT,
+  seq       INTEGER NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS project_subtasks (
+  id        TEXT PRIMARY KEY,
+  projectId TEXT NOT NULL REFERENCES projects(id),
+  title     TEXT NOT NULL,
+  sortOrder INTEGER NOT NULL,
+  done      INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0,1)),
+  doneBy    TEXT CHECK (doneBy IN (${PEOPLE_SQL})),
+  doneAt    TEXT,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL,
+  deletedAt TEXT,
+  seq       INTEGER NOT NULL UNIQUE
+);
+CREATE INDEX IF NOT EXISTS project_subtasks_project ON project_subtasks(projectId);
 INSERT OR IGNORE INTO meta (key, value) VALUES ('seq', '0');
 `;
 
@@ -168,4 +214,237 @@ export function touchDevice(db, { tokenHash, person, label }, now) {
     `INSERT INTO devices (tokenHash, person, label, lastSeen) VALUES (?, ?, ?, ?)
      ON CONFLICT(tokenHash) DO UPDATE SET person = excluded.person, label = excluded.label, lastSeen = excluded.lastSeen`
   ).run(tokenHash, person, label, now);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lists: shopping items, meals, projects + subtasks. Same rules as completions: client-generated
+// ids, soft deletes, every changed row takes the next shared seq inside one transaction.
+// Table names below are module constants, never request input.
+
+const SHOPPING = "shopping_items";
+const MEALS = "meals";
+const PROJECTS = "projects";
+const SUBTASKS = "project_subtasks";
+
+function transact(db, fn) {
+  db.exec("BEGIN");
+  try {
+    const out = fn();
+    db.exec("COMMIT");
+    return out;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+function rowById(db, table, id) {
+  return db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id) ?? null;
+}
+
+/** Inside a transaction: insert a row with the next seq. `cols` is { column: value } without id/seq/timestamps. */
+function insertRowIn(db, table, id, cols, now) {
+  const seq = nextSeq(db);
+  const all = { id, ...cols, createdAt: now, updatedAt: now, deletedAt: null, seq };
+  const names = Object.keys(all);
+  db.prepare(`INSERT INTO ${table} (${names.join(", ")}) VALUES (${names.map(() => "?").join(", ")})`).run(
+    ...names.map((n) => all[n])
+  );
+  return rowById(db, table, id);
+}
+
+/** Inside a transaction: apply `fields` to a row, stamping updatedAt and a new seq. */
+function updateRowIn(db, table, id, fields, now) {
+  const seq = nextSeq(db);
+  const names = Object.keys(fields);
+  const sets = names.map((n) => `${n} = ?`).concat("updatedAt = ?", "seq = ?").join(", ");
+  db.prepare(`UPDATE ${table} SET ${sets} WHERE id = ?`).run(...names.map((n) => fields[n]), now, seq, id);
+  return rowById(db, table, id);
+}
+
+/** Inside a transaction: soft-delete a live row. No-op (no seq) when already deleted. */
+function softDeleteIn(db, table, id, now) {
+  const row = rowById(db, table, id);
+  if (!row || row.deletedAt) return row;
+  return updateRowIn(db, table, id, { deletedAt: now }, now);
+}
+
+/** Insert if new. Returns { row, created }. Existing rows (deleted or not) are returned untouched. */
+function insertRow(db, table, id, cols, now) {
+  const existing = rowById(db, table, id);
+  if (existing) return { row: existing, created: false };
+  return { row: transact(db, () => insertRowIn(db, table, id, cols, now)), created: true };
+}
+
+/** Patch a live row. Returns null when the row is unknown or deleted. */
+function patchRow(db, table, id, fields, now) {
+  const existing = rowById(db, table, id);
+  if (!existing || existing.deletedAt) return null;
+  return transact(db, () => updateRowIn(db, table, id, fields, now));
+}
+
+/** Soft delete, idempotent. Returns null when the row is unknown. */
+function deleteRow(db, table, id, now) {
+  const existing = rowById(db, table, id);
+  if (!existing) return null;
+  return transact(db, () => softDeleteIn(db, table, id, now));
+}
+
+// --- shopping ---
+
+export function getShoppingItem(db, id) {
+  return rowById(db, SHOPPING, id);
+}
+
+export function insertShoppingItem(db, { id, title, addedBy }, now) {
+  return insertRow(db, SHOPPING, id, { title, addedBy, bought: 0, boughtBy: null, boughtAt: null }, now);
+}
+
+/**
+ * { title?, bought? }. bought=true stamps boughtBy/boughtAt on the false→true transition (a replay of
+ * the same PATCH keeps the first stamp); bought=false clears both.
+ */
+export function patchShoppingItem(db, id, { title, bought }, person, now) {
+  const existing = getShoppingItem(db, id);
+  if (!existing || existing.deletedAt) return null;
+  const fields = {};
+  if (title !== undefined) fields.title = title;
+  if (bought === true && !existing.bought) Object.assign(fields, { bought: 1, boughtBy: person, boughtAt: now });
+  if (bought === false) Object.assign(fields, { bought: 0, boughtBy: null, boughtAt: null });
+  return patchRow(db, SHOPPING, id, fields, now);
+}
+
+export function deleteShoppingItem(db, id, now) {
+  return deleteRow(db, SHOPPING, id, now);
+}
+
+// --- meals ---
+
+export function getMeal(db, id) {
+  return rowById(db, MEALS, id);
+}
+
+/** Inside a transaction: clear nextUp on every other live meal, each taking its own seq. */
+function clearNextUpIn(db, exceptId, now) {
+  const others = db.prepare(`SELECT id FROM ${MEALS} WHERE nextUp = 1 AND deletedAt IS NULL AND id <> ?`).all(exceptId);
+  for (const { id } of others) updateRowIn(db, MEALS, id, { nextUp: 0 }, now);
+}
+
+export function insertMeal(db, { id, title, tag = "", lastMadeAt = null, nextUp = false }, now) {
+  const existing = getMeal(db, id);
+  if (existing) return { row: existing, created: false };
+  const row = transact(db, () => {
+    if (nextUp) clearNextUpIn(db, id, now);
+    return insertRowIn(db, MEALS, id, { title, tag, lastMadeAt, nextUp: nextUp ? 1 : 0 }, now);
+  });
+  return { row, created: true };
+}
+
+/** { title?, tag?, lastMadeAt?, nextUp? }. nextUp=true is exclusive: every other meal is cleared. */
+export function patchMeal(db, id, { title, tag, lastMadeAt, nextUp }, now) {
+  const existing = getMeal(db, id);
+  if (!existing || existing.deletedAt) return null;
+  const fields = {};
+  if (title !== undefined) fields.title = title;
+  if (tag !== undefined) fields.tag = tag;
+  if (lastMadeAt !== undefined) fields.lastMadeAt = lastMadeAt;
+  if (nextUp !== undefined) fields.nextUp = nextUp ? 1 : 0;
+  return transact(db, () => {
+    if (nextUp === true) clearNextUpIn(db, id, now);
+    return updateRowIn(db, MEALS, id, fields, now);
+  });
+}
+
+export function deleteMeal(db, id, now) {
+  return deleteRow(db, MEALS, id, now);
+}
+
+// --- projects + subtasks ---
+
+export function getProject(db, id) {
+  return rowById(db, PROJECTS, id);
+}
+
+export function projectExists(db, id) {
+  return !!db.prepare(`SELECT 1 FROM ${PROJECTS} WHERE id = ? AND deletedAt IS NULL`).get(id);
+}
+
+export function getSubtask(db, id) {
+  return rowById(db, SUBTASKS, id);
+}
+
+/** Every subtask of a project (deleted ones included), in list order. */
+export function subtasksOf(db, projectId) {
+  return db.prepare(`SELECT * FROM ${SUBTASKS} WHERE projectId = ? ORDER BY sortOrder, seq`).all(projectId);
+}
+
+/** Creates the project and its `subtasks` [{ id, title }] in order, each row taking its own seq. */
+export function insertProject(db, { id, title, subtasks = [] }, now) {
+  const existing = getProject(db, id);
+  if (existing) return { row: existing, created: false };
+  const row = transact(db, () => {
+    const project = insertRowIn(db, PROJECTS, id, { title }, now);
+    subtasks.forEach((s, i) => {
+      insertRowIn(db, SUBTASKS, s.id, { projectId: id, title: s.title, sortOrder: i, done: 0, doneBy: null, doneAt: null }, now);
+    });
+    return project;
+  });
+  return { row, created: true };
+}
+
+export function patchProject(db, id, { title }, now) {
+  const fields = {};
+  if (title !== undefined) fields.title = title;
+  return patchRow(db, PROJECTS, id, fields, now);
+}
+
+/** Soft-deletes the project and every live subtask under it, each row taking its own seq. */
+export function deleteProject(db, id, now) {
+  const existing = getProject(db, id);
+  if (!existing) return null;
+  return transact(db, () => {
+    for (const s of subtasksOf(db, id)) softDeleteIn(db, SUBTASKS, s.id, now);
+    return softDeleteIn(db, PROJECTS, id, now);
+  });
+}
+
+/** sortOrder defaults to one past the highest live subtask in the project. Caller checks projectId. */
+export function insertSubtask(db, { id, projectId, title, sortOrder }, now) {
+  const existing = getSubtask(db, id);
+  if (existing) return { row: existing, created: false };
+  const row = transact(db, () => {
+    let order = sortOrder;
+    if (order === undefined) {
+      const max = db
+        .prepare(`SELECT MAX(sortOrder) AS m FROM ${SUBTASKS} WHERE projectId = ? AND deletedAt IS NULL`)
+        .get(projectId).m;
+      order = max == null ? 0 : max + 1;
+    }
+    return insertRowIn(db, SUBTASKS, id, { projectId, title, sortOrder: order, done: 0, doneBy: null, doneAt: null }, now);
+  });
+  return { row, created: true };
+}
+
+/** { title?, done?, sortOrder? }. done=true stamps doneBy/doneAt on the false→true transition; done=false clears both. */
+export function patchSubtask(db, id, { title, done, sortOrder }, person, now) {
+  const existing = getSubtask(db, id);
+  if (!existing || existing.deletedAt) return null;
+  const fields = {};
+  if (title !== undefined) fields.title = title;
+  if (sortOrder !== undefined) fields.sortOrder = sortOrder;
+  if (done === true && !existing.done) Object.assign(fields, { done: 1, doneBy: person, doneAt: now });
+  if (done === false) Object.assign(fields, { done: 0, doneBy: null, doneAt: null });
+  return patchRow(db, SUBTASKS, id, fields, now);
+}
+
+export function deleteSubtask(db, id, now) {
+  return deleteRow(db, SUBTASKS, id, now);
+}
+
+// --- sync ---
+
+/** Every list row with seq > cursor, per table, ordered by seq. Deleted rows included. */
+export function listsAfter(db, cursor) {
+  const after = (table) => db.prepare(`SELECT * FROM ${table} WHERE seq > ? ORDER BY seq`).all(cursor);
+  return { shopping: after(SHOPPING), meals: after(MEALS), projects: after(PROJECTS), subtasks: after(SUBTASKS) };
 }
