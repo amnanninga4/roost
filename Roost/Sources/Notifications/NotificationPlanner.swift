@@ -6,8 +6,8 @@
 //   18:00 Chicago  one notification per overdue chore, worded by EscalationStage (the mockup's ladder)
 // Identifiers are deterministic per chore + date, so a replan replaces rather than duplicates.
 import Foundation
-import UserNotifications
 import RoostCore
+import UserNotifications
 
 struct PlannedNotification: Hashable, Sendable {
     let id: String
@@ -27,7 +27,8 @@ enum NotificationPlanner {
     /// only `due[person]` is read, so the other person's chores can never leak into this phone's notifications.
     /// Anything that would fire at or before `now` is dropped (iOS will not deliver a calendar trigger in the past).
     static func plan(due: [Person: [DueItem]], for person: Person, on date: Date, now: Date,
-                     calendar: HouseholdCalendar = HouseholdCalendar()) -> [PlannedNotification] {
+                     calendar: HouseholdCalendar = HouseholdCalendar()) -> [PlannedNotification]
+    {
         let mine = due[person] ?? []
         let day = dayKey(date, calendar: calendar)
         var out: [PlannedNotification] = []
@@ -82,7 +83,9 @@ enum NotificationPlanner {
         let shown = titles.prefix(3)
         let rest = titles.count - shown.count
         var body = shown.joined(separator: ", ")
-        if rest > 0 { body += " and \(rest) more" }
+        if rest > 0 {
+            body += " and \(rest) more"
+        }
         return body
     }
 
@@ -97,7 +100,9 @@ enum NotificationPlanner {
     }
 
     /// A one-shot calendar trigger at the plan's Chicago wall-clock time.
-    static func request(for planned: PlannedNotification, calendar: HouseholdCalendar = HouseholdCalendar()) -> UNNotificationRequest {
+    static func request(for planned: PlannedNotification,
+                        calendar: HouseholdCalendar = HouseholdCalendar()) -> UNNotificationRequest
+    {
         let content = UNMutableNotificationContent()
         content.title = planned.title
         content.body = planned.body

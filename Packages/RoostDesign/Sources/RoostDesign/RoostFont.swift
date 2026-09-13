@@ -1,8 +1,9 @@
+import CoreText
+
 // Roost type: Fraunces for display, Nunito Sans for body, IBM Plex Mono for labels.
 // Custom fonts are used when registered (see RoostFonts.register()); otherwise system fallbacks
 // that match the mockup's CSS fallback stacks (Georgia / system sans / system mono).
 import SwiftUI
-import CoreText
 
 public enum RoostFont {
     /// PostScript family names as they appear in the bundled files.

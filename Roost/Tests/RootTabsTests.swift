@@ -1,5 +1,5 @@
-import XCTest
 @testable import Roost
+import XCTest
 
 final class RootTabsTests: XCTestCase {
     func testRootHasFourTabsInOrder() {

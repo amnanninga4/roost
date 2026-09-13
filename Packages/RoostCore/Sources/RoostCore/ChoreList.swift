@@ -24,7 +24,11 @@ public struct ChoreList: Codable, Sendable {
         try JSONDecoder().decode(ChoreList.self, from: data)
     }
 
-    public var pinned: [Chore] { chores.filter(\.isPinned) }
+    public var pinned: [Chore] {
+        chores.filter(\.isPinned)
+    }
 
-    public subscript(id: String) -> Chore? { chores.first { $0.id == id } }
+    public subscript(id: String) -> Chore? {
+        chores.first { $0.id == id }
+    }
 }

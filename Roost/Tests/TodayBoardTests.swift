@@ -243,7 +243,11 @@ final class TodayBoardTests: XCTestCase {
         for outcome in [SyncOutcome.synced(posted: 1, deleted: 0, received: 2), .coalesced, nil] {
             let notice = TodayBoard.notice(isPaired: true, outcome: outcome, lastSyncAt: now,
                                            statusLine: coordinatorLine, now: now)
-            XCTAssertEqual(notice, TodayBoard.Notice(tone: .quiet, text: coordinatorLine), "\(String(describing: outcome))")
+            XCTAssertEqual(
+                notice,
+                TodayBoard.Notice(tone: .quiet, text: coordinatorLine),
+                "\(String(describing: outcome))"
+            )
         }
     }
 

@@ -1,7 +1,7 @@
-import XCTest
-import SwiftData
-import RoostCore
 @testable import Roost
+import RoostCore
+import SwiftData
+import XCTest
 
 final class SyncTests: XCTestCase {
     private var container: ModelContainer!
@@ -10,17 +10,31 @@ final class SyncTests: XCTestCase {
     private let base = URL(string: "https://stub.local")!
 
     override func setUp() async throws {
-        container = try ModelContainer(for: RoostSchema.schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        container = try ModelContainer(
+            for: RoostSchema.schema,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
         let ctx = ModelContext(container)
-        try ChoreSeeder.seedIfNeeded(into: ctx, from: ChoreSeeder.bundledChoresURL(bundle: Bundle(for: RoostAppMarker.self)))
+        try ChoreSeeder.seedIfNeeded(
+            into: ctx,
+            from: ChoreSeeder.bundledChoresURL(bundle: Bundle(for: RoostAppMarker.self))
+        )
         tokens = InMemoryTokenStore()
         client = SyncClient(modelContainer: container)
-        await client.configure(tokenStore: tokens, session: StubURLProtocol.makeSession(), now: { Date(timeIntervalSince1970: 1_800_000_000) })
+        await client.configure(
+            tokenStore: tokens,
+            session: StubURLProtocol.makeSession(),
+            now: { Date(timeIntervalSince1970: 1_800_000_000) }
+        )
     }
 
-    private func fresh() -> ModelContext { ModelContext(container) }
+    private func fresh() -> ModelContext {
+        ModelContext(container)
+    }
 
-    private func state() throws -> SyncState { try ChoreSeeder.syncState(in: fresh()) }
+    private func state() throws -> SyncState {
+        try ChoreSeeder.syncState(in: fresh())
+    }
 
     private func completion(_ id: String) throws -> CompletionRecord? {
         try fresh().fetch(FetchDescriptor<CompletionRecord>(predicate: #Predicate { $0.id == id })).first
@@ -32,9 +46,22 @@ final class SyncTests: XCTestCase {
         _ = try await client.pair(baseURL: base, token: "anne-token-0123456789abcdef")
     }
 
-    private func insertLocal(_ id: String, choreId: String = "scoop-litter", person: String = "anne", deleted: Bool = false, synced: Bool = false) throws {
+    private func insertLocal(
+        _ id: String,
+        choreId: String = "scoop-litter",
+        person: String = "anne",
+        deleted: Bool = false,
+        synced: Bool = false
+    ) throws {
         let ctx = fresh()
-        let r = CompletionRecord(id: id, choreId: choreId, person: person, completedAt: Date(timeIntervalSince1970: 1_799_999_000), syncedAt: synced ? Date() : nil, removed: deleted)
+        let r = CompletionRecord(
+            id: id,
+            choreId: choreId,
+            person: person,
+            completedAt: Date(timeIntervalSince1970: 1_799_999_000),
+            syncedAt: synced ? Date() : nil,
+            removed: deleted
+        )
         ctx.insert(r)
         try ctx.save()
     }
@@ -76,9 +103,30 @@ final class SyncTests: XCTestCase {
 
         StubURLProtocol.reset { req in
             if req.httpMethod == "POST" {
-                return (201, json(completionJSON(id: "c-local-1", choreId: "scoop-litter", person: "anne", completedAt: "2026-09-14T11:30:00.000Z", seq: 8)))
+                return (
+                    201,
+                    json(completionJSON(
+                        id: "c-local-1",
+                        choreId: "scoop-litter",
+                        person: "anne",
+                        completedAt: "2026-09-14T11:30:00.000Z",
+                        seq: 8
+                    ))
+                )
             }
-            return (200, syncJSON(cursor: 8, completions: [completionJSON(id: "c-local-1", choreId: "scoop-litter", person: "anne", completedAt: "2026-09-14T11:30:00.000Z", seq: 8)]))
+            return (
+                200,
+                syncJSON(
+                    cursor: 8,
+                    completions: [completionJSON(
+                        id: "c-local-1",
+                        choreId: "scoop-litter",
+                        person: "anne",
+                        completedAt: "2026-09-14T11:30:00.000Z",
+                        seq: 8
+                    )]
+                )
+            )
         }
         let first = await client.syncNow()
         XCTAssertEqual(first, .synced(posted: 1, deleted: 0, received: 1))
@@ -100,7 +148,9 @@ final class SyncTests: XCTestCase {
         try insertLocal("c-bad", choreId: "scoop-litter")
 
         StubURLProtocol.reset { req in
-            if req.httpMethod == "POST" { return (400, json(["error": "unknown or retired choreId"])) }
+            if req.httpMethod == "POST" {
+                return (400, json(["error": "unknown or retired choreId"]))
+            }
             return (200, syncJSON(cursor: 7))
         }
         _ = await client.syncNow()
@@ -120,13 +170,24 @@ final class SyncTests: XCTestCase {
 
         StubURLProtocol.reset { _ in (503, Data()) }
         let outcome = await client.syncNow()
-        if case .failed = outcome {} else { XCTFail("expected .failed, got \(outcome)") }
+        if case .failed = outcome {} else {
+            XCTFail("expected .failed, got \(outcome)")
+        }
         XCTAssertNil(try completion("c-offline")?.syncedAt)
         XCTAssertFalse(try XCTUnwrap(try completion("c-offline")).rejected)
 
         StubURLProtocol.reset { req in
             if req.httpMethod == "POST" {
-                return (201, json(completionJSON(id: "c-offline", choreId: "scoop-litter", person: "anne", completedAt: "2026-09-14T11:30:00.000Z", seq: 9)))
+                return (
+                    201,
+                    json(completionJSON(
+                        id: "c-offline",
+                        choreId: "scoop-litter",
+                        person: "anne",
+                        completedAt: "2026-09-14T11:30:00.000Z",
+                        seq: 9
+                    ))
+                )
             }
             return (200, syncJSON(cursor: 9))
         }
@@ -141,9 +202,32 @@ final class SyncTests: XCTestCase {
 
         StubURLProtocol.reset { req in
             if req.httpMethod == "DELETE" {
-                return (200, json(completionJSON(id: "c-del", choreId: "scoop-litter", person: "anne", completedAt: "2026-09-14T11:30:00.000Z", seq: 10, deleted: true)))
+                return (
+                    200,
+                    json(completionJSON(
+                        id: "c-del",
+                        choreId: "scoop-litter",
+                        person: "anne",
+                        completedAt: "2026-09-14T11:30:00.000Z",
+                        seq: 10,
+                        deleted: true
+                    ))
+                )
             }
-            return (200, syncJSON(cursor: 10, completions: [completionJSON(id: "c-del", choreId: "scoop-litter", person: "anne", completedAt: "2026-09-14T11:30:00.000Z", seq: 10, deleted: true)]))
+            return (
+                200,
+                syncJSON(
+                    cursor: 10,
+                    completions: [completionJSON(
+                        id: "c-del",
+                        choreId: "scoop-litter",
+                        person: "anne",
+                        completedAt: "2026-09-14T11:30:00.000Z",
+                        seq: 10,
+                        deleted: true
+                    )]
+                )
+            )
         }
         let outcome3 = await client.syncNow()
         XCTAssertEqual(outcome3, .synced(posted: 0, deleted: 1, received: 1))
@@ -163,7 +247,19 @@ final class SyncTests: XCTestCase {
     func testDeltaWithDeletedRemovesLocalCompletion() async throws {
         try await pairAsAnne(cursor: 1)
         StubURLProtocol.reset { _ in
-            (200, syncJSON(cursor: 2, completions: [completionJSON(id: "c-wes-1", choreId: "laundry", person: "wes", completedAt: "2026-09-14T13:00:00.000Z", seq: 2)]))
+            (
+                200,
+                syncJSON(
+                    cursor: 2,
+                    completions: [completionJSON(
+                        id: "c-wes-1",
+                        choreId: "laundry",
+                        person: "wes",
+                        completedAt: "2026-09-14T13:00:00.000Z",
+                        seq: 2
+                    )]
+                )
+            )
         }
         let outcome4 = await client.syncNow()
         XCTAssertEqual(outcome4, .synced(posted: 0, deleted: 0, received: 1))
@@ -173,7 +269,20 @@ final class SyncTests: XCTestCase {
         XCTAssertNotNil(r1.syncedAt, "rows from the server are already synced")
 
         StubURLProtocol.reset { _ in
-            (200, syncJSON(cursor: 3, completions: [completionJSON(id: "c-wes-1", choreId: "laundry", person: "wes", completedAt: "2026-09-14T13:00:00.000Z", seq: 3, deleted: true)]))
+            (
+                200,
+                syncJSON(
+                    cursor: 3,
+                    completions: [completionJSON(
+                        id: "c-wes-1",
+                        choreId: "laundry",
+                        person: "wes",
+                        completedAt: "2026-09-14T13:00:00.000Z",
+                        seq: 3,
+                        deleted: true
+                    )]
+                )
+            )
         }
         _ = await client.syncNow()
         let r2 = try XCTUnwrap(try completion("c-wes-1"))
@@ -189,7 +298,13 @@ final class SyncTests: XCTestCase {
         try await pairAsAnne()
         let trimmed = try ChoreList.load(from: ChoreSeeder.bundledChoresURL(bundle: Bundle(for: RoostAppMarker.self)))
             .chores.filter { $0.id != "scoop-litter" }
-            .map { ["id": $0.id, "title": $0.title, "cadence": $0.cadence.rawValue, "fixedAssignee": $0.fixedAssignee?.rawValue as Any, "category": $0.category.rawValue] }
+            .map { [
+                "id": $0.id,
+                "title": $0.title,
+                "cadence": $0.cadence.rawValue,
+                "fixedAssignee": $0.fixedAssignee?.rawValue as Any,
+                "category": $0.category.rawValue,
+            ] }
         StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 2, chores: trimmed)) }
         _ = await client.syncNow()
         XCTAssertEqual(try state().choresVersion, 2)
@@ -208,7 +323,9 @@ final class SyncTests: XCTestCase {
         async let b = client.syncNow()
         let (ra, rb) = await (a, b)
         XCTAssertEqual(rb, .coalesced)
-        if case .synced = ra {} else { XCTFail("first call should complete the sync, got \(ra)") }
+        if case .synced = ra {} else {
+            XCTFail("first call should complete the sync, got \(ra)")
+        }
         XCTAssertEqual(StubURLProtocol.requests("GET").count, 2, "coalesced call triggers exactly one extra pass")
     }
 }

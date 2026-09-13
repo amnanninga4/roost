@@ -1,11 +1,13 @@
-import XCTest
 @testable import RoostCore
+import XCTest
 
 /// Reads the real repo file so the package can never drift from data/chores.json unnoticed.
 func repoChoresURL(file: String = #filePath) -> URL {
     // …/Packages/RoostCore/Tests/RoostCoreTests/ChoreListTests.swift → repo root is five levels up.
     var url = URL(fileURLWithPath: file)
-    for _ in 0..<5 { url.deleteLastPathComponent() }
+    for _ in 0 ..< 5 {
+        url.deleteLastPathComponent()
+    }
     return url.appendingPathComponent("data/chores.json")
 }
 

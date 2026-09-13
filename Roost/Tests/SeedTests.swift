@@ -1,12 +1,14 @@
-import XCTest
-import SwiftData
-import RoostCore
 @testable import Roost
+import RoostCore
+import SwiftData
+import XCTest
 
 @MainActor
 final class SeedTests: XCTestCase {
     private var container: ModelContainer!
-    private var context: ModelContext { container.mainContext }
+    private var context: ModelContext {
+        container.mainContext
+    }
 
     override func setUpWithError() throws {
         container = try ModelContainer(
@@ -21,7 +23,10 @@ final class SeedTests: XCTestCase {
     }
 
     private func activeChores() throws -> [ChoreRecord] {
-        try context.fetch(FetchDescriptor<ChoreRecord>(predicate: #Predicate { !$0.retired }, sortBy: [SortDescriptor(\.sortOrder)]))
+        try context.fetch(FetchDescriptor<ChoreRecord>(
+            predicate: #Predicate { !$0.retired },
+            sortBy: [SortDescriptor(\.sortOrder)]
+        ))
     }
 
     func testSeedLoads31RowsAnd2Pinned() throws {
@@ -33,7 +38,10 @@ final class SeedTests: XCTestCase {
 
         let pinned = rows.filter { $0.fixedAssignee != nil }.map { ($0.id, $0.fixedAssignee!) }
         XCTAssertEqual(pinned.count, 2)
-        XCTAssertEqual(Dictionary(uniqueKeysWithValues: pinned), ["laundry": "anne", "garbage-can-to-street-sunday": "wes"])
+        XCTAssertEqual(
+            Dictionary(uniqueKeysWithValues: pinned),
+            ["laundry": "anne", "garbage-can-to-street-sunday": "wes"]
+        )
 
         let state = try context.fetch(FetchDescriptor<SyncState>())
         XCTAssertEqual(state.count, 1)
@@ -72,7 +80,12 @@ final class SeedTests: XCTestCase {
             XCTAssertEqual(try record.toChore(), chore)
         }
 
-        let done = Completion(id: "c-1", choreId: "laundry", person: .anne, completedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        let done = Completion(
+            id: "c-1",
+            choreId: "laundry",
+            person: .anne,
+            completedAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
         let record = CompletionRecord(done)
         XCTAssertNil(record.syncedAt)
         XCTAssertFalse(record.removed)
@@ -81,7 +94,14 @@ final class SeedTests: XCTestCase {
         record.removed = true
         XCTAssertNil(try record.toCompletion(), "soft-deleted rows are invisible to RoostCore")
 
-        let bad = ChoreRecord(id: "x", title: "x", cadence: "fortnightly", fixedAssignee: nil, category: "chore", sortOrder: 0)
+        let bad = ChoreRecord(
+            id: "x",
+            title: "x",
+            cadence: "fortnightly",
+            fixedAssignee: nil,
+            category: "chore",
+            sortOrder: 0
+        )
         XCTAssertThrowsError(try bad.toChore())
     }
 }

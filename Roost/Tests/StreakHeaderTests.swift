@@ -1,6 +1,6 @@
-import XCTest
-import RoostCore
 @testable import Roost
+import RoostCore
+import XCTest
 
 final class StreakHeaderTests: XCTestCase {
     func testHigherStreakLeads() {
@@ -37,10 +37,22 @@ final class StreakHeaderTests: XCTestCase {
 
     func testBuildsFromAPlan() throws {
         let cal = HouseholdCalendar()
-        let chores = try ChoreList.load(from: ChoreSeeder.bundledChoresURL(bundle: Bundle(for: RoostAppMarker.self))).chores
+        let chores = try ChoreList.load(from: ChoreSeeder.bundledChoresURL(bundle: Bundle(for: RoostAppMarker.self)))
+            .chores
         let day = cal.date(year: 2026, month: 9, day: 14, hour: 18)
-        let done = Completion(id: "c-1", choreId: "scoop-litter", person: .anne, completedAt: cal.date(year: 2026, month: 9, day: 14, hour: 9))
-        let plan = TodayPlanner.plan(chores: chores, completions: [done], asOf: day, activeFrom: cal.startOfDay(day), calendar: cal)
+        let done = Completion(
+            id: "c-1",
+            choreId: "scoop-litter",
+            person: .anne,
+            completedAt: cal.date(year: 2026, month: 9, day: 14, hour: 9)
+        )
+        let plan = TodayPlanner.plan(
+            chores: chores,
+            completions: [done],
+            asOf: day,
+            activeFrom: cal.startOfDay(day),
+            calendar: cal
+        )
         let m = StreakHeaderModel(plan: plan)
         XCTAssertEqual(m.sides.map(\.doneThisWeek), [1, 0])
         XCTAssertEqual(m.sides.map(\.streak), [plan.streak[.anne], plan.streak[.wes]].map { $0 ?? -1 })

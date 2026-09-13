@@ -1,6 +1,6 @@
-import XCTest
-import SwiftUI
 @testable import RoostDesign
+import SwiftUI
+import XCTest
 
 final class RoostColorTests: XCTestCase {
     /// Spot checks straight from roost-app-mockup.html.
