@@ -34,8 +34,9 @@ extension SyncClient {
         return stats
     }
 
-    /// What one outbound request did to its row.
-    private enum Sent {
+    /// What one outbound request did to its row. Shared with HandoffSync.swift, which runs the same
+    /// policy over the handoff queues.
+    enum Sent {
         /// The server has it (for a DELETE: confirms it is gone).
         case taken
         /// The server will never take it: marked, kept locally, never retried.
@@ -284,14 +285,23 @@ extension SyncClient {
     /// server will never take this row: rejected, kept locally, never retried. Anything else (429, 5xx,
     /// an unreadable reply) is this row's problem for this pass: logged, left queued, and the rest of the
     /// pass, the pull included, goes ahead.
-    private func outbound(_ record: some ListRecord, _ call: () async throws -> Void) async throws -> Sent {
+    ///
+    /// `finalOn403` is for a route where a 403 is a verdict about the row rather than a gateway saying no
+    /// for now: only a chore's current owner may offer it, only the person offered it may answer, and
+    /// neither fact changes on a retry. The list routes leave it false, where a 403 is worth another
+    /// pass. Shared with HandoffSync.swift.
+    func outbound(
+        _ record: some ListRecord, finalOn403: Bool = false, _ call: () async throws -> Void
+    ) async throws -> Sent {
         do {
             try await call()
             return .taken
         } catch let failure as SyncAPIError where failure.endsThePass {
             try modelContext.save()
             throw failure
-        } catch let failure as SyncAPIError where failure.isTransient {
+        } catch let failure as SyncAPIError where failure.isTransient
+            && !(finalOn403 && failure == .forbidden)
+        {
             deferRow(record, failure)
             return .deferred
         } catch let failure as SyncAPIError {

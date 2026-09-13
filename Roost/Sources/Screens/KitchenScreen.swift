@@ -1,3 +1,7 @@
+import RoostCore
+import RoostDesign
+import SwiftData
+
 // Kitchen mode: the phone propped on the counter. Both people at once, big type, no chrome, screen stays on.
 // Read-only; check-off stays on the Tasks tab. Tap anywhere, or Close, to leave.
 //
@@ -5,10 +9,7 @@
 // through sync), the coordinator's last sync is observed for the bottom line, and a 60-second timeline
 // moves the date, the days-late counts, and the "Synced …" wording without a store change.
 import SwiftUI
-import SwiftData
 import UIKit
-import RoostCore
-import RoostDesign
 
 struct KitchenScreen: View {
     @Environment(\.dismiss) private var dismiss
@@ -18,6 +19,8 @@ struct KitchenScreen: View {
     private var choreRecords: [ChoreRecord]
     @Query(filter: #Predicate<CompletionRecord> { !$0.removed })
     private var completionRecords: [CompletionRecord]
+    @Query(filter: #Predicate<HandoffRecord> { !$0.removed }, sort: \HandoffRecord.createdAt)
+    private var handoffRecords: [HandoffRecord]
     @Query private var syncStates: [SyncState]
 
     /// What the idle timer was before this screen disabled it, put back on dismiss.
@@ -43,6 +46,7 @@ struct KitchenScreen: View {
 
     private func content(asOf now: Date) -> some View {
         let model = KitchenModel(chores: choreRecords, completions: completionRecords,
+                                 handoffs: handoffRecords,
                                  activeFrom: syncStates.first?.activeFrom, asOf: now, calendar: calendar)
         return ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -193,6 +197,16 @@ private struct OverdueCard: View {
                 .font(RoostFont.body(size: RoostFont.Size.meta))
                 .foregroundStyle(RoostColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
+            // The same chip the Tasks tab puts on a row somebody handed over: an overdue chore on the
+            // counter should say whose turn it actually was this period.
+            if let giver = item.handedOverBy {
+                Text(Strings.Handoffs.from(giver.displayName))
+                    .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .semibold))
+                    .foregroundStyle(RoostColor.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(RoostColor.accentSoft, in: Capsule())
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
@@ -243,30 +257,65 @@ private enum KitchenPreview {
 
     /// Household started six days ago: Anne owes a nudge and a pointed, Wes an alert and a nudge.
     static let container: ModelContainer = {
-        let container = try! ModelContainer(for: RoostSchema.schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let container = try! ModelContainer(
+            for: RoostSchema.schema,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
         let ctx = container.mainContext
         let list = ChoreList(version: 1, chores: [
             Chore(id: "scoop-litter", title: "Scoop litter", cadence: .daily, fixedAssignee: .wes, category: .catCare),
             Chore(id: "water-plants", title: "Water plants", cadence: .daily, fixedAssignee: .wes, category: .chore),
-            Chore(id: "wipe-tables", title: "Wipe down tables", cadence: .daily, fixedAssignee: .anne, category: .chore),
-            Chore(id: "refill-cat-water", title: "Refill cat water", cadence: .daily, fixedAssignee: .anne, category: .catCare),
+            Chore(
+                id: "wipe-tables",
+                title: "Wipe down tables",
+                cadence: .daily,
+                fixedAssignee: .anne,
+                category: .chore
+            ),
+            Chore(
+                id: "refill-cat-water",
+                title: "Refill cat water",
+                cadence: .daily,
+                fixedAssignee: .anne,
+                category: .catCare
+            ),
             Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore),
         ])
         try! ChoreSeeder.seed(list, into: ctx)
         let start = cal.startOfDay(cal.adding(days: -6, to: Date()))
         try! ChoreSeeder.syncState(in: ctx).activeFrom = start
-        ctx.insert(CompletionRecord(id: "p1", choreId: "water-plants", person: "wes", completedAt: cal.adding(days: 4, to: start)))
-        ctx.insert(CompletionRecord(id: "p2", choreId: "wipe-tables", person: "anne", completedAt: cal.adding(days: 2, to: start)))
-        ctx.insert(CompletionRecord(id: "p3", choreId: "refill-cat-water", person: "anne", completedAt: cal.adding(days: 4, to: start)))
+        ctx.insert(CompletionRecord(
+            id: "p1",
+            choreId: "water-plants",
+            person: "wes",
+            completedAt: cal.adding(days: 4, to: start)
+        ))
+        ctx.insert(CompletionRecord(
+            id: "p2",
+            choreId: "wipe-tables",
+            person: "anne",
+            completedAt: cal.adding(days: 2, to: start)
+        ))
+        ctx.insert(CompletionRecord(
+            id: "p3",
+            choreId: "refill-cat-water",
+            person: "anne",
+            completedAt: cal.adding(days: 4, to: start)
+        ))
         try! ctx.save()
         return container
     }()
+
     static let sync = SyncCoordinator(container: container)
 
     static let freshContainer: ModelContainer = {
-        let container = try! ModelContainer(for: RoostSchema.schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let container = try! ModelContainer(
+            for: RoostSchema.schema,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
         try! ChoreSeeder.seedIfNeeded(into: container.mainContext, from: ChoreSeeder.bundledChoresURL())
         return container
     }()
+
     static let freshSync = SyncCoordinator(container: freshContainer)
 }

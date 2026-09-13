@@ -108,6 +108,13 @@ final class NotificationScheduler {
         let completions = try context.fetch(FetchDescriptor<CompletionRecord>(
             predicate: #Predicate { !$0.removed }
         )).compactMap { try? $0.toCompletion() }
+        // Handoffs too: reminding somebody about a chore they handed away — and not reminding the person
+        // who took it — is the one thing a reminder must not do.
+        let handoffs = try HandoffPresentation.live(
+            context.fetch(FetchDescriptor<HandoffRecord>(
+                predicate: #Predicate { !$0.removed }, sortBy: [SortDescriptor(\.createdAt)]
+            )).compactMap { try? $0.toSnapshot() }
+        )
 
         let now = now()
         let activeFrom = state.activeFrom ?? calendar.startOfDay(now)
@@ -117,7 +124,7 @@ final class NotificationScheduler {
         var badge = 0
         for offset in 0 ..< horizonDays {
             let day = calendar.adding(days: offset, to: now)
-            let due = scheduler.due(on: day, completions: completions)
+            let due = scheduler.due(on: day, completions: completions, handoffs: handoffs)
             planned += NotificationPlanner.plan(due: due, for: person, on: day, now: now, calendar: calendar)
             if offset == 0 {
                 badge = NotificationPlanner.badgeCount(due: due, for: person)

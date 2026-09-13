@@ -14,7 +14,16 @@ struct PersonColumnView: View {
     let dueCount: Int
     /// True for the person this phone is paired as.
     let isMine: Bool
+    /// Offers waiting for an answer, above the rows. Only ever this phone's own person's: an offer the
+    /// other phone has to answer already reads on this one as "Asked Wes · waiting" on the row it came
+    /// from, and a card with two buttons nobody here may press would be the same news twice.
+    var offers: [IncomingOffer] = []
     let toggle: (TodayRow) -> Void
+    /// Offers a row's turn to the other person. Nil on a column this phone cannot act in.
+    var offer: ((TodayRow) -> Void)?
+    /// Takes back an offer that has not synced yet.
+    var withdraw: ((String) -> Void)?
+    var answer: ((IncomingOffer, HandoffRules.Decision) -> Void)?
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The dot that ties a column to its half of the week bar.
@@ -74,6 +83,17 @@ struct PersonColumnView: View {
     private var card: some View {
         // A hairline gap so two tinted rows next to each other still read as two rows.
         VStack(spacing: RoostSpacing.xxs) {
+            // Above the rows, and above "Nothing due today": a question is not a chore yet, and the
+            // answer decides whether the list below it is right.
+            ForEach(offers) { offer in
+                HandoffOfferCard(
+                    offer: offer,
+                    accept: { answer?(offer, .accept) },
+                    decline: { answer?(offer, .decline) }
+                )
+                .roostTransition(.row)
+                .padding(.bottom, RoostSpacing.xxs)
+            }
             if rows.isEmpty {
                 // Nothing due and nothing checked off: a day with none of this person's chores on it.
                 clearLine(Strings.Tasks.nothingDue)
@@ -84,7 +104,11 @@ struct PersonColumnView: View {
                         .roostTransition(.row)
                 }
                 ForEach(rows) { row in
-                    ChoreRowView(row: row) { toggle(row) }
+                    ChoreRowView(
+                        row: row,
+                        onOffer: offerAction(for: row),
+                        onWithdraw: withdrawAction(for: row)
+                    ) { toggle(row) }
                         .roostTransition(.checkOff)
                 }
             }
@@ -95,6 +119,21 @@ struct PersonColumnView: View {
         .background(RoostColor.Role.surface.color, in: RoostRadius.cardShape)
         .roostElevation(.card, cornerRadius: RoostRadius.card)
         .roostAnimation(.standard, value: rows.map(\.id))
+        .roostAnimation(.standard, value: offers.map(\.id))
+    }
+
+    /// Whether this row may be offered is `row.canOffer` — `RoostCore.HandoffRules.canOffer`, decided in
+    /// the planner. The view only adds the one thing the planner cannot know: whose phone this is.
+    private func offerAction(for row: TodayRow) -> (() -> Void)? {
+        guard isMine, row.canOffer, let offer else { return nil }
+        return { offer(row) }
+    }
+
+    /// Offered only while the offer is still on this phone. The server has no withdraw route, so an
+    /// offer that has synced can only be waited out — see `HandoffActions.withdraw`.
+    private func withdrawAction(for row: TodayRow) -> (() -> Void)? {
+        guard isMine, let withdraw, case .waiting(_, let id, true) = row.handoff else { return nil }
+        return { withdraw(id) }
     }
 
     private func clearLine(_ text: String) -> some View {
