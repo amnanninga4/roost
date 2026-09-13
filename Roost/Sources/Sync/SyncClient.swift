@@ -39,6 +39,34 @@ enum UnpairOutcome: Equatable, Sendable {
     }
 }
 
+/// The server's view of this device (`GET /me`), in app types.
+///
+/// Settings asks for this rather than composing a line out of what pairing returned, because the half the
+/// household actually recognises — the label typed into `mkcode` — never reaches the phone any other way.
+struct DeviceIdentity: Equatable, Sendable {
+    let person: Person?
+    /// `<code label> · <device name>`, as `devices.js list` prints it. nil when the server sent none.
+    let label: String?
+    /// The token came from the tokens file, not a pairing code: it has no pairing date, and only that file
+    /// can revoke it.
+    let isHandMinted: Bool
+    let pairedAt: Date?
+    let lastSeen: Date?
+}
+
+extension DeviceIdentity {
+    init(_ response: SyncAPI.MeResponse) {
+        let label = response.label?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.init(
+            person: Person(rawValue: response.person),
+            label: (label?.isEmpty ?? true) ? nil : label,
+            isHandMinted: response.source == "file",
+            pairedAt: response.createdAt.flatMap(SyncAPI.parseDate),
+            lastSeen: response.lastSeen.flatMap(SyncAPI.parseDate)
+        )
+    }
+}
+
 @ModelActor
 actor SyncClient {
     private var tokenStore: TokenStore = KeychainTokenStore()
@@ -127,6 +155,17 @@ actor SyncClient {
         state.person = nil
         state.baseURL = nil
         try modelContext.save()
+    }
+
+    /// `GET /me` — what the server says this device is. nil when there is nothing stored to ask with, which
+    /// is not a failure: an unpaired phone has no identity to fetch. Errors are the caller's to interpret.
+    func identity() async throws -> DeviceIdentity? {
+        let state = try syncState()
+        guard let base = state.baseURL.flatMap(URL.init(string:)), let token = try tokenStore.read() else {
+            return nil
+        }
+        let response = try await SyncAPI(baseURL: base, token: token, session: session).me()
+        return DeviceIdentity(response)
     }
 
     /// The base URL pairing stored, if this phone has ever paired. `ServerEndpoint` turns it into the URL to use.

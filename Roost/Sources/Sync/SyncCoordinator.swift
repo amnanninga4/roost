@@ -51,6 +51,12 @@ final class SyncCoordinator {
         await ServerEndpoint.resolved(stored: client.storedBaseURL())
     }
 
+    /// What the server says this device is (`GET /me`), for Settings. nil when this phone has nothing stored
+    /// to ask with; throws what the call threw, so the screen can fall back to the name it knows locally.
+    func identity() async throws -> DeviceIdentity? {
+        try await client.identity()
+    }
+
     /// The code path: six digits from `mkcode` for a real token. Notifications are asked for later, by the
     /// onboarding step that explains them.
     func pair(code: String, deviceName: String) async throws -> Person {
