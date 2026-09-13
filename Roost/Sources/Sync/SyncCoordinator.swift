@@ -9,6 +9,10 @@ import SwiftData
 final class SyncCoordinator {
     let client: SyncClient
     let notifications: NotificationScheduler
+    /// Remote notifications: the APNs token this phone registered, and where an arriving push sends it.
+    let push: PushService
+    /// The widget's side of the app: one JSON file in the App Group container, rewritten after every pass.
+    let snapshots: SnapshotWriter
     private(set) var isSyncing = false
     private(set) var lastOutcome: SyncOutcome?
     private(set) var lastSyncAt: Date?
@@ -20,9 +24,16 @@ final class SyncCoordinator {
     private(set) var needsOnboarding: Bool
 
     init(container: ModelContainer, tokenStore: TokenStore = KeychainTokenStore()) {
-        client = SyncClient(modelContainer: container)
+        let client = SyncClient(modelContainer: container)
+        self.client = client
         notifications = NotificationScheduler(container: container)
+        push = PushService(sender: client)
+        snapshots = SnapshotWriter(container: container)
         needsOnboarding = ((try? tokenStore.read()) ?? nil) == nil
+        // An arriving push carries nothing the app needs — it is a hint that the store is behind. Weakly,
+        // because the service is owned here.
+        push.onPushArrived = { [weak self] in self?.syncSoon() }
+        PushService.current = push
     }
 
     /// Kick a sync without waiting. Safe to call from any tap; the actor coalesces overlapping calls.
@@ -40,6 +51,9 @@ final class SyncCoordinator {
             lastSyncAt = Date()
             await notifications.replan()
         }
+        // Whatever the pass returned. The plan is local, so a check-off made with no signal still reaches
+        // the Home Screen — and a failed pass is exactly when the widget's own timestamp starts mattering.
+        snapshots.write()
         return outcome
     }
 
@@ -77,8 +91,20 @@ final class SyncCoordinator {
 
     /// Asks iOS for notification permission and plans the first set. Called by the onboarding step, so the
     /// system prompt always arrives after a screen that says what it is for.
+    ///
+    /// A "yes" is also the moment to ask APNs for an address: the server's red alerts and handoff pushes
+    /// have nowhere to go until this phone has registered one, and registering before permission would get
+    /// a token that cannot show anything.
     func askForNotifications() async {
-        await notifications.enableAfterPairing()
+        if await notifications.enableAfterPairing() {
+            push.registerAfterGrant()
+        }
+    }
+
+    /// Launch and every foreground. APNs can rotate a token at any time and asking is the only way to
+    /// hear about it; `PushService` sends it on only when it is new.
+    func registerForPushIfAllowed() async {
+        await push.registerIfAuthorized()
     }
 
     /// Onboarding is done: show the tabs.
@@ -89,10 +115,16 @@ final class SyncCoordinator {
     /// Tells the server to forget this device and clears the local token. The app stays on the tabs until
     /// `returnToOnboarding()`, so Settings can explain a 403 or a failed call first.
     func unpairDevice() async -> UnpairOutcome {
+        // First, while there is still a bearer to authenticate it with: the server cannot be told to drop
+        // this phone's APNs token afterwards, and a row left behind keeps getting pushes until APNs
+        // answers 410 for it. Best effort — an unreachable server does not stop the unpair.
+        await push.unregisterBeforeUnpair()
         let outcome = await client.unpairDevice()
         lastOutcome = .unpaired
         lastSyncAt = nil
         await notifications.replan()
+        // The widget's "not paired yet" state is a written snapshot, not a missing file.
+        snapshots.write()
         return outcome
     }
 

@@ -4,8 +4,13 @@ import SwiftUI
 
 @main
 struct RoostApp: App {
+    /// The two APNs callbacks and the notification-center delegate have no SwiftUI equivalent; this is the
+    /// only UIKit in the app. See `Push/RoostAppDelegate.swift`.
+    @UIApplicationDelegateAdaptor(RoostAppDelegate.self) private var appDelegate
+
     let container: ModelContainer
     @State private var sync: SyncCoordinator
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         try? RoostFonts.register()
@@ -24,6 +29,14 @@ struct RoostApp: App {
         WindowGroup {
             RootGate()
                 .environment(sync)
+                // Launch and every return to the front: ask APNs for this phone's address again, because a
+                // token can rotate and there is no notification when it does. `PushService` only sends one
+                // the server does not already have.
+                .task { await sync.registerForPushIfAllowed() }
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    Task { await sync.registerForPushIfAllowed() }
+                }
         }
         .modelContainer(container)
     }

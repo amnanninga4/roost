@@ -7,10 +7,10 @@
 // Horizon: today and tomorrow. Tomorrow's set assumes nothing else gets done; the next replan replaces it.
 // Without tomorrow, a phone opened after 18:00 would never get an overdue ping.
 import Foundation
-import SwiftData
-import UserNotifications
-import UIKit
 import RoostCore
+import SwiftData
+import UIKit
+import UserNotifications
 
 @MainActor
 final class NotificationScheduler {
@@ -30,7 +30,8 @@ final class NotificationScheduler {
          center: NotificationCenterClient = SystemNotificationCenter(),
          now: @escaping () -> Date = { Date() },
          horizonDays: Int = 2,
-         observesForeground: Bool = true) {
+         observesForeground: Bool = true)
+    {
         self.container = container
         self.center = center
         self.now = now
@@ -45,14 +46,22 @@ final class NotificationScheduler {
     }
 
     /// Called once pairing succeeds (never on first launch): ask for permission, then plan.
-    func enableAfterPairing() async {
+    ///
+    /// Returns whether the reader said yes, because that is also the moment to register for remote
+    /// notifications — see `SyncCoordinator.askForNotifications()`.
+    @discardableResult
+    func enableAfterPairing() async -> Bool {
+        var granted = false
         do {
-            let granted = try await center.requestAuthorization(options: Self.authorizationOptions)
-            if !granted { print("Roost: notifications not granted") }
+            granted = try await center.requestAuthorization(options: Self.authorizationOptions)
+            if !granted {
+                print("Roost: notifications not granted")
+            }
         } catch {
             print("Roost: notification authorization failed (\(error))")
         }
         await replan()
+        return granted
     }
 
     /// Clears every pending Roost notification and schedules the current plan. Unpaired phones get nothing.
@@ -100,17 +109,19 @@ final class NotificationScheduler {
             predicate: #Predicate { !$0.removed }
         )).compactMap { try? $0.toCompletion() }
 
-        let now = self.now()
+        let now = now()
         let activeFrom = state.activeFrom ?? calendar.startOfDay(now)
         let scheduler = Scheduler(chores: chores, activeFrom: activeFrom, calendar: calendar)
 
         var planned: [PlannedNotification] = []
         var badge = 0
-        for offset in 0..<horizonDays {
+        for offset in 0 ..< horizonDays {
             let day = calendar.adding(days: offset, to: now)
             let due = scheduler.due(on: day, completions: completions)
             planned += NotificationPlanner.plan(due: due, for: person, on: day, now: now, calendar: calendar)
-            if offset == 0 { badge = NotificationPlanner.badgeCount(due: due, for: person) }
+            if offset == 0 {
+                badge = NotificationPlanner.badgeCount(due: due, for: person)
+            }
         }
         return (planned, badge)
     }

@@ -27,12 +27,29 @@ settings:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
 
+# The App Group the app and the widget extension share. The app writes one JSON snapshot there after every
+# plan; the widget reads only that file. Both entitlements below have to name it or the widget goes blank.
+# An App Group is granted by an entitlement, and an entitlement needs a signature, so a build made with
+# CODE_SIGNING_ALLOWED=NO has no container — `SnapshotStore.appGroup()` is Optional for that reason.
+appGroup: &appGroup group.xyz.hinescreative.roost
+
 targets:
   Roost:
     type: application
     platform: iOS
     sources:
       - path: Sources
+      # Compiled into the app and into the widget: the snapshot's shape and where it lives. Nothing else
+      # crosses the process boundary.
+      - path: Shared
+      # The widget's views, compiled into the app as well as into the extension. Nothing in the app draws
+      # them — this is so they can be rendered by `WidgetRenderTests` (which is also what produces
+      # docs/widget-*.png) and previewed from the app. `RoostWidgetBundle.swift` stays out: its `@main`
+      # belongs to the extension alone.
+      - path: Widget/TodayWidget.swift
+      - path: Widget/TodayWidgetView.swift
+      - path: Widget/WidgetStyle.swift
+      - path: Widget/WidgetStrings.swift
       - path: ../data/chores.json
         buildPhase: resources
         group: Resources
@@ -40,6 +57,8 @@ targets:
       - package: RoostCore
       - package: RoostDesign
       - package: ConfettiSwiftUI
+      # Embeds RoostWidget.appex in PlugIns/, so the widget ships with the app.
+      - target: RoostWidget
     info:
       path: Sources/Info.plist
       properties:
@@ -50,11 +69,51 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false
+        # The server's red alerts and handoff pushes are ordinary alerts, but this is also what lets iOS
+        # wake the app for one so the sync it kicks has run by the time the reader taps through.
+        UIBackgroundModes: [remote-notification]
+    # aps-environment is the sandbox/production switch for APNs, and `development` is the only honest value
+    # for a repo with no team: the server's own apns.json says "sandbox" too. TestFlight and the App Store
+    # rewrite this at export time. No Team ID, certificate, or key goes anywhere near here.
+    entitlements:
+      path: Roost.entitlements
+      properties:
+        aps-environment: development
+        com.apple.security.application-groups: [*appGroup]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: xyz.hinescreative.roost
         TARGETED_DEVICE_FAMILY: "1"
         ENABLE_PREVIEWS: YES
+
+  # The Home Screen and Lock Screen widget. It reads the App Group snapshot and nothing else: no SwiftData,
+  # no network, no bearer token. RoostDesign is the only dependency, for colours and type.
+  RoostWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+      - path: Shared
+    dependencies:
+      - package: RoostDesign
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Roost
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widget/RoostWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [*appGroup]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.hinescreative.roost.widget
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_PREVIEWS: YES
+        SKIP_INSTALL: YES
 
   RoostTests:
     type: bundle.unit-test
@@ -73,6 +132,8 @@ schemes:
     build:
       targets:
         Roost: all
+        # So the one `xcodebuild ... test` line in CLAUDE.md compiles the widget too.
+        RoostWidget: all
         RoostTests: [test]
     run:
       config: Debug
