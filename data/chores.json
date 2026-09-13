@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "source": "chore-master-list.html",
+  "locked": "2026-09-13",
+  "notes": "Seed from the locked master list only. Mockup sample rows are illustrative and must not be merged in. HTML meta/NOTES say 32; the list body has 31 tasks (11+9+5+6).",
+  "chores": [
+    {
+      "id": "load-dishwasher",
+      "title": "Load dishes into dishwasher / run dishwasher",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "scoop-litter",
+      "title": "Scoop litter",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "cat_care"
+    },
+    {
+      "id": "wipe-counters-mirrors",
+      "title": "Wipe down kitchen counters, bathroom counters/mirror",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "wipe-tables",
+      "title": "Wipe down tables",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "vacuum-first-floor",
+      "title": "Vacuum first floor",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "vacuum-basement",
+      "title": "Vacuum basement",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "am-wet-cat-food",
+      "title": "AM wet cat food",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "cat_care"
+    },
+    {
+      "id": "pm-wet-cat-food",
+      "title": "PM wet cat food",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "cat_care"
+    },
+    {
+      "id": "refill-cat-water",
+      "title": "Refill cat water",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "cat_care"
+    },
+    {
+      "id": "water-plants",
+      "title": "Water the plants",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "general-tidy-reset",
+      "title": "General tidy/reset pass (clutter, counters)",
+      "cadence": "daily",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "clean-toilet-bowl",
+      "title": "Clean toilet bowl",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "wipe-stove-top",
+      "title": "Wipe stove top",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "take-out-garbages",
+      "title": "Take out all garbages — basement, bathroom, kitchen",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "garbage-can-to-street-sunday",
+      "title": "Garbage can to street, Sunday",
+      "cadence": "weekly",
+      "fixedAssignee": "wes",
+      "category": "chore"
+    },
+    {
+      "id": "laundry",
+      "title": "Laundry",
+      "cadence": "weekly",
+      "fixedAssignee": "anne",
+      "category": "chore"
+    },
+    {
+      "id": "wipe-cabinet-doors",
+      "title": "Wipe down outer cabinet doors — kitchen and bathroom",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "change-bed-sheets",
+      "title": "Change bed sheets",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "clean-microwave-inside",
+      "title": "Clean microwave inside",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "wipe-appliance-exteriors",
+      "title": "Wipe kitchen appliance exteriors (fridge, toaster, coffee maker)",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "scrub-clean-shower",
+      "title": "Scrub/clean shower",
+      "cadence": "biweekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "mop-first-floor",
+      "title": "Mop first floor",
+      "cadence": "biweekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "mop-basement",
+      "title": "Mop basement",
+      "cadence": "biweekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "clean-rugs",
+      "title": "Clean rugs (cat hair, vacuum)",
+      "cadence": "biweekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "wash-pillows-rotate-mattress",
+      "title": "Wash pillows/comforters, rotate mattress",
+      "cadence": "biweekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "change-litter",
+      "title": "Change litter",
+      "cadence": "monthly",
+      "fixedAssignee": null,
+      "category": "cat_care"
+    },
+    {
+      "id": "clean-out-fridge",
+      "title": "Clean out fridge",
+      "cadence": "monthly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "clean-inside-ovens",
+      "title": "Clean inside ovens — basement and kitchen",
+      "cadence": "monthly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "clean-under-cushions",
+      "title": "Clean/vacuum under cushions",
+      "cadence": "monthly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "clean-under-couches",
+      "title": "Move and clean under couches",
+      "cadence": "monthly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "wipe-dust-bar-cart",
+      "title": "Wipe down/dust bar cart",
+      "cadence": "monthly",
+      "fixedAssignee": null,
+      "category": "chore"
+    }
+  ]
+}
