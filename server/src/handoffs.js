@@ -127,7 +127,7 @@ export function shapeHandoff(row) {
 
 /**
  * Insert if new. Returns { row, created, error? }.
- * error: unknown_chore | bad_people | self | not_owner | open_exists
+ * error: unknown_chore | bad_people | self | not_owner | open_exists | future_period | cadence_mismatch
  * Existing rows (any state) are returned untouched (idempotent replay).
  */
 export function insertHandoff(db, { id, choreId, fromPerson, toPerson, periodIndex, cadence }, now) {
@@ -142,9 +142,18 @@ export function insertHandoff(db, { id, choreId, fromPerson, toPerson, periodInd
   const chore = db.prepare("SELECT id, cadence, fixedAssignee FROM chores WHERE id = ? AND retired = 0").get(choreId);
   if (!chore) return { row: null, created: false, error: "unknown_chore" };
 
-  const cad = cadence ?? chore.cadence;
+  // Client may omit cadence (server uses the chore's) but must not invent a different one.
+  if (cadence !== undefined && cadence !== chore.cadence) {
+    return { row: null, created: false, error: "cadence_mismatch" };
+  }
+  const cad = chore.cadence;
   const asOf = new Date(now);
-  const period = periodIndex ?? calendarPeriodIndex(cad, asOf);
+  const current = calendarPeriodIndex(cad, asOf);
+  // Optional client periodIndex: past OK (offline sync), future rejected (no next-week offers).
+  if (periodIndex !== undefined && periodIndex > current) {
+    return { row: null, created: false, error: "future_period" };
+  }
+  const period = periodIndex ?? current;
 
   // Owner check uses every live handoff so an accepted one makes `to` the owner (who still
   // cannot stack a second offer — the accepted row is itself open).
@@ -283,6 +292,8 @@ export async function handoffRoutes({ req, res, path, db, device, send, readJson
     if (error === "unknown_chore") send(res, 400, { error: "unknown or retired choreId" });
     else if (error === "self") send(res, 400, { error: "cannot hand off to yourself" });
     else if (error === "bad_people") send(res, 400, { error: "from/to must be anne or wes" });
+    else if (error === "future_period") send(res, 400, { error: "periodIndex cannot be in the future" });
+    else if (error === "cadence_mismatch") send(res, 400, { error: "cadence must match the chore" });
     else if (error === "not_owner") send(res, 403, { error: "only the current owner may offer this chore" });
     else if (error === "open_exists") send(res, 409, { error: "an open handoff already exists for this chore and period" });
     else send(res, created ? 201 : 200, shapeHandoff(row));

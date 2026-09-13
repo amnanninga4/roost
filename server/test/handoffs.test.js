@@ -291,6 +291,53 @@ test("assigneeFor pure: accepted beats pin and rotation; pending does not", () =
   assert.equal(effectiveState(rotAccepted[0], chicagoLocal(2026, 9, 17, 9)), "expired");
 });
 
+test("POST /handoffs: future periodIndex → 400; cadence mismatch → 400", async () => {
+  clock = new Date("2026-09-14T12:00:00.000Z");
+  const current = periodIndex("weekly", clock);
+  const future = await offer(ANNE, {
+    id: "h-future",
+    choreId: "laundry",
+    to: "wes",
+    periodIndex: current + 1,
+  });
+  assert.equal(future.status, 400);
+  assert.match(String(future.body.error), /future/i);
+
+  const badCadence = await offer(ANNE, {
+    id: "h-cadence",
+    choreId: "laundry",
+    to: "wes",
+    cadence: "daily",
+  });
+  assert.equal(badCadence.status, 400);
+  assert.match(String(badCadence.body.error), /cadence/i);
+});
+
+test("POST /handoffs: past periodIndex → 201 then expired on next /sync", async () => {
+  clock = new Date("2026-09-14T12:00:00.000Z");
+  const current = periodIndex("weekly", clock);
+  const past = current - 1;
+  // Anne is pinned laundry owner in every period — past-period offer is allowed (offline sync).
+  const offered = await offer(ANNE, {
+    id: "h-past",
+    choreId: "laundry",
+    to: "wes",
+    periodIndex: past,
+    cadence: "weekly",
+  });
+  assert.equal(offered.status, 201);
+  assert.equal(offered.body.periodIndex, past);
+  assert.equal(offered.body.state, "pending");
+
+  tick();
+  const s = await sync(ANNE, 0);
+  assert.equal(s.status, 200);
+  const row = s.body.handoffs.find((h) => h.id === "h-past");
+  assert.ok(row, "past-period handoff should appear in sync");
+  assert.equal(row.state, "expired");
+  assert.equal(app.db.prepare("SELECT state FROM handoffs WHERE id = 'h-past'").get().state, "expired");
+});
+
 test("no unhandled errors logged", () => {
   assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0);
 });
