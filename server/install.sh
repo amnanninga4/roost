@@ -70,6 +70,9 @@ systemctl --no-pager --lines=3 status roost.service || true
 echo
 echo "health:"; curl -fsS http://127.0.0.1:8790/health || echo "(not answering yet)"
 echo
+if [[ ! -f /etc/roost/apns.json ]]; then
+  echo "hint: APNs disabled until /etc/roost/apns.json + .p8 land (root:roost 0640); see server/README.md Push"
+fi
 echo "devices in /etc/roost/tokens.json: $("$NODE" -e 'console.log(Object.keys(require("/etc/roost/tokens.json")).length)')"
 echo "pair a phone:  sudo -u roost ROOST_DB=/var/lib/roost/roost.db $NODE /opt/roost/server/src/mkcode.js anne \"Anne iPhone\""
 echo "devices:       sudo -u roost ROOST_DB=/var/lib/roost/roost.db ROOST_TOKENS=/etc/roost/tokens.json $NODE /opt/roost/server/src/devices.js list"
