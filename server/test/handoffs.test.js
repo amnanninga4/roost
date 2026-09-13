@@ -13,7 +13,7 @@ import {
   dueItemFor,
   boardStats,
 } from "../src/rules.js";
-import { expireOpenHandoffs, listHandoffs, acceptedOverride, effectiveState } from "../src/handoffs.js";
+import { expireOpenHandoffs, listHandoffs, acceptedOverride, effectiveState, isPastItsPeriod, hasExpired, openHandoff } from "../src/handoffs.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CHORES = resolve(here, "../../data/chores.json");
@@ -318,8 +318,12 @@ test("assigneeFor pure: accepted beats pin and rotation; pending does not", () =
   ];
   assert.equal(assigneeFor(litter, rotPeriod, rotAccepted, asOf), other);
   // R-21: accepted does not become expired once the period ends
-  assert.equal(effectiveState(rotAccepted[0], chicagoLocal(2026, 9, 17, 9)), "accepted");
-  assert.equal(effectiveState({ ...rotAccepted[0], state: "pending" }, chicagoLocal(2026, 9, 17, 9)), "expired");
+  const later = chicagoLocal(2026, 9, 17, 9);
+  assert.equal(isPastItsPeriod(rotAccepted[0], later), true);
+  assert.equal(hasExpired(rotAccepted[0], later), false);
+  assert.equal(effectiveState(rotAccepted[0], later), "accepted");
+  assert.equal(effectiveState({ ...rotAccepted[0], state: "pending" }, later), "expired");
+  assert.equal(hasExpired({ ...rotAccepted[0], state: "pending" }, later), true);
 });
 
 test("POST /handoffs: future periodIndex → 400; cadence mismatch → 400", async () => {
@@ -411,6 +415,25 @@ test("R-21: overdue item for accepted past period stays with acceptor; streak un
   assert.equal(after.anne.streak, before.anne.streak);
   assert.equal(after.wes.streak, before.wes.streak);
   assert.equal(assigneeFor(litter, monPeriod, swept, wed), "wes");
+});
+
+test("R-21: openHandoff on past accepted period still returns the settled row", () => {
+  const asOf = chicagoLocal(2026, 9, 16, 9);
+  const rotPeriod = periodIndex("daily", asOf);
+  const later = chicagoLocal(2026, 9, 18, 9);
+  const row = {
+    id: "open-past",
+    choreId: "scoop-litter",
+    fromPerson: "wes",
+    toPerson: "anne",
+    periodIndex: rotPeriod,
+    cadence: "daily",
+    state: "accepted",
+    createdAt: asOf.toISOString(),
+  };
+  assert.equal(openHandoff("scoop-litter", rotPeriod, [row], later)?.id, "open-past");
+  assert.equal(isPastItsPeriod(row, later), true);
+  assert.equal(hasExpired(row, later), false);
 });
 
 test("R-21: resolveHandoff on accepted past-period row returns ok unchanged", async () => {

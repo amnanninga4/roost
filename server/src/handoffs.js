@@ -65,16 +65,22 @@ function update(db, id, fields, now) {
   return getHandoff(db, id);
 }
 
-/** True once `date` is in a later period than the one handed off. */
-export function hasExpired(handoff, date) {
+/** True once `date` is in a later period than the one handed off. Period arithmetic
+ * only — for an accepted handoff that does not mean it expired. */
+export function isPastItsPeriod(handoff, date) {
   return calendarPeriodIndex(handoff.cadence, date) > handoff.periodIndex;
 }
 
-/** Stored state, or expired once the period has ended for a *pending* offer.
- * Accepted handoffs never expire (R-21): they remain a permanent fact about their period. */
+/** True for an offer nobody answered in time. Expiry applies to `pending` and nothing else:
+ * an accepted turn is a fact about its period, so it stands for good. */
+export function hasExpired(handoff, date) {
+  return handoff.state === "pending" && isPastItsPeriod(handoff, date);
+}
+
+/** Stored state, or `.expired` once a pending offer's period has ended.
+ * An accepted handoff reads accepted whatever the date, swept or not. */
 export function effectiveState(handoff, date) {
-  if (handoff.state === "pending" && hasExpired(handoff, date)) return "expired";
-  return handoff.state;
+  return hasExpired(handoff, date) ? "expired" : handoff.state;
 }
 
 /**
@@ -95,7 +101,9 @@ export function acceptedOverride(choreId, periodIdx, handoffs, date) {
   return matches[0];
 }
 
-/** Open (pending or accepted, not past its period) handoff for one chore and period. */
+/** Open handoff for one chore and period: a pending offer still inside its period, or the
+ * accepted one that settled it. Asked about a past period, a taken turn still answers so
+ * nobody can re-offer a period that is already settled. */
 export function openHandoff(choreId, periodIdx, handoffs, date) {
   const matches = handoffs
     .filter((h) => !h.deletedAt)
@@ -192,12 +200,9 @@ export function resolveHandoff(db, id, decision, person, now) {
   if (!row || row.deletedAt) return { status: "missing", row: null };
 
   const asOf = new Date(now);
+  // Only a pending offer can have expired; accepted past its period falls through and stays accepted.
   if (hasExpired(row, asOf)) {
-    // R-21: accepted is permanent — never flip to expired; report unchanged.
-    if (row.state === "accepted") return { status: "ok", row, changed: false };
-    if (row.state === "expired") return { status: "expired", row };
-    if (row.state === "pending") return { status: "expired", row: update(db, id, { state: "expired" }, now) };
-    return { status: "expired", row };
+    return { status: "expired", row: update(db, id, { state: "expired" }, now) };
   }
 
   if (row.toPerson !== person) return { status: "forbidden", row };
@@ -211,13 +216,14 @@ export function resolveHandoff(db, id, decision, person, now) {
 }
 
 /**
- * Mark every *pending* handoff whose period has ended as expired (R-21).
- * Accepted stays accepted forever; declined stays declined.
+ * Mark every handoff where hasExpired is true (pending offers past their period).
+ * Accepted and declined are left alone — accepted is permanent history for its period.
  * Each expiry takes a new seq. Runs at the start of /sync. Returns the rows it expired.
  */
 export function expireOpenHandoffs(db, now) {
   const nowIso = now.toISOString();
   const asOf = now;
+  // hasExpired is pending-only; SQL pending filter is just the cheap prefilter.
   const open = db
     .prepare("SELECT * FROM handoffs WHERE deletedAt IS NULL AND state = 'pending' ORDER BY seq")
     .all();
