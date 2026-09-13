@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the Roost SQLite backup verify after nightly backup/offsite
+
+[Timer]
+OnCalendar=*-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

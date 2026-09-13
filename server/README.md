@@ -140,11 +140,27 @@ gh repo clone amnanninga4/roost ~/roost && cd ~/roost
 git pull --ff-only && sudo server/install.sh
 ```
 
-The script creates the `roost` system user, `/opt/roost` (code), `/var/lib/roost` (DB), `/etc/roost/tokens.json` (0640 root:roost, created empty once, never overwritten, read-only to the API), `/var/backups/roost`, installs `roost.service` plus a nightly backup service and timer, and restarts the API. Re-run it to deploy a new version.
+The script creates the `roost` system user, `/opt/roost` (code), `/var/lib/roost` (DB), `/etc/roost/tokens.json` (0640 root:roost, created empty once, never overwritten, read-only to the API), `/var/backups/roost`, installs `roost.service` plus the nightly backup / offsite / verify timers, and restarts the API. Re-run it to deploy a new version.
 
-Backups: `roost-backup.timer` runs `backup.sh` at 03:30 host-local time (theoldone is America/Chicago) via SQLite's online backup, keeping 30 files in `/var/backups/roost`. `roost-offsite.timer` runs `offsite-backup.sh` at 04:00 host-local and copies the newest file to the grater at `/mnt/storage-sdd/backups/roost/` over the tailnet, also keeping 30.
+### Ops: backup, verify, restore drill
 
-Logs: `journalctl -u roost -f`.
+- **Backup** — `roost-backup.timer` runs `backup.sh` at 03:30 host-local (theoldone is America/Chicago) via SQLite's online backup, keeping 30 files in `/var/backups/roost`.
+- **Offsite** — `roost-offsite.timer` runs `offsite-backup.sh` at 04:00 host-local and copies the newest file to the grater at `/mnt/storage-sdd/backups/roost/` over the tailnet, also keeping 30.
+- **Verify** — `roost-verify.timer` runs `verify-backup.sh` at 04:30 host-local as `User=roost`. It picks the newest `/var/backups/roost/roost-*.db`, runs `src/backupcheck.js` (PRAGMA integrity_check + `meta.seq` cursor + expected tables), and fails closed if none exist or the check fails. Manual: `sudo -u roost /opt/roost/server/verify-backup.sh`.
+- **Restore drill** — `restore.sh` verifies a backup then copies it to a non-live path under `/tmp/roost-restore-drill` by default. It refuses to overwrite `/var/lib/roost/roost.db` unless you pass `--live` (and still only prints stop/start reminders — it does not manage the service for you):
+
+```bash
+# safe drill (default destination under /tmp/roost-restore-drill)
+/opt/roost/server/restore.sh /var/backups/roost/roost-YYYY-MM-DD.db
+
+# live restore (stop the API first)
+sudo systemctl stop roost.service
+sudo -u roost /opt/roost/server/restore.sh /var/backups/roost/roost-YYYY-MM-DD.db \
+  --to /var/lib/roost/roost.db --live
+sudo systemctl start roost.service
+```
+
+Logs: `journalctl -u roost -f`. Verify runs: `journalctl -u roost-verify -f`.
 
 ## Push (APNs)
 
