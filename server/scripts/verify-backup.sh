@@ -21,6 +21,14 @@ else
 fi
 
 newest="$(ls -1t "$DIR"/roost-*.db 2>/dev/null | head -n 1 || true)"
+
+# Drop stale SQLite sidecars left by earlier read-write opens next to backups we check.
+shopt -s nullglob
+for f in "$DIR"/roost-*.db-wal "$DIR"/roost-*.db-shm; do
+  rm -f -- "$f"
+done
+shopt -u nullglob
+
 if [[ -z "$newest" ]]; then
   echo "verify-backup: no roost-*.db in $DIR" >&2
   exit 1

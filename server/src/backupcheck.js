@@ -8,7 +8,7 @@
  *   node src/backupcheck.js <dbPath>
  *   Exit 0 on ok, non-zero on fail. Prints one JSON object to stdout.
  *
- * Opens the file read-only when possible. Does not mutate the DB.
+ * Opens the file read-only (never creates -wal/-shm sidecars). Does not mutate the DB.
  */
 import { DatabaseSync } from "node:sqlite";
 import { existsSync, statSync } from "node:fs";
@@ -36,8 +36,11 @@ export function openReadonly(path) {
   try {
     return new DatabaseSync(path, { readOnly: true });
   } catch {
-    // Older node:sqlite builds or odd filesystem flags — open normally but never write.
-    return new DatabaseSync(path);
+    // Older node:sqlite builds without { readOnly: true } — URI form.
+    const uri = path.startsWith("file:")
+      ? (path.includes("?") ? path : `${path}?mode=ro`)
+      : `file:${path}?mode=ro`;
+    return new DatabaseSync(uri);
   }
 }
 
