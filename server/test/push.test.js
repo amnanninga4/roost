@@ -548,7 +548,7 @@ test("morning digest: at/after 08:00 one push per person with due items; collaps
     const req = byCollapse[`digest-${person}`];
     if (!req) continue; // person may have zero due after rotation; skip
     assert.equal(req.body.aps.alert.title, "Roost");
-    assert.match(req.body.aps.alert.body, /^Today: \d+ for you · first: .+/);
+    assert.match(req.body.aps.alert.body, /^\d+ for you today: .+( and \d+ more)?$/);
     assert.equal(req.headers["apns-collapse-id"], `digest-${person}`);
     assert.equal(req.headers["apns-expiration"], wantExp);
     assert.equal(req.headers["apns-topic"], "xyz.hinescreative.roost");

@@ -403,7 +403,8 @@ export function createPush({
 
   /**
    * Morning digest (R-25): at/after 08:00 America/Chicago, one push per person who has
-   * due-today or overdue items. Title Roost; body "Today: N for you · first: <title>";
+   * due-today or overdue items. Title Roost; body "N for you today: <most urgent>"
+   * (+ " and N-1 more" when N > 1). Most urgent = highest STAGE_RANK, ties keep list order.
    * apns-collapse-id digest-<person>; apns-expiration = next Chicago midnight.
    * Persists digestLastSent (Chicago date) so a restart never double-sends.
    * dueItems with activeFrom + handoffs, balancer off. Same interval as red-alert.
@@ -435,10 +436,16 @@ export function createPush({
       for (const person of PEOPLE) {
         const items = due[person] ?? [];
         if (items.length === 0) continue;
-        const first = items[0].chore?.title ?? items[0].chore?.id ?? "chore";
+        const n = items.length;
+        const mostUrgent = items.reduce((best, item) =>
+          (STAGE_RANK[item.stage] ?? -1) > (STAGE_RANK[best.stage] ?? -1) ? item : best
+        );
+        const first = mostUrgent.chore?.title ?? mostUrgent.chore?.id ?? "chore";
+        const body =
+          n > 1 ? `${n} for you today: ${first} and ${n - 1} more` : `${n} for you today: ${first}`;
         await deliver(person, {
           title: "Roost",
-          body: `Today: ${items.length} for you · first: ${first}`,
+          body,
           headers: {
             "apns-collapse-id": `digest-${person}`,
             "apns-expiration": expiration,
