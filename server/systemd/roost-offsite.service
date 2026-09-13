@@ -1,0 +1,12 @@
+[Unit]
+Description=Roost offsite SQLite backup to grater
+After=network-online.target roost-backup.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=hinescreative
+Group=roost
+# hinescreative must be in group roost to traverse /var/backups/roost (750 roost:roost).
+# SSH keys under ~hinescreative/.ssh are used as-is. install.sh: usermod -aG roost hinescreative.
+ExecStart=/opt/roost/server/offsite-backup.sh
