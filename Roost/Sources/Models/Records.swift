@@ -1,11 +1,15 @@
 // SwiftData records for the local, offline-first store.
 // These mirror RoostCore's value types; converters live in Converters.swift.
 // No CloudKit. Sync bookkeeping lives on CompletionRecord and SyncState; the device token lives in the Keychain.
+// The shared lists (shopping, meals, projects, subtasks) are in ListRecords.swift.
 import Foundation
 import SwiftData
 
 enum RoostSchema {
-    static let models: [any PersistentModel.Type] = [ChoreRecord.self, CompletionRecord.self, SyncState.self]
+    static let models: [any PersistentModel.Type] = [
+        ChoreRecord.self, CompletionRecord.self, SyncState.self,
+        ShoppingItemRecord.self, MealRecord.self, ProjectRecord.self, SubtaskRecord.self,
+    ]
     static var schema: Schema { Schema(models) }
 }
 

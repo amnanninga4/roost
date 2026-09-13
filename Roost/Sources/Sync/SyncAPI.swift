@@ -58,6 +58,11 @@ struct SyncAPI: Sendable {
         let cursor: Int
         let completions: [CompletionDTO]
         let chores: [ChoreDTO]?
+        // The list deltas (SyncAPI+Lists.swift). Optional so a pre-R-9 server, or a test stub, still decodes.
+        let shopping: [ShoppingDTO]?
+        let meals: [MealDTO]?
+        let projects: [ProjectDTO]?
+        let subtasks: [SubtaskDTO]?
     }
 
     struct ErrorBody: Codable { let error: String }
@@ -110,7 +115,8 @@ struct SyncAPI: Sendable {
         return try Self.decode(CompletionDTO.self, data)
     }
 
-    private func send(method: String, url: URL, body: Data?) async throws -> (Data, Int) {
+    // send / check / decode are shared with the list endpoints in SyncAPI+Lists.swift.
+    func send(method: String, url: URL, body: Data?) async throws -> (Data, Int) {
         var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -131,7 +137,7 @@ struct SyncAPI: Sendable {
         }
     }
 
-    private static func check(_ status: Int, _ data: Data) throws {
+    static func check(_ status: Int, _ data: Data) throws {
         switch status {
         case 200...299: return
         case 401: throw SyncAPIError.unauthorized
@@ -143,7 +149,7 @@ struct SyncAPI: Sendable {
         }
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, _ data: Data) throws -> T {
+    static func decode<T: Decodable>(_ type: T.Type, _ data: Data) throws -> T {
         do { return try JSONDecoder().decode(type, from: data) } catch { throw SyncAPIError.decoding(error.localizedDescription) }
     }
 }

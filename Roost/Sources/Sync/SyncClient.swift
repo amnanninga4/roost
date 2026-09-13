@@ -2,7 +2,8 @@
 //
 // syncNow():  1. POST every completion that needs it (idempotent on id; 400 → rejected, never retried)
 //             2. DELETE every soft-deleted completion the server has not acknowledged (404 counts as done)
-//             3. GET /sync?cursor=&choresVersion= and apply the delta; store the new cursor
+//             3. replay the list queues the same way (ListSync.swift: POST creates, PATCH edits, DELETE removals)
+//             4. GET /sync?cursor=&choresVersion= and apply the delta; store the new cursor
 // Offline or 5xx is not an error: the queue stays and the next call retries. An in-flight guard makes
 // overlapping callers coalesce into one extra pass, so "sync after every tap" never stampedes.
 import Foundation
@@ -118,6 +119,10 @@ actor SyncClient {
             }
             try modelContext.save()
 
+            let lists = try await replayLists(api: api, now: now()) // throws on 401 or a transient failure, queue intact
+            posted += lists.posted
+            deleted += lists.deleted
+
             let response = try await api.sync(cursor: state.cursor, choresVersion: state.choresVersion)
             let received = try apply(response, to: state)
             state.lastSyncAt = now()
@@ -132,7 +137,7 @@ actor SyncClient {
 
     // MARK: applying a /sync response
 
-    /// Returns the number of completion rows applied.
+    /// Returns the number of rows applied (completions plus the list deltas).
     @discardableResult
     private func apply(_ response: SyncAPI.SyncResponse, to state: SyncState) throws -> Int {
         if let chores = response.chores {
@@ -173,6 +178,7 @@ actor SyncClient {
             }
             applied += 1
         }
+        applied += try applyListDelta(response, now: now())
         state.cursor = max(state.cursor, response.cursor)
         state.choresVersion = response.choresVersion
         return applied

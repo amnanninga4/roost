@@ -1,5 +1,5 @@
-// The root of the app: four tabs. Tasks is the R-8 Today screen; the other three are placeholders until
-// their tickets land. The gear menu stays on Tasks.
+// The root of the app: four tabs. Tasks is the R-8 Today screen; Shopping, Meals, and Projects are the
+// R-11 list screens. The gear menu stays on Tasks.
 import SwiftUI
 import RoostDesign
 
@@ -25,16 +25,6 @@ enum RootTab: String, CaseIterable, Identifiable {
         case .projects: "hammer"
         }
     }
-
-    /// The one-line body of a placeholder tab; nil for tabs with a real screen.
-    var placeholderLine: String? {
-        switch self {
-        case .tasks: nil
-        case .shopping: Strings.Placeholder.shopping
-        case .meals: Strings.Placeholder.meals
-        case .projects: Strings.Placeholder.projects
-        }
-    }
 }
 
 struct RootTabView: View {
@@ -53,10 +43,11 @@ struct RootTabView: View {
 
     @ViewBuilder
     private func screen(for tab: RootTab) -> some View {
-        if let line = tab.placeholderLine {
-            PlaceholderScreen(title: tab.title, line: line)
-        } else {
-            TodayScreen()
+        switch tab {
+        case .tasks: TodayScreen()
+        case .shopping: ShoppingScreen()
+        case .meals: MealsScreen()
+        case .projects: ProjectsScreen()
         }
     }
 }
