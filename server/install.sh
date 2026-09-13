@@ -2,7 +2,7 @@
 # Install or update the Roost sync API on a Linux host with systemd. Idempotent. Run with sudo from the repo:
 #   sudo server/install.sh
 # Layout:
-#   /opt/roost            code (server/ + data/chores.json), owned by root, read by roost
+#   /opt/roost            code (server/, data/chores.json, the status board fonts), owned by root, read by roost
 #   /var/lib/roost        SQLite database, owned by roost
 #   /etc/roost/tokens.json hand-minted device tokens, root:roost 0640, read-only to the API
 #   /var/backups/roost    nightly DB copies, 30 kept
@@ -42,6 +42,17 @@ chmod 755 /opt/roost/server/backup.sh
 cp "$HERE/scripts/offsite-backup.sh" /opt/roost/server/offsite-backup.sh
 chmod 755 /opt/roost/server/offsite-backup.sh
 cp "$REPO/data/chores.json" /opt/roost/data/chores.json
+# fonts for the status board, at the same relative path status.js resolves from server/src
+FONTS_SRC="$REPO/Packages/RoostDesign/Sources/RoostDesign/Resources/Fonts"
+FONTS_DST=/opt/roost/Packages/RoostDesign/Sources/RoostDesign/Resources/Fonts
+rm -rf /opt/roost/Packages
+install -d -m 755 "$FONTS_DST"
+if compgen -G "$FONTS_SRC/*.ttf" > /dev/null; then
+  cp "$FONTS_SRC"/*.ttf "$FONTS_DST"/
+  chmod 644 "$FONTS_DST"/*.ttf
+else
+  echo "warning: no font files at $FONTS_SRC; the status board will use system faces"
+fi
 # Best-effort deploy rev for GET /health (readable by roost service).
 if [[ -d "$REPO/.git" ]] && command -v git >/dev/null 2>&1; then
   git -C "$REPO" rev-parse HEAD > /opt/roost/.deployed-rev 2>/dev/null || echo unknown > /opt/roost/.deployed-rev

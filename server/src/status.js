@@ -10,12 +10,24 @@ import { listHandoffs, expireOpenHandoffs } from "./handoffs.js";
 
 const TZ = "America/Chicago";
 const here = dirname(fileURLToPath(import.meta.url));
-const FONTS_DIR = resolve(here, "../../Packages/RoostDesign/Sources/RoostDesign/Resources/Fonts");
+const FONTS_DIR =
+  process.env.ROOST_FONTS_DIR || resolve(here, "../../Packages/RoostDesign/Sources/RoostDesign/Resources/Fonts");
 
-/** Basenames of bundled font files only — never path segments. */
-const FONT_FILES = new Set(
-  readdirSync(FONTS_DIR).filter((name) => name.endsWith(".ttf") && !name.includes("/") && name === basename(name))
-);
+/**
+ * Basenames of bundled font files only — never path segments. A directory that is missing or unreadable
+ * (a deploy that did not copy the package) means no fonts are served and the board falls back to system
+ * faces; it must never stop the server from starting. install.sh copies the files to the same relative
+ * path under /opt/roost, and ROOST_FONTS_DIR overrides it.
+ */
+export function loadFontFiles(dir = FONTS_DIR, { log = console.error } = {}) {
+  try {
+    return new Set(readdirSync(dir).filter((name) => name.endsWith(".ttf") && name === basename(name)));
+  } catch (err) {
+    log(`fonts dir ${dir} not readable (${err.code ?? err.message}); the status board serves no fonts`);
+    return new Set();
+  }
+}
+const FONT_FILES = loadFontFiles();
 
 function escapeHtml(s) {
   return String(s)
