@@ -3,6 +3,7 @@
 // Rendering only — streaks / tallies / overdue come from rules.js.
 import { PEOPLE, listChores, getMeta } from "./db.js";
 import { boardStats, DEFAULT_ACTIVE_FROM } from "./rules.js";
+import { listHandoffs, expireOpenHandoffs } from "./handoffs.js";
 
 const TZ = "America/Chicago";
 
@@ -115,7 +116,9 @@ export function statusHandler(db, _req, res, opts = {}) {
     completedAt: r.completedAt,
   }));
 
-  const stats = boardStats({ chores, completions, asOf: now, activeFrom });
+  expireOpenHandoffs(db, now);
+  const handoffs = listHandoffs(db);
+  const stats = boardStats({ chores, completions, asOf: now, activeFrom, handoffs });
 
   const byPerson = Object.fromEntries(PEOPLE.map((p) => [p, []]));
   for (const row of rows) {
@@ -134,14 +137,19 @@ export function statusHandler(db, _req, res, opts = {}) {
         ? `<li class="empty">Nothing yet</li>`
         : list.map((r) => `<li>${escapeHtml(r.title)}</li>`).join("");
 
+    // Overdue plus any due-today item that arrived via an accepted handoff (so "→ Wes" shows
+    // even when the period has not yet ended).
+    const boardDue = [...s.overdue, ...(s.dueToday ?? []).filter((i) => i.viaHandoff)];
     const overdueBlock =
-      s.overdue.length === 0
+      boardDue.length === 0
         ? `<p class="meta-empty">None</p>`
-        : `<ul class="overdue">${s.overdue
-            .map(
-              (i) =>
-                `<li>${escapeHtml(i.chore.title)} <span class="stage">(${escapeHtml(stageLabel(i.stage))})</span></li>`
-            )
+        : `<ul class="overdue">${boardDue
+            .map((i) => {
+              const arrow = i.viaHandoff
+                ? ` <span class="handoff">→ ${escapeHtml(displayName(i.person))}</span>`
+                : "";
+              return `<li>${escapeHtml(i.chore.title)}${arrow} <span class="stage">(${escapeHtml(stageLabel(i.stage))})</span></li>`;
+            })
             .join("")}</ul>`;
 
     return `
@@ -262,6 +270,7 @@ export function statusHandler(db, _req, res, opts = {}) {
     li:first-child { border-top: 0; }
     li.empty, .meta-empty { color: var(--ink-soft); font-style: italic; margin: 0; }
     .stage { color: var(--gold); font-size: 0.9em; }
+    .handoff { color: var(--accent); font-weight: 600; font-size: 0.95em; }
     .overdue li { border-top-color: var(--gold-soft); }
     .recent li {
       display: grid;

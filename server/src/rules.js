@@ -198,7 +198,31 @@ export function rotationAssignee(choreId, periodIdx) {
   return slot === 0 ? "anne" : "wes";
 }
 
-export function assigneeFor(chore, periodIdx) {
+/**
+ * Who owes `chore` for `periodIdx`. An accepted handoff for that exact chore+period
+ * wins over fixedAssignee and rotation. Pending/declined do nothing; once the period
+ * ends the handoff no longer overrides (caller should expire rows, but we also ignore
+ * accepted rows whose cadence period is already past `asOf`).
+ *
+ * `handoffs` rows may use SQL names (fromPerson/toPerson) or JSON names (from/to).
+ */
+export function assigneeFor(chore, periodIdx, handoffs = [], asOf = new Date()) {
+  const asOfD = asDate(asOf);
+  const override = (handoffs ?? [])
+    .filter((h) => !h.deletedAt)
+    .filter((h) => h.choreId === chore.id && h.periodIndex === periodIdx)
+    .filter((h) => {
+      const state = h.state;
+      if (state !== "accepted") return false;
+      // Treat as expired once we are past the handed-off period.
+      return periodIndex(h.cadence, asOfD) <= h.periodIndex;
+    })
+    .sort((a, b) => {
+      const at = asDate(a.createdAt).getTime() - asDate(b.createdAt).getTime();
+      if (at !== 0) return at;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    })[0];
+  if (override) return override.toPerson ?? override.to;
   if (chore.fixedAssignee) return chore.fixedAssignee;
   return rotationAssignee(chore.id, periodIdx);
 }
@@ -218,7 +242,7 @@ export function escalationStage(daysOverdue) {
  * Oldest incomplete period for `chore` as of `asOf`, or null if done for the current period.
  * Completing in a later period clears older missed ones (one nag, not a backlog).
  */
-export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM, handoffs = [] }) {
   const asOfD = asDate(asOf);
   const active = asDate(activeFrom);
   const current = periodIndex(chore.cadence, asOfD);
@@ -234,9 +258,12 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
 
   const bounds = periodBounds(chore.cadence, oldestIncomplete);
   const daysOverdue = Math.max(0, dayIndex(asOfD) - dayIndex(bounds.lastDay));
+  const person = assigneeFor(chore, oldestIncomplete, handoffs, asOfD);
+  const viaHandoff = person !== (chore.fixedAssignee || rotationAssignee(chore.id, oldestIncomplete));
   return {
     chore,
-    person: assigneeFor(chore, oldestIncomplete),
+    person,
+    viaHandoff,
     periodIndex: oldestIncomplete,
     periodStart: bounds.firstDay,
     periodLastDay: bounds.lastDay,
@@ -269,6 +296,7 @@ export function dueItems({
       completions: byChore.get(chore.id) ?? [],
       asOf,
       activeFrom,
+      handoffs,
     });
     if (!item) continue;
     items.push(item);
@@ -304,12 +332,12 @@ export function doneThisWeek({ completions, asOf }) {
   return counts;
 }
 
-function isDayComplete(person, dayIdx, dailies, completions, /* for assignee */) {
+function isDayComplete(person, dayIdx, dailies, completions, handoffs = []) {
   const start = dayAt(dayIdx);
   const end = dayAt(dayIdx + 1);
   const startMs = start.getTime();
   const endMs = end.getTime();
-  const mine = dailies.filter((ch) => assigneeFor(ch, dayIdx) === person);
+  const mine = dailies.filter((ch) => assigneeFor(ch, dayIdx, handoffs, start) === person);
   for (const chore of mine) {
     const done = completions.some((c) => {
       if (c.choreId !== chore.id) return false;
@@ -326,17 +354,17 @@ function isDayComplete(person, dayIdx, dailies, completions, /* for assignee */)
  * Unfinished today does not break (count from yesterday). Days before activeFrom never count.
  * A day with no dailies assigned counts as complete.
  */
-export function streak({ person, chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+export function streak({ person, chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM, handoffs = [] }) {
   const dailies = chores.filter((c) => c.cadence === "daily");
   const firstDay = dayIndex(activeFrom);
   const today = dayIndex(asOf);
   let day = today;
   let n = 0;
-  if (!isDayComplete(person, today, dailies, completions)) {
+  if (!isDayComplete(person, today, dailies, completions, handoffs)) {
     day = today - 1;
   }
   while (day >= firstDay) {
-    if (!isDayComplete(person, day, dailies, completions)) break;
+    if (!isDayComplete(person, day, dailies, completions, handoffs)) break;
     n += 1;
     day -= 1;
   }
@@ -360,7 +388,7 @@ export function boardStats({
   for (const person of PEOPLE) {
     const items = due[person] ?? [];
     out[person] = {
-      streak: streak({ person, chores, completions, asOf, activeFrom }),
+      streak: streak({ person, chores, completions, asOf, activeFrom, handoffs }),
       week: week[person] ?? 0,
       overdue: items.filter((i) => i.daysOverdue >= 1),
       dueToday: items.filter((i) => i.daysOverdue === 0),

@@ -2,7 +2,7 @@
 // Chicago-time logic (due today, streaks, escalation) lives in the app / RoostCore, not here.
 //
 // Sync cursor: every insert, update and soft-delete of a synced row (completions, shopping items,
-// meals, projects, subtasks) takes the next value of ONE monotonic `seq` counter shared by every
+// meals, projects, subtasks, handoffs) takes the next value of ONE monotonic `seq` counter shared by every
 // table, so a single /sync call carries every delta. Clients sync with `cursor=<last seq seen>`; wall-clock time is
 // never used as a cursor, so same-millisecond writes and clock steps cannot lose rows.
 import { DatabaseSync } from "node:sqlite";
@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { BONUS_SCHEMA } from "./bonus.js";
 import { PAIRING_SCHEMA } from "./pairing.js";
 import { PUSH_SCHEMA } from "./push.js";
+import { HANDOFFS_SCHEMA } from "./handoffs.js";
 
 /** The household. Single source for the Node side; the CHECK constraints below are built from it. */
 export const PEOPLE = Object.freeze(["anne", "wes"]);
@@ -101,6 +102,7 @@ export function openDb(path) {
   db.exec(BONUS_SCHEMA);
   db.exec(PAIRING_SCHEMA);
   db.exec(PUSH_SCHEMA);
+  db.exec(HANDOFFS_SCHEMA);
   return db;
 }
 
