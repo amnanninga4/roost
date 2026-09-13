@@ -48,6 +48,13 @@ final class StreakHandoffTests: XCTestCase {
         c(wesDaily, .wes, day: 15),
     ]
 
+    /// The same, plus a fully caught-up Wednesday — Tuesday's litter is the only thing nobody did.
+    lazy var throughWednesday = throughTuesday + [
+        c(anneDaily, .anne, day: 16),
+        c(wesDaily, .wes, day: 16),
+        c(litter, .anne, day: 16),
+    ]
+
     func c(_ chore: Chore, _ person: Person, day: Int, hour: Int = 12) -> Completion {
         Completion(
             id: "\(chore.id)-\(day)-\(hour)",
@@ -117,33 +124,48 @@ final class StreakHandoffTests: XCTestCase {
 
     func testAcceptedHandoffForAPastDayStillAppliesThen() {
         // Anne gave Tuesday's litter away and Wes never scooped it. Wednesday both of them were caught up.
-        let completions = throughTuesday + [
-            c(anneDaily, .anne, day: 16),
-            c(wesDaily, .wes, day: 16),
-            c(litter, .anne, day: 16),
-        ]
+        let completions = throughWednesday
         let accepted = offer(.accepted)
 
-        // By Thursday the offer is over, and asked from Thursday the scheduler says Tuesday's litter is Anne's.
-        XCTAssertTrue(accepted.hasExpired(on: thu, calendar: cal))
-        XCTAssertEqual(HandoffRules.effectiveState(accepted, on: thu, calendar: cal), .expired)
+        // By Thursday Tuesday's period is over, but the turn Wes took is a fact about Tuesday, so it stands.
+        XCTAssertTrue(accepted.isPastItsPeriod(on: thu, calendar: cal))
+        XCTAssertFalse(accepted.hasExpired(on: thu, calendar: cal), "an accepted turn does not expire")
+        XCTAssertEqual(HandoffRules.effectiveState(accepted, on: thu, calendar: cal), .accepted)
         XCTAssertEqual(
             scheduler.assignee(for: litter, periodIndex: tueIndex, on: thu, handoffs: [accepted]),
-            .anne,
-            "asked from Thursday, the expired offer is not an override"
+            .wes,
+            "asked from Thursday, Tuesday's litter is still the one he took"
         )
 
-        // The streak asks about Tuesday as Tuesday, so the offer still stands there: Mon, Tue (not hers), Wed.
+        // So the walk gets the same answer for Tuesday as Tuesday did: Mon, Tue (not hers), Wed.
         XCTAssertEqual(tallies.streak(for: .anne, asOf: thu, completions: completions, handoffs: [accepted]), 3)
         XCTAssertEqual(
             tallies.streak(for: .anne, asOf: thu, completions: completions),
             1,
-            "judged against today instead, the litter she gave away would break Tuesday"
+            "with the handoff ignored, the litter she gave away breaks Tuesday"
         )
         XCTAssertEqual(
             tallies.streak(for: .wes, asOf: thu, completions: completions, handoffs: [accepted]),
             1,
             "Tuesday's litter was his and he never did it"
         )
+    }
+
+    /// The sweep is what broke this before: it marked a taken turn `.expired`, and the streak then read
+    /// Tuesday as though Anne had always owed the litter. The numbers here are the ones PR #32 asserted.
+    func testASweepDoesNotChangeTheStreak() {
+        let accepted = offer(.accepted)
+        let swept = HandoffRules(scheduler: scheduler, handoffs: [accepted]).resolve(on: thu)
+        XCTAssertEqual(swept.map(\.state), [.accepted], "two days later, the sweep still leaves it alone")
+
+        for person in Person.allCases {
+            XCTAssertEqual(
+                tallies.streak(for: person, asOf: thu, completions: throughWednesday, handoffs: swept),
+                tallies.streak(for: person, asOf: thu, completions: throughWednesday, handoffs: [accepted]),
+                "\(person.rawValue)'s streak is the same before and after a sweep"
+            )
+        }
+        XCTAssertEqual(tallies.streak(for: .anne, asOf: thu, completions: throughWednesday, handoffs: swept), 3)
+        XCTAssertEqual(tallies.streak(for: .wes, asOf: thu, completions: throughWednesday, handoffs: swept), 1)
     }
 }

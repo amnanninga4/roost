@@ -71,8 +71,16 @@ final class HandoffTests: XCTestCase {
             scheduler.assignee(for: litter, periodIndex: today + 1, on: thu, handoffs: [accepted]),
             .anne
         )
-        XCTAssertTrue(accepted.hasExpired(on: thu, calendar: cal))
-        XCTAssertEqual(HandoffRules.effectiveState(accepted, on: thu, calendar: cal), .expired)
+        // Tomorrow reverts because it is a different period, not because the handoff died: the turn Wes took
+        // is still on the record for the day he took it.
+        XCTAssertTrue(accepted.isPastItsPeriod(on: thu, calendar: cal), "its day is over")
+        XCTAssertFalse(accepted.hasExpired(on: thu, calendar: cal), "a turn that was taken does not expire")
+        XCTAssertEqual(HandoffRules.effectiveState(accepted, on: thu, calendar: cal), .accepted)
+        XCTAssertEqual(
+            scheduler.assignee(for: litter, periodIndex: today, on: thu, handoffs: [accepted]),
+            .wes,
+            "asked about yesterday, it is still his"
+        )
     }
 
     func testAcceptedHandoffOverridesAPin() {
@@ -172,5 +180,78 @@ final class HandoffTests: XCTestCase {
         XCTAssertEqual(rules.resolve(on: nextWeek).map(\.state), [.expired])
         let declined = HandoffRules(scheduler: scheduler, handoffs: [pending.with(state: .declined)])
         XCTAssertEqual(declined.resolve(on: nextWeek).map(\.state), [.declined], "a no stays on the record")
+
+        let accepted = pending.with(state: .accepted)
+        XCTAssertEqual(
+            rules.resolve(accepted, as: .decline, on: nextWeek).state,
+            .accepted,
+            "a late answer cannot take back a turn that was taken"
+        )
+    }
+
+    func testSweepLeavesAnAcceptedHandoffAlone() {
+        let week = cal.periodIndex(.weekly, containing: wed)
+        let accepted = handoff(laundry, period: week, state: .accepted)
+        let swept = HandoffRules(scheduler: scheduler, handoffs: [accepted]).resolve(on: nextWeek)
+
+        XCTAssertEqual(swept.map(\.state), [.accepted], "the week ended; the turn Wes took did not")
+        XCTAssertTrue(accepted.isPastItsPeriod(on: nextWeek, calendar: cal), "its period is over")
+        XCTAssertFalse(accepted.hasExpired(on: nextWeek, calendar: cal), "which is not the same as expired")
+        XCTAssertEqual(HandoffRules.effectiveState(accepted, on: nextWeek, calendar: cal), .accepted)
+
+        // Still the override for its own period, asked from next week, before and after the sweep.
+        for handoffs in [[accepted], swept] {
+            XCTAssertEqual(
+                scheduler.assignee(for: laundry, periodIndex: week, on: nextWeek, handoffs: handoffs),
+                .wes
+            )
+        }
+        XCTAssertEqual(
+            scheduler.assignee(for: laundry, periodIndex: week + 1, on: nextWeek, handoffs: swept),
+            .anne,
+            "next week is a different period, so the pin has it again"
+        )
+    }
+
+    func testSweepExpiresAnOfferNobodyAnswered() {
+        let week = cal.periodIndex(.weekly, containing: wed)
+        let pending = handoff(laundry, period: week, state: .pending)
+        let swept = HandoffRules(scheduler: scheduler, handoffs: [pending]).resolve(on: nextWeek)
+
+        XCTAssertEqual(swept.map(\.state), [.expired])
+        XCTAssertTrue(pending.hasExpired(on: nextWeek, calendar: cal))
+        XCTAssertEqual(HandoffRules.effectiveState(pending, on: nextWeek, calendar: cal), .expired)
+        XCTAssertEqual(
+            scheduler.assignee(for: laundry, periodIndex: week, on: nextWeek, handoffs: swept),
+            .anne,
+            "an offer nobody took never moved anything"
+        )
+    }
+
+    func testOverdueItemStaysWithTheAcceptor() {
+        // Laundry was done in the week of Sep 7 and handed to Wes for the week of Sep 14, which he accepted —
+        // then neither of them did it. By Wednesday Sep 23 that week is the oldest incomplete one, and the nag
+        // belongs to the person who took the turn, not back to the pin.
+        let week = cal.periodIndex(.weekly, containing: wed)
+        let accepted = handoff(laundry, period: week, state: .accepted)
+        let later = cal.date(year: 2026, month: 9, day: 23, hour: 9)
+
+        let item = scheduler.dueItem(for: laundry, on: later, completions: caughtUp, handoffs: [accepted])
+        XCTAssertEqual(item?.periodIndex, week, "the handed-off week is the oldest incomplete one")
+        XCTAssertEqual(item?.daysOverdue, 3)
+        XCTAssertEqual(item?.person, .wes)
+        XCTAssertEqual(
+            scheduler.dueItem(for: laundry, on: later, completions: caughtUp)?.person,
+            .anne,
+            "with the handoff ignored it falls back to her pin"
+        )
+
+        XCTAssertEqual(owner(laundry, in: scheduler.plan(on: later, completions: caughtUp, handoffs: [accepted])), .wes)
+        let swept = HandoffRules(scheduler: scheduler, handoffs: [accepted]).resolve(on: later)
+        XCTAssertEqual(
+            owner(laundry, in: scheduler.plan(on: later, completions: caughtUp, handoffs: swept)),
+            .wes,
+            "and a sweep in between does not hand the nag back"
+        )
     }
 }

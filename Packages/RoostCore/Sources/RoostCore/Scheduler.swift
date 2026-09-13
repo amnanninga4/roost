@@ -77,8 +77,10 @@ public struct Scheduler: Sendable {
         chore.fixedAssignee ?? rotation.assignee(for: chore, periodIndex: periodIndex)
     }
 
-    /// Same, except an accepted handoff for that exact period — still live on `date` — outranks both the pin
-    /// and the rotation. Pending, declined, and expired handoffs change nothing.
+    /// Same, except an accepted handoff for that exact period outranks both the pin and the rotation — whether
+    /// that period is the current one or one long past, because an accepted turn does not expire. That is what
+    /// keeps an overdue item with the person who took it, and what lets `Tallies.streak` read history. Pending,
+    /// declined, and expired handoffs change nothing; `date` is only what a pending offer is judged against.
     public func assignee(for chore: Chore, periodIndex: Int, on date: Date, handoffs: [Handoff]) -> Person {
         let override = HandoffRules.acceptedOverride(
             choreId: chore.id,
