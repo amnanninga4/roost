@@ -1,7 +1,7 @@
-// Projects tab: bigger jobs broken into steps. Each project is a card that opens on tap: a progress bar,
-// the steps with check-off, and an "Add a step…" row. Start a project with a title and, if you like,
-// its first steps one per line. Swipe a project or a step to delete it. Writes go to the store first,
-// then kick a sync.
+// Projects tab: bigger jobs broken into steps. Each project is a card that opens on tap — a progress
+// bar, the steps with check-off, and a composer for the next one. Steps can be dragged into a new
+// order; the card that runs out of steps gets a DONE chip and can be archived. Swipe a step away with
+// five seconds to take it back. Writes go to the store first, then kick a sync.
 import RoostCore
 import RoostDesign
 import SwiftData
@@ -25,6 +25,12 @@ struct ProjectsScreen: View {
     @FocusState private var titleFocused: Bool
     @State private var open: Set<String> = []
     @State private var openedFirst = false
+    @State private var undo = ListUndo()
+    /// Counters the taps bump, so nothing buzzes for a step the other phone ticked.
+    @State private var added = 0
+    @State private var checkedOff = 0
+    @State private var uncheckedOff = 0
+    @State private var milestones = 0
 
     private var person: String? {
         syncStates.first?.person
@@ -38,62 +44,40 @@ struct ProjectsScreen: View {
         NavigationStack {
             List {
                 Section {
-                    ListScreenHeader(title: Strings.Tabs.projects, line: Strings.Projects.header(count: projects.count))
-                        .listHeaderRow()
+                    ListScreenHeader(
+                        title: Strings.Tabs.projects,
+                        line: Strings.Projects.header(count: projects.count),
+                        status: sync.statusLine
+                    )
+                    .listHeaderRow()
                 }
                 Section {
-                    AddRow(placeholder: Strings.Projects.add, text: $title, focused: $titleFocused, onSubmit: start) {
+                    ListComposer(
+                        placeholder: Strings.Projects.add, text: $title, focused: $titleFocused, onSubmit: start
+                    ) {
                         if !title.isEmpty {
-                            TextField(Strings.Projects.steps, text: $steps, axis: .vertical)
-                                .lineLimit(1 ... 6)
-                                .font(RoostFont.body(size: RoostFont.Size.caption, weight: .semibold))
-                                .foregroundStyle(RoostColor.inkSoft)
-                                .padding(.leading, 32)
-                            Button(Strings.Projects.start, action: start)
-                                .font(RoostFont.body(size: RoostFont.Size.meta, weight: .bold))
-                                .buttonStyle(.borderedProminent)
-                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            firstSteps
                         }
                     }
                 }
                 if projects.isEmpty {
                     Section {
-                        EmptyLine(text: Strings.Projects.empty)
+                        ListEmptyState(
+                            symbol: "hammer", line: Strings.Projects.empty, hint: Strings.Projects.emptyHint
+                        )
                     }
                 }
                 ForEach(projects) { project in
-                    let projectSteps = stepsByProject[project.id] ?? []
-                    let isOpen = open.contains(project.id)
-                    Section {
-                        ProjectRow(
-                            project: project,
-                            done: projectSteps.filter(\.done).count,
-                            total: projectSteps.count,
-                            isOpen: isOpen
-                        ) {
-                            toggleOpen(project)
-                        }
-                        .listRowBackground(RoostColor.surface)
-                        .swipeToDelete { remove(project) }
-                        .contextMenu {
-                            Button(role: .destructive) { remove(project) } label: {
-                                Label(Strings.Projects.deleteProject, systemImage: "trash")
-                            }
-                        }
-                        if isOpen {
-                            ForEach(projectSteps) { step in
-                                SubtaskRow(step: step) { toggle(step) }
-                                    .listRowBackground(RoostColor.surface)
-                                    .swipeToDelete { remove(step) }
-                            }
-                            SubtaskAddRow { text in add(text, to: project) }
-                                .listRowBackground(RoostColor.surface)
-                        }
-                    }
+                    card(project)
                 }
             }
             .listTabChrome()
-            .animation(.default, value: open)
+            .roostAnimation(.standard, value: open)
+            .roostHaptic(.selection, trigger: added)
+            .roostHaptic(.checkOff, trigger: checkedOff)
+            .roostHaptic(.undo, trigger: uncheckedOff)
+            .roostHaptic(.milestone, trigger: milestones)
+            .undoBar(undo)
             .onChange(of: projects.map(\.id), initial: true) { _, ids in
                 // The mockup opens the first card; do that once, then leave the choice to the user.
                 if !openedFirst, let first = ids.first {
@@ -102,7 +86,78 @@ struct ProjectsScreen: View {
                 }
             }
         }
-        .tint(RoostColor.accent)
+        .tint(RoostColor.Role.accent.color)
+    }
+
+    /// The composer's second field: the steps to start with, one per line, and the button that starts.
+    private var firstSteps: some View {
+        VStack(alignment: .leading, spacing: RoostSpacing.sm) {
+            TextField(Strings.Projects.steps, text: $steps, axis: .vertical)
+                .lineLimit(1 ... 6)
+                .roostType(.subheadline)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+                .accessibilityLabel(Strings.Projects.steps)
+            Button(Strings.Projects.start, action: start)
+                .roostType(.headline)
+                .buttonStyle(.borderedProminent)
+                .tint(RoostColor.Role.accent.color)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(.leading, RoostSpacing.xl + RoostSpacing.md)
+    }
+
+    @ViewBuilder
+    private func card(_ project: ProjectRecord) -> some View {
+        let projectSteps = stepsByProject[project.id] ?? []
+        let progress = ProjectProgress(steps: projectSteps, isDone: \.done)
+        let isOpen = open.contains(project.id)
+        Section {
+            ProjectRow(project: project, progress: progress, isOpen: isOpen) { toggleOpen(project) }
+                .listRowBackground(RoostColor.Role.surface.color)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) { remove(project) } label: {
+                        Label(archiveLabel(progress), systemImage: progress.isFinished ? "archivebox" : "trash")
+                    }
+                    .tint(RoostColor.Role.danger.color)
+                }
+                .contextMenu {
+                    Button(role: .destructive) { remove(project) } label: {
+                        Label(
+                            progress.isFinished ? Strings.Projects.archive : Strings.Projects.deleteProject,
+                            systemImage: progress.isFinished ? "archivebox" : "trash"
+                        )
+                    }
+                }
+            if isOpen {
+                ForEach(Array(projectSteps.enumerated()), id: \.element.id) { index, step in
+                    SubtaskRow(
+                        step: step,
+                        // `move(fromOffsets:toOffset:)` counts destinations in the list before the
+                        // move, so one place down is index + 2, not index + 1.
+                        moveUp: index > 0 ? { reorder(project, move: [index], to: index - 1) } : nil,
+                        moveDown: index < projectSteps.count - 1
+                            ? { reorder(project, move: [index], to: index + 2) } : nil,
+                        onToggle: { toggle(step) }
+                    )
+                    .listRowBackground(RoostColor.Role.surface.color)
+                    .roostTransition(.checkOff)
+                    .swipeToDelete(rejected: step.rejected) { remove(step) }
+                }
+                .onMove { source, destination in
+                    reorder(project, move: source, to: destination)
+                }
+                SubtaskComposer { text in add(text, to: project) }
+                    .listRowBackground(RoostColor.Role.surface.color)
+                if progress.isFinished {
+                    ArchiveRow { remove(project) }
+                        .listRowBackground(RoostColor.Role.surface.color)
+                }
+            }
+        }
+    }
+
+    private func archiveLabel(_ progress: ProjectProgress) -> String {
+        progress.isFinished ? Strings.Projects.archive : Strings.Lists.delete
     }
 
     // MARK: actions
@@ -122,6 +177,7 @@ struct ProjectsScreen: View {
         title = ""
         steps = ""
         titleFocused = false
+        added += 1
         open.insert(project.id)
         sync.syncSoon()
     }
@@ -134,125 +190,279 @@ struct ProjectsScreen: View {
         }
     }
 
-    /// True when the step went into the store; the add row clears itself and keeps the keyboard.
+    /// True when the step went into the store; the composer clears itself and keeps the keyboard.
     private func add(_ text: String, to project: ProjectRecord) -> Bool {
         guard (try? ListActions.addSubtask(text, to: project, in: context)) != nil else { return false }
+        added += 1
         sync.syncSoon()
         return true
     }
 
     private func toggle(_ step: SubtaskRecord) {
-        try? ListActions.setDone(step, !step.done, by: person, in: context)
+        let done = !step.done
+        try? ListActions.setDone(step, done, by: person, in: context)
+        if done {
+            checkedOff += 1
+        } else {
+            uncheckedOff += 1
+        }
+        let siblings = (try? ListActions.liveSubtasks(of: step.projectId, in: context)) ?? []
+        if done, ProjectProgress(steps: siblings, isDone: \.done).isFinished {
+            milestones += 1 // the last step: the card just became a finished one
+        }
         sync.syncSoon()
     }
 
-    private func remove(_ step: SubtaskRecord) {
-        try? ListActions.removeSubtask(step, in: context)
+    private func reorder(_ project: ProjectRecord, move source: IndexSet, to destination: Int) {
+        let changed = (try? ListActions.reorderSubtasks(
+            of: project, move: source, to: destination, in: context
+        )) ?? 0
+        guard changed > 0 else { return }
         sync.syncSoon()
+    }
+
+    /// The removal is in the store at once; its sync waits for the undo window (see `ListUndo`).
+    private func remove(_ step: SubtaskRecord) {
+        let title = step.title
+        try? ListActions.removeSubtask(step, in: context)
+        undo.offer(Strings.Lists.removed(title), restore: { [context] in
+            _ = try? ListActions.restoreSubtask(step, in: context)
+            sync.syncSoon()
+        }, commit: {
+            sync.syncSoon()
+        })
     }
 
     private func remove(_ project: ProjectRecord) {
-        try? ListActions.removeProject(project, in: context)
+        let title = project.title
+        let cascaded = (try? ListActions.removeProject(project, in: context)) ?? []
         open.remove(project.id)
-        sync.syncSoon()
+        undo.offer(Strings.Lists.removed(title), restore: { [context] in
+            guard let restored = try? ListActions.restoreProject(project, steps: cascaded, in: context) else { return }
+            open.insert(restored.id)
+            sync.syncSoon()
+        }, commit: {
+            sync.syncSoon()
+        })
     }
 }
 
 private struct ProjectRow: View {
     let project: ProjectRecord
-    let done: Int
-    let total: Int
+    let progress: ProjectProgress
     let isOpen: Bool
     let onToggle: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var value: String {
+        var parts: [String] = []
+        if progress.isFinished {
+            parts.append(Strings.Projects.finished)
+        }
+        parts.append(Strings.Projects.stepsDone(done: progress.done, total: progress.total))
+        if project.rejected {
+            parts.append(Strings.Lists.didNotSyncValue)
+        }
+        return parts.joined(separator: Strings.Lists.metaSeparator)
+    }
+
+    @ViewBuilder
+    private var badges: some View {
+        if project.rejected {
+            NotSyncedMarker()
+        }
+        if progress.isFinished {
+            TagBadge(text: Strings.Projects.doneChip, role: .success, symbol: "checkmark")
+                .roostTransition(.badge)
+        }
+    }
+
+    private var hasBadges: Bool {
+        project.rejected || progress.isFinished
+    }
 
     var body: some View {
         Button(action: onToggle) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: RoostSpacing.sm) {
+                HStack(spacing: RoostSpacing.sm) {
                     Text(project.title)
-                        .font(RoostFont.display(size: RoostFont.Size.body, weight: .semibold))
-                        .foregroundStyle(RoostColor.ink)
+                        .roostType(.title)
+                        .foregroundStyle(RoostColor.Role.textPrimary.color)
                         .multilineTextAlignment(.leading)
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(RoostColor.inkSoft)
-                        .rotationEffect(.degrees(isOpen ? 90 : 0))
+                    Spacer(minLength: RoostSpacing.sm)
+                    // At an accessibility size the card's title needs the whole width, so the
+                    // chips drop to their own line and only the chevron stays beside it.
+                    if !typeSize.isAccessibilitySize {
+                        badges
+                    }
+                    Chevron(isOpen: isOpen)
                 }
-                HStack(spacing: 8) {
-                    ProgressBar(fraction: total == 0 ? 0 : Double(done) / Double(total))
-                    Text(Strings.Projects.progress(done: done, total: total))
-                        .font(RoostFont.mono(size: 10.5, weight: .medium))
-                        .foregroundStyle(RoostColor.inkSoft)
-                        .monospacedDigit()
+                if typeSize.isAccessibilitySize, hasBadges {
+                    HStack(spacing: RoostSpacing.sm) {
+                        badges
+                    }
+                }
+                HStack(spacing: RoostSpacing.sm) {
+                    ProgressBar(fraction: progress.fraction, isFinished: progress.isFinished)
+                    Text(Strings.Projects.progress(done: progress.done, total: progress.total))
+                        .roostType(.monoTally)
+                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                        .contentTransition(.numericText(value: Double(progress.done)))
                 }
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, RoostSpacing.xs)
+            .frame(minHeight: RoostSpacing.minTapTarget)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // The bar, the digits and the chip are one number changing, so they move on one animation.
+        .roostAnimation(.standard, value: progress)
         .accessibilityLabel(project.title)
-        .accessibilityValue(Strings.Projects.stepsDone(done: done, total: total))
+        .accessibilityValue(value)
         .accessibilityHint(isOpen ? Strings.Projects.hideSteps : Strings.Projects.showSteps)
     }
 }
 
+private struct Chevron: View {
+    let isOpen: Bool
+
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .roostType(.footnote)
+            .fontWeight(.semibold)
+            .foregroundStyle(RoostColor.Role.textSecondary.color)
+            .rotationEffect(.degrees(isOpen ? 90 : 0))
+            .roostAnimation(.quick, value: isOpen)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The mockup's progress bar. The width is the thing, and it moves on the card's one animation, so
+/// the bar, the digits, and the chip all arrive together.
 private struct ProgressBar: View {
     let fraction: Double
+    let isFinished: Bool
+    @ScaledMetric(relativeTo: .caption) private var height: CGFloat = RoostSpacing.sm
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(RoostColor.line)
-                Capsule().fill(RoostColor.accent).frame(width: max(0, geo.size.width * min(1, fraction)))
+                Capsule()
+                    .fill(RoostColor.Role.separator.color)
+                Capsule()
+                    .fill(isFinished ? RoostColor.Role.success.color : RoostColor.Role.accent.color)
+                    .frame(width: geo.size.width * min(1, max(0, fraction)))
             }
         }
-        .frame(height: 8)
+        .frame(height: height)
+        .accessibilityHidden(true)
     }
 }
 
 private struct SubtaskRow: View {
     let step: SubtaskRecord
+    /// Nil at the ends of the list. They exist so VoiceOver can do what the drag gesture does.
+    let moveUp: (() -> Void)?
+    let moveDown: (() -> Void)?
     let onToggle: () -> Void
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var value: String {
+        let state = step.done ? Strings.Projects.stepDone : Strings.Projects.stepNotDone
+        guard step.rejected else { return state }
+        return state + Strings.Lists.metaSeparator + Strings.Lists.didNotSyncValue
+    }
+
+    private var title: some View {
+        Text(step.title)
+            .roostType(.body)
+            .foregroundStyle(step.done ? RoostColor.Role.textSecondary.color : RoostColor.Role.textPrimary.color)
+            .strikethrough(step.done, color: RoostColor.Role.textSecondary.color)
+            .multilineTextAlignment(.leading)
+    }
 
     var body: some View {
         Button(action: onToggle) {
-            HStack(spacing: 12) {
+            HStack(spacing: RoostSpacing.md) {
                 CheckCircle(isOn: step.done)
-                Text(step.title)
-                    .font(RoostFont.body(size: RoostFont.Size.meta, weight: .semibold))
-                    .foregroundStyle(step.done ? RoostColor.inkSoft : RoostColor.ink)
-                    .strikethrough(step.done, color: RoostColor.inkSoft)
-                    .multilineTextAlignment(.leading)
-                Spacer(minLength: 8)
+                if typeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: RoostSpacing.sm) {
+                        title
+                        if step.rejected {
+                            NotSyncedMarker()
+                        }
+                    }
+                    Spacer(minLength: 0)
+                } else {
+                    title
+                    Spacer(minLength: RoostSpacing.sm)
+                    if step.rejected {
+                        NotSyncedMarker()
+                    }
+                }
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, RoostSpacing.xxs)
+            .frame(minHeight: RoostSpacing.minTapTarget)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(step.title)
-        .accessibilityValue(step.done ? Strings.Projects.stepDone : Strings.Projects.stepNotDone)
+        .accessibilityValue(value)
         .accessibilityHint(step.done ? Strings.Projects.markNotDone : Strings.Projects.markDone)
+        .accessibilityActions {
+            if let moveUp {
+                Button(Strings.Projects.moveUp, action: moveUp)
+            }
+            if let moveDown {
+                Button(Strings.Projects.moveDown, action: moveDown)
+            }
+        }
     }
 }
 
-private struct SubtaskAddRow: View {
+/// The one row a finished card adds: it leaves the list without losing what was done.
+private struct ArchiveRow: View {
+    let onArchive: () -> Void
+
+    var body: some View {
+        Button(action: onArchive) {
+            HStack(spacing: RoostSpacing.md) {
+                Image(systemName: "archivebox")
+                    .roostType(.body)
+                    .accessibilityHidden(true)
+                Text(Strings.Projects.archive)
+                    .roostType(.body)
+                Spacer(minLength: RoostSpacing.sm)
+            }
+            .foregroundStyle(RoostColor.Role.accent.color)
+            .padding(.vertical, RoostSpacing.xxs)
+            .frame(minHeight: RoostSpacing.minTapTarget)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct SubtaskComposer: View {
     /// Returns whether the step was added.
     let onAdd: (String) -> Bool
     @State private var draft = ""
     @FocusState private var focused: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
-            PlusBadge()
+        HStack(spacing: RoostSpacing.md) {
+            PlusBadge(isActive: !draft.isEmpty)
             TextField(Strings.Projects.addStep, text: $draft)
-                .font(RoostFont.body(size: RoostFont.Size.meta, weight: .semibold))
-                .foregroundStyle(RoostColor.ink)
+                .roostType(.body)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
                 .focused($focused)
                 .submitLabel(.done)
                 .onSubmit(submit)
+                .accessibilityLabel(Strings.Projects.addStep)
+                .accessibilityHint(Strings.Lists.composerHint)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, RoostSpacing.xxs)
+        .frame(minHeight: RoostSpacing.minTapTarget)
     }
 
     private func submit() {

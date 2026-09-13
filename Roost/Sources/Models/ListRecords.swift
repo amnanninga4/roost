@@ -68,6 +68,24 @@ extension ListRecord {
             deleteSynced = true
         }
     }
+
+    /// True when the server has been told the row is gone. Undo then cannot un-delete it there —
+    /// the server soft-deletes for good and a POST with the same id replays onto the dead row — so
+    /// the only honest answer is a fresh row with a new id (`ListActions.restore*`).
+    ///
+    /// `syncedAt == nil` is the other half of the pair: the row never reached the server at all, so
+    /// `markRemoved` acknowledged the delete on the spot and nothing was sent.
+    var deleteReachedServer: Bool {
+        syncedAt != nil && deleteSynced
+    }
+
+    /// Undo of a soft delete that never left the phone: the row goes back to what it was, whether
+    /// that was a pending POST (never synced) or a synced row (its DELETE was still queued).
+    func unremove(at date: Date = Date()) {
+        removed = false
+        deleteSynced = false
+        updatedAt = date
+    }
 }
 
 /// One line of the shopping list. `addedBy` is the raw `Person` value; empty until the server stamps it
