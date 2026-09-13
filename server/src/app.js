@@ -110,6 +110,7 @@ export function createApp({ dbPath, choresPath, tokensPath, now = () => new Date
     const path = url.pathname.replace(/\/+$/, "") || "/";
 
     if (req.method === "GET" && path === "/health") {
+      const tokensFileError = tokens.error(); // reloads the file first, so `devices` below is current
       return send(res, 200, {
         ok: true,
         serverTime: iso(),
@@ -117,7 +118,7 @@ export function createApp({ dbPath, choresPath, tokensPath, now = () => new Date
         choresSeeded: seeded,
         cursor: currentSeq(db),
         devices: tokens.size(),
-        tokensFileError: tokens.error(),
+        tokensFileError,
       });
     }
 

@@ -207,6 +207,12 @@ test("tokens file: broken edit is logged once and reported in /health; last good
   writeFileSync(tokensPath, good);
   utimesSync(tokensPath, new Date(clock.getTime() + 10000), new Date(clock.getTime() + 10000));
   assert.equal((await call("GET", "/health")).body.tokensFileError, null);
+
+  writeFileSync(tokensPath, JSON.stringify({ [ANNE]: { person: "anne", device: "Anne test" } }));
+  utimesSync(tokensPath, new Date(clock.getTime() + 15000), new Date(clock.getTime() + 15000));
+  assert.equal((await call("GET", "/health")).body.devices, 1, "health reports the device count after reload, not before");
+  writeFileSync(tokensPath, good);
+  utimesSync(tokensPath, new Date(clock.getTime() + 20000), new Date(clock.getTime() + 20000));
 });
 
 test("devices table records lastSeen per token, throttled to once a minute", () => {
