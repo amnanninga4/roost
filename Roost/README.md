@@ -1,6 +1,6 @@
 # Roost/ — the iOS app
 
-SwiftUI + SwiftData, iOS 18+, offline-first. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy; R-11 added the Shopping, Meals, and Projects tabs and their sync; R-17 added Kitchen mode, the counter display.
+SwiftUI + SwiftData, iOS 18+, offline-first. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy; R-11 added the Shopping, Meals, and Projects tabs and their sync; R-17 added Kitchen mode, the counter display; D-4 added first-run onboarding, pairing by six-digit code, and the Settings screen.
 
 | Tasks | Shopping | Meals | Projects |
 | --- | --- | --- | --- |
@@ -9,6 +9,10 @@ SwiftUI + SwiftData, iOS 18+, offline-first. The phone keeps its own store and s
 | Kitchen mode |
 | --- |
 | ![Kitchen mode](docs/kitchen-r17.png) |
+
+| First run | The code | A code that didn't work | Settings |
+| --- | --- | --- | --- |
+| ![Onboarding](docs/onboarding.png) | ![Pairing](docs/pairing.png) | ![Pairing error](docs/pairing-error.png) | ![Settings](docs/settings.png) |
 
 The four tab screenshots are a fresh, unpaired simulator install: the streaks are tied at 0 so nobody is tagged as ahead, nothing is overdue yet so no row has a subtitle, and the list rows were typed in through the UI. Unpaired, the phone does not know who it is, so the shopping rows carry no initial; the avatar appears once the server stamps `addedBy` from the token. The Kitchen mode screenshot is the same unpaired simulator later that day with three of Anne's chores already checked off (12 + 16 = 28 of 31 still due) and still nothing overdue, so it shows the calm state.
 
@@ -19,9 +23,20 @@ Roost/
   project.yml                 XcodeGen spec — the source of truth for the project
   Roost.xcodeproj             generated; regenerate, don't hand-edit
   Sources/
-    RoostApp.swift            @main: registers fonts, opens (or rebuilds) the store, seeds, owns SyncCoordinator, shows RootTabView
+    RoostApp.swift            @main: registers fonts, opens (or rebuilds) the store, seeds, owns SyncCoordinator, shows RootGate
     Strings.swift             every R-10 and R-11 user-facing string: tab titles, list headers and placeholders, streak labels, escalation copy; plus the Kitchen mode strings
     Root/RootTabView.swift    the tab bar (RootTab: Tasks, Shopping, Meals, Projects) and the screen behind each
+    Onboarding/RootGate.swift the first thing shown: the flow while there is no token, the tabs once there is
+    Onboarding/OnboardingFlow.swift the four steps and the transition between them
+    Onboarding/OnboardingPage.swift the shape every step shares: eyebrow, title, line, content, bottom action; the dots
+    Onboarding/WelcomeStep.swift  what this is, in one sentence
+    Onboarding/CodeStep.swift     the six digits, what went wrong, and the token link
+    Onboarding/CodeEntryField.swift six boxes drawn over one invisible text field; one VoiceOver element
+    Onboarding/ConfirmStep.swift  "You're Anne", in Anne's colour
+    Onboarding/NotificationsStep.swift the rationale, then the system prompt; "Not now" allowed
+    Onboarding/TokenSheet.swift   the hand-minted fallback, behind a small link on the code screen
+    Onboarding/PairingModel.swift pure: the pairing state machine (typing, pasting, the four failures) + DeviceName
+    Onboarding/ServerEndpoint.swift which server this phone talks to (production, stored, or the DEBUG override)
     Models/Records.swift      SwiftData models: ChoreRecord, CompletionRecord, SyncState (and the schema list)
     Models/ListRecords.swift  SwiftData models for the lists: ShoppingItemRecord, MealRecord, ProjectRecord, SubtaskRecord; the ListRecord sync bookkeeping + PatchFields
     Models/ListActions.swift  every local list write (add, buy, next up, made today, start, step, done, remove), shared by the screens and the tests
@@ -48,9 +63,13 @@ Roost/
     Screens/MealsScreen.swift Meals tab: count line, add row (title + tag), NEXT UP badge, "Made it today", swipe to delete
     Screens/ProjectsScreen.swift Projects tab: count line, start row (title + first steps), one card per project with progress, steps, add-step row
     Screens/ListParts.swift   pieces the three list tabs share: header, dashed add row, check circle, avatar, badge, chrome, refocus
-    Screens/PairingScreen.swift paste a token, connect, forget
+    Screens/SettingsScreen.swift Gear -> Settings: paired as, server, last sync, Unpair, version
     Screens/ChoreListScreen.swift the R-2 list, reachable from the gear menu as "All chores"
   Tests/                      in-memory ModelContainer + URLProtocol stub; no network
+  docs/onboarding.png         simulator screenshot, first run (no token in the Keychain)
+  docs/pairing.png            simulator screenshot, the code half typed in
+  docs/pairing-error.png      simulator screenshot, a code the server answered 404 to
+  docs/settings.png           simulator screenshot, Settings while paired against a local server
   docs/tasks-r10.png          simulator screenshot, Tasks tab (fresh unpaired install: tied streaks, nothing overdue)
   docs/shopping-r11.png       simulator screenshot, Shopping tab (six rows typed in, two bought)
   docs/meals-r11.png          simulator screenshot, Meals tab (four ideas, one NEXT UP, one made today)
@@ -79,17 +98,65 @@ xcodebuild -project Roost/Roost.xcodeproj -scheme Roost \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 ```
 
-70 tests: seed (31 rows, 2 pinned, idempotent, retire/restore, converters), sync (pairing stores person/cursor/token; 401 stores nothing; a queued completion is POSTed once and marked synced; a 400 marks it rejected and it is never retried; offline keeps the queue; a delete replays as DELETE; a delta with `deleted: true` hides the local row; server-sent chores re-seed; overlapping syncs coalesce), the list replay (a local shopping add is POSTed once and marked synced, with `addedBy` taken from the server's reply; a meal add carries its tag and every other field, so a 201 leaves nothing to PATCH; edits made before a create is replayed outlive the server's stale 200 and go out as a PATCH; a project with first steps goes out as one POST and every step comes back synced; a step added to a synced project POSTs to `/projects/:id/subtasks` and its check-off PATCHes only `done`; a bought toggle PATCHes only `bought`, un-buying PATCHes again, and acknowledged edits are not replayed; "made it today" and "next up" ride one PATCH and the old holder is cleared locally without a request; a delete replays as DELETE and a row the server never saw sends nothing; removing a project cascades locally and sends one DELETE), the list failure modes (a 400 create is kept and never retried; a 503 keeps the queue; a rate-limited DELETE stays queued while the pull still runs; a DELETE the server refuses is acknowledged and never retried; a dead connection ends the pass at the first row with the queue intact), the list delta (a delta with `deleted: true` removes the local row without echoing a DELETE; next-up exclusivity is reflected after a delta; a project delta with subtasks lands in both tables and a cascade delta empties them; the cursor advances to the server's value and holds when nothing changed; a pending local edit outlives a delta carrying the server's older copy of the same row), planning (pinned chores land on the right person; cat care sorts first; a completion today shows as a done row and counts in the tally; overdue days map to the escalation stage), the streak header (the higher streak leads; a tie, including 0 vs 0, has no leader; sides come out Anne then Wes with missing values as 0; the tally line reads `Anne · 14   Wes · 11`; it builds from a plan), the escalation copy (no subtitle for due today; nudge names the chore; pointed depends on category; alert capitalizes the chore; every overdue stage has copy for both categories; rows flow through their stage and done rows get nothing), the root tabs (four tabs in order with their SF Symbols; the list headers read like the mockup, singular and plural), notifications (fixture plan yields the expected ids, Chicago fire times and titles; a replan clears the previous set; the other person's chores never appear; badge count; overlapping replans coalesce), and Kitchen mode (overdue rows group by person and sort by stage descending with the right copy; alert-stage rows from both people land in the banner, most days late first; an empty plan and an all-due-today plan are both caught up; a 5-day-overdue litter box for Wes is a "Scoop litter emergency" in the banner; a missing `activeFrom` falls back to today; the synced line).
+96 tests: seed (31 rows, 2 pinned, idempotent, retire/restore, converters), sync (pairing stores person/cursor/token; 401 stores nothing; a queued completion is POSTed once and marked synced; a 400 marks it rejected and it is never retried; offline keeps the queue; a delete replays as DELETE; a delta with `deleted: true` hides the local row; server-sent chores re-seed; overlapping syncs coalesce), the list replay (a local shopping add is POSTed once and marked synced, with `addedBy` taken from the server's reply; a meal add carries its tag and every other field, so a 201 leaves nothing to PATCH; edits made before a create is replayed outlive the server's stale 200 and go out as a PATCH; a project with first steps goes out as one POST and every step comes back synced; a step added to a synced project POSTs to `/projects/:id/subtasks` and its check-off PATCHes only `done`; a bought toggle PATCHes only `bought`, un-buying PATCHes again, and acknowledged edits are not replayed; "made it today" and "next up" ride one PATCH and the old holder is cleared locally without a request; a delete replays as DELETE and a row the server never saw sends nothing; removing a project cascades locally and sends one DELETE), the list failure modes (a 400 create is kept and never retried; a 503 keeps the queue; a rate-limited DELETE stays queued while the pull still runs; a DELETE the server refuses is acknowledged and never retried; a dead connection ends the pass at the first row with the queue intact), the list delta (a delta with `deleted: true` removes the local row without echoing a DELETE; next-up exclusivity is reflected after a delta; a project delta with subtasks lands in both tables and a cascade delta empties them; the cursor advances to the server's value and holds when nothing changed; a pending local edit outlives a delta carrying the server's older copy of the same row), planning (pinned chores land on the right person; cat care sorts first; a completion today shows as a done row and counts in the tally; overdue days map to the escalation stage), the streak header (the higher streak leads; a tie, including 0 vs 0, has no leader; sides come out Anne then Wes with missing values as 0; the tally line reads `Anne · 14   Wes · 11`; it builds from a plan), the escalation copy (no subtitle for due today; nudge names the chore; pointed depends on category; alert capitalizes the chore; every overdue stage has copy for both categories; rows flow through their stage and done rows get nothing), the root tabs (four tabs in order with their SF Symbols; the list headers read like the mockup, singular and plural), notifications (fixture plan yields the expected ids, Chicago fire times and titles; a replan clears the previous set; the other person's chores never appear; badge count; overlapping replans coalesce), pairing (the sixth digit submits and five do not; a 404 clears the boxes, counts a rejection and offers no retry; a 429 and a dead connection keep the code and offer one; a retry after a transport failure pairs; a pasted code with spaces or words around it fills every box and submits once; a short paste waits; deleting a digit clears the message without resubmitting; digits arriving mid-attempt are ignored; every status code maps to one sentence; the device name is trimmed to the server's 60; the stored base URL beats production and junk does not; POST /pair carries the code and the device name and no bearer, and its 404/429/400/403/500 and a dead connection come back typed; DELETE /pair/self carries the bearer and reads the label, and its 403 is `forbidden`; pairing by code stores the token the server minted and a failure stores nothing; unpairing tells the server then forgets the token, a hand-minted device is forgotten locally with a note, an unreachable server still unpairs this phone, and a phone that was never paired sends nothing), and Kitchen mode (overdue rows group by person and sort by stage descending with the right copy; alert-stage rows from both people land in the banner, most days late first; an empty plan and an all-due-today plan are both caught up; a 5-day-overdue litter box for Wes is a "Scoop litter emergency" in the banner; a missing `activeFrom` falls back to today; the synced line).
 
 ## Pairing
 
-First run is unpaired: the Today screen still works locally, the status line says "Not paired · tap the gear". Gear → Pairing:
+First run has no token in the Keychain, so `RootGate` shows `OnboardingFlow` instead of the tabs: four screens,
+one job each.
 
-1. Wes mints a token on the server: `sudo ROOST_TOKENS=/etc/roost/tokens.json node /opt/roost/server/src/mktoken.js anne "Anne iPhone"` (see `server/README.md`).
-2. Paste it in the token field. The base URL defaults to `https://roost.hinescreative.xyz`.
-3. Connect calls `GET /sync?cursor=0`. On 200 the token goes into the phone's **Keychain** (`kSecClassGenericPassword`, this device only, after first unlock) and `SyncState` stores the base URL and the `person` the server reported. On 401 or a network failure nothing is stored and the error is shown.
+1. **What this is.** One sentence, and the two people the app has.
+2. **The code.** Six boxes. Anne or Wes mints a code on the host — `sudo -u roost ROOST_DB=/var/lib/roost/roost.db
+   node /opt/roost/server/src/mkcode.js anne "Anne iPhone"` — and the phone POSTs it to `/pair` with
+   `UIDevice.current.name` trimmed to the 60 characters the server accepts. The sixth digit submits; there is no
+   button. A paste of anything containing six digits fills every box. `404` (unknown, used, or expired) clears the
+   boxes, shakes them once and says so; `429` and a dead connection keep the code and offer one retry, because the
+   code was probably fine. The token comes back in that one response and goes straight to the **Keychain**
+   (`kSecClassGenericPassword`, this device only, after first unlock); `SyncState` keeps the base URL and the
+   `person` the server named.
+3. **Who you are.** "You're Anne" in Anne's colour. The person is not a choice — it comes from the code.
+4. **Reminders.** One screen saying what Roost will send (the 9am list, the 6pm nudge) and then the system prompt.
+   "Not now" leaves it unasked, which keeps the one shot at that prompt unspent.
 
-The token is never written to UserDefaults, the SwiftData store, or logs. "Forget this device" clears the Keychain item and the pairing fields.
+The tabs appear after step 4, not after step 2: pairing succeeds in the middle of the flow, and `needsOnboarding`
+stays true until the flow says otherwise, so the notification question never arrives behind a tab bar.
+
+The token is never written to UserDefaults, the SwiftData store, or logs.
+
+### Settings
+
+Gear → Settings (`SettingsScreen`) replaced the old paste-a-token Pairing sheet:
+
+- **This phone** — the person the server paired, in their colour, and this device's name.
+- **Server** — the host. In a DEBUG build it is an editable field; see below.
+- **Sync** — when the last pass landed, and what state it left behind ("Up to date", "Syncing…",
+  "Offline · will retry").
+- **Unpair this phone** — a confirmation, then `DELETE /pair/self`. On a `200` the app drops back to onboarding.
+  On a `403` (the token came from the tokens file, so only that file can revoke it) or on no answer at all, the
+  local token is cleared anyway and an alert explains what is still live on the server before onboarding returns.
+- The app version and build at the bottom, from the bundle.
+
+The hand-minted path still exists for a phone that cannot use a code, or for getting back in when the API is not
+answering: "Enter a token instead", a small link under the boxes on the code screen, takes a token from
+`src/mktoken.js` and validates it with a real `GET /sync` before keeping it.
+
+### Pointing a DEBUG build at a local server
+
+`ServerEndpoint` resolves the base URL in this order: the DEBUG launch-argument override, then whatever pairing
+stored, then `https://roost.hinescreative.xyz`. Release builds compile the override out.
+
+```bash
+cd server
+ROOST_DB=/tmp/d4.db ROOST_TOKENS=/tmp/tokens.json npm start      # write an empty {} tokens file first
+ROOST_DB=/tmp/d4.db node src/mkcode.js anne "Anne test"          # prints a six-digit code
+
+xcrun simctl install booted <path>/Roost.app
+xcrun simctl launch booted xyz.hinescreative.roost -roostServer http://127.0.0.1:8790
+```
+
+A leading-dash launch argument lands in `UserDefaults`, so `-roostServer <url>` needs no parsing. Settings shows
+the same value in an editable field in DEBUG; changing it does not re-pair, so the next step after changing it is
+Unpair and a fresh code.
 
 ## Sync
 
@@ -165,6 +232,6 @@ Local only (`UserNotifications`, no server involvement). `NotificationScheduler.
 
 Identifiers are deterministic per chore and date (`roost.overdue.<choreId>.<yyyy-MM-dd>`, `roost.digest.<yyyy-MM-dd>`), so a replan replaces rather than duplicates. The plan covers today and tomorrow (tomorrow assumes nothing else gets done and is replaced by the next replan) so a phone opened after 18:00 still gets the next ping. The app badge is the paired person's overdue count, updated with each replan. An unpaired phone gets nothing and a zero badge.
 
-Permission (alert, sound, badge) is requested the first time pairing succeeds, not on first launch.
+Permission (alert, sound, badge) is requested by the onboarding step that explains it (D-4), not on first launch and not silently at the moment pairing succeeds.
 
 The other person's chores never produce a local notification here, so the mockup's "red alert visible to both of you" needs a push from the server: that is ticket R-6b (APNs), waiting on a key. Kitchen mode's banner shows both people's alerts on whichever phone is on the counter, but it is a display, not a ping.
