@@ -172,3 +172,66 @@ test("status.json includes activeFrom and board honors meta value", async () => 
   const anyDue = late.people.some((p) => p.due.length > 0);
   assert.ok(anyDue, "earlier activeFrom surfaces due/overdue chores on the board");
 });
+
+test("GET /health and /status.json expose backup from verify-status fixture", async () => {
+  const prev = process.env.ROOST_VERIFY_STATUS;
+  const statusPath = join(dir, "verify-status.json");
+  try {
+    writeFileSync(
+      statusPath,
+      JSON.stringify({
+        at: "2026-09-13T09:30:00.000Z",
+        ok: true,
+        seq: 123,
+        integrity: "ok",
+        backup: "/var/backups/roost/roost-2026-09-13.db",
+      }) + "\n",
+    );
+    process.env.ROOST_VERIFY_STATUS = statusPath;
+
+    const health = await fetch(base + "/health");
+    assert.equal(health.status, 200);
+    const h = await health.json();
+    assert.deepEqual(h.backup, { at: "2026-09-13T09:30:00.000Z", ok: true, seq: 123 });
+
+    const sj = await (await fetch(base + "/status.json")).json();
+    assert.deepEqual(sj.backup, { at: "2026-09-13T09:30:00.000Z", ok: true, seq: 123 });
+
+    // HTML board stays household-only — no ops backup blob.
+    const html = await (await fetch(base + "/status")).text();
+    assert.doesNotMatch(html, /verify-status|2026-09-13T09:30:00/);
+  } finally {
+    if (prev === undefined) delete process.env.ROOST_VERIFY_STATUS;
+    else process.env.ROOST_VERIFY_STATUS = prev;
+  }
+});
+
+test("GET /health and /status.json backup is null when verify-status absent", async () => {
+  const prev = process.env.ROOST_VERIFY_STATUS;
+  try {
+    process.env.ROOST_VERIFY_STATUS = join(dir, "no-such-verify-status.json");
+    const h = await (await fetch(base + "/health")).json();
+    assert.equal(h.backup, null);
+    const sj = await (await fetch(base + "/status.json")).json();
+    assert.equal(sj.backup, null);
+  } finally {
+    if (prev === undefined) delete process.env.ROOST_VERIFY_STATUS;
+    else process.env.ROOST_VERIFY_STATUS = prev;
+  }
+});
+
+test("GET /health and /status.json backup is null when verify-status malformed", async () => {
+  const prev = process.env.ROOST_VERIFY_STATUS;
+  const statusPath = join(dir, "verify-status-bad.json");
+  try {
+    writeFileSync(statusPath, "{not-json");
+    process.env.ROOST_VERIFY_STATUS = statusPath;
+    const h = await (await fetch(base + "/health")).json();
+    assert.equal(h.backup, null);
+    const sj = await (await fetch(base + "/status.json")).json();
+    assert.equal(sj.backup, null);
+  } finally {
+    if (prev === undefined) delete process.env.ROOST_VERIFY_STATUS;
+    else process.env.ROOST_VERIFY_STATUS = prev;
+  }
+});

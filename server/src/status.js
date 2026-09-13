@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { PEOPLE, listChores, getMeta } from "./db.js";
 import { boardStats, DEFAULT_ACTIVE_FROM, parseActiveFrom, chicagoDateString } from "./rules.js";
 import { listHandoffs, expireOpenHandoffs } from "./handoffs.js";
+import { readVerifyStatus } from "./verifystatus.js";
 
 const TZ = "America/Chicago";
 const here = dirname(fileURLToPath(import.meta.url));
@@ -289,7 +290,11 @@ export function faviconHandler(_req, res) {
 
 export function statusJsonHandler(db, _req, res, opts = {}) {
   const board = buildStatusBoard(db, opts);
-  const json = JSON.stringify(board);
+  // Ops-only: backup verify status is not rendered on the HTML board.
+  const json = JSON.stringify({
+    ...board,
+    backup: readVerifyStatus({ log: opts.log }),
+  });
   res.writeHead(200, {
     "content-type": "application/json; charset=utf-8",
     "content-length": Buffer.byteLength(json),
