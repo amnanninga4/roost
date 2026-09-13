@@ -13,7 +13,7 @@ public struct HouseholdCalendar: Sendable {
         cal.timeZone = timeZone
         cal.firstWeekday = 2 // Monday
         cal.minimumDaysInFirstWeek = 4
-        self.calendar = cal
+        calendar = cal
     }
 
     /// 2026-01-05 00:00 local, a Monday. Period 0 for every cadence.
@@ -21,7 +21,9 @@ public struct HouseholdCalendar: Sendable {
         calendar.date(from: DateComponents(year: 2026, month: 1, day: 5))!
     }
 
-    public func startOfDay(_ date: Date) -> Date { calendar.startOfDay(for: date) }
+    public func startOfDay(_ date: Date) -> Date {
+        calendar.startOfDay(for: date)
+    }
 
     /// Start of the next local day (exclusive end of `date`'s day).
     public func endOfDay(_ date: Date) -> Date {

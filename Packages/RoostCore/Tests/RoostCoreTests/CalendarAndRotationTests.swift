@@ -1,5 +1,5 @@
-import XCTest
 @testable import RoostCore
+import XCTest
 
 final class CalendarTests: XCTestCase {
     let cal = HouseholdCalendar()
@@ -53,16 +53,18 @@ final class RotationTests: XCTestCase {
         XCTAssertEqual(a, RoundRobinRotation().assignee(for: unpinned, periodIndex: 10), "same across instances")
     }
 
-    func testStartingPersonVariesByChoreId() {
+    func testStartingPersonVariesByChoreId() throws {
         let r = RoundRobinRotation()
-        let list = try! ChoreList.load(from: repoChoresURL())
+        let list = try ChoreList.load(from: repoChoresURL())
         let starters = Set(list.chores.filter { !$0.isPinned }.map { r.assignee(for: $0, periodIndex: 0) })
         XCTAssertEqual(starters, Set(Person.allCases), "not every chore starts with the same person")
     }
 
     func testSchedulerHonorsPinnedOverRotation() {
         struct AlwaysWes: Rotation {
-            func assignee(for chore: Chore, periodIndex: Int) -> Person { .wes }
+            func assignee(for _: Chore, periodIndex _: Int) -> Person {
+                .wes
+            }
         }
         let cal = HouseholdCalendar()
         let s = Scheduler(chores: [pinned, unpinned], activeFrom: cal.anchor, rotation: AlwaysWes(), calendar: cal)

@@ -34,7 +34,9 @@ public struct Chore: Codable, Sendable, Hashable, Identifiable {
         self.category = category
     }
 
-    public var isPinned: Bool { fixedAssignee != nil }
+    public var isPinned: Bool {
+        fixedAssignee != nil
+    }
 }
 
 /// A chore that was done. Mirrors the server's completion rows; soft-deleted rows are simply absent here.

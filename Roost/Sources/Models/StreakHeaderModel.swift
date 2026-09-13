@@ -25,7 +25,9 @@ struct StreakHeaderModel: Equatable {
         self.init(streak: plan.streak, doneThisWeek: plan.doneThisWeek)
     }
 
-    func isLeading(_ person: Person) -> Bool { leader == person }
+    func isLeading(_ person: Person) -> Bool {
+        leader == person
+    }
 
     /// "Anne · 14   Wes · 11"
     var tallyLine: String {

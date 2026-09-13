@@ -1,7 +1,8 @@
+import CoreText
+
 // Registers the bundled OFL fonts with CoreText. Call once at app launch (or in a preview) before
 // using RoostFont. Safe to call repeatedly; already-registered files are skipped.
 import Foundation
-import CoreText
 
 public enum RoostFonts {
     /// File names bundled under Resources/Fonts. Variable fonts carry their full weight axis.
@@ -14,7 +15,7 @@ public enum RoostFonts {
     ]
 
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var registered = Set<String>()
+    private nonisolated(unsafe) static var registered = Set<String>()
 
     /// Registers every bundled font file. Returns the files that were registered in this call,
     /// or throws if a file is missing from the bundle (a packaging error, not a runtime condition).
@@ -46,8 +47,8 @@ public enum RoostFonts {
         case failed(String, String)
         public var description: String {
             switch self {
-            case .missing(let f): return "RoostFonts: \(f) is not in the package bundle"
-            case .failed(let f, let why): return "RoostFonts: could not register \(f): \(why)"
+            case let .missing(f): "RoostFonts: \(f) is not in the package bundle"
+            case let .failed(f, why): "RoostFonts: could not register \(f): \(why)"
             }
         }
     }

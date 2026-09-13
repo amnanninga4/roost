@@ -10,7 +10,9 @@ protocol TokenStore: Sendable {
 
 struct KeychainError: Error, CustomStringConvertible {
     let status: OSStatus
-    var description: String { "keychain error \(status)" }
+    var description: String {
+        "keychain error \(status)"
+    }
 }
 
 /// Generic-password item, this device only, available after first unlock so background sync can read it.
@@ -37,7 +39,9 @@ struct KeychainTokenStore: TokenStore {
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var out: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &out)
-        if status == errSecItemNotFound { return nil }
+        if status == errSecItemNotFound {
+            return nil
+        }
         guard status == errSecSuccess, let data = out as? Data else { throw KeychainError(status: status) }
         return String(data: data, encoding: .utf8)
     }
@@ -46,7 +50,9 @@ struct KeychainTokenStore: TokenStore {
         let data = Data(token.utf8)
         let update: [String: Any] = [kSecValueData as String: data]
         let status = SecItemUpdate(base as CFDictionary, update as CFDictionary)
-        if status == errSecSuccess { return }
+        if status == errSecSuccess {
+            return
+        }
         guard status == errSecItemNotFound else { throw KeychainError(status: status) }
         var add = base
         add[kSecValueData as String] = data
@@ -66,9 +72,19 @@ final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
     private let lock = NSLock()
     private var token: String?
 
-    init(_ token: String? = nil) { self.token = token }
+    init(_ token: String? = nil) {
+        self.token = token
+    }
 
-    func read() throws -> String? { lock.withLock { token } }
-    func write(_ token: String) throws { lock.withLock { self.token = token } }
-    func clear() throws { lock.withLock { token = nil } }
+    func read() throws -> String? {
+        lock.withLock { token }
+    }
+
+    func write(_ token: String) throws {
+        lock.withLock { self.token = token }
+    }
+
+    func clear() throws {
+        lock.withLock { token = nil }
+    }
 }

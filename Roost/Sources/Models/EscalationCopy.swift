@@ -6,10 +6,10 @@ enum EscalationCopy {
     /// nil for dueToday: the row shows only its title.
     static func subtitle(stage: EscalationStage, title: String, category: ChoreCategory) -> String? {
         switch stage {
-        case .dueToday: return nil
-        case .nudge: return Strings.Escalation.nudge(title: title)
-        case .pointed: return category == .catCare ? Strings.Escalation.pointedCat : Strings.Escalation.pointedHome
-        case .alert: return Strings.Escalation.alert(title: title)
+        case .dueToday: nil
+        case .nudge: Strings.Escalation.nudge(title: title)
+        case .pointed: category == .catCare ? Strings.Escalation.pointedCat : Strings.Escalation.pointedHome
+        case .alert: Strings.Escalation.alert(title: title)
         }
     }
 

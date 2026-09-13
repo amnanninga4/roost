@@ -2,17 +2,20 @@
 // Idempotent: existing rows are updated in place, rows missing from the file are marked retired,
 // and SyncState.choresVersion tracks the file's `version`.
 import Foundation
-import SwiftData
 import RoostCore
+import SwiftData
 
 enum ChoreSeeder {
     enum SeedError: Error, CustomStringConvertible {
         case missingResource
-        var description: String { "Roost: chores.json is not in the app bundle" }
+        var description: String {
+            "Roost: chores.json is not in the app bundle"
+        }
     }
 
     static func bundledChoresURL(bundle: Bundle = .main) throws -> URL {
-        guard let url = bundle.url(forResource: "chores", withExtension: "json") else { throw SeedError.missingResource }
+        guard let url = bundle.url(forResource: "chores", withExtension: "json")
+        else { throw SeedError.missingResource }
         return url
     }
 
@@ -36,18 +39,24 @@ enum ChoreSeeder {
             }
         }
         // Whatever is left in byId was not in the file this time.
-        for orphan in byId.values { orphan.retired = true }
+        for orphan in byId.values {
+            orphan.retired = true
+        }
 
         let state = try syncState(in: context)
         state.choresVersion = list.version
 
-        if context.hasChanges { try context.save() }
+        if context.hasChanges {
+            try context.save()
+        }
         return list.chores.count
     }
 
     /// The single SyncState row, created on first use.
     static func syncState(in context: ModelContext) throws -> SyncState {
-        if let state = try context.fetch(FetchDescriptor<SyncState>()).first { return state }
+        if let state = try context.fetch(FetchDescriptor<SyncState>()).first {
+            return state
+        }
         let state = SyncState()
         context.insert(state)
         return state

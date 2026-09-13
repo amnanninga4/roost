@@ -13,12 +13,14 @@ public enum EscalationStage: Int, Sendable, Comparable, CaseIterable {
 
     public static func stage(daysOverdue: Int) -> EscalationStage {
         switch daysOverdue {
-        case ..<1: return .dueToday
-        case 1..<3: return .nudge
-        case 3..<5: return .pointed
-        default: return .alert
+        case ..<1: .dueToday
+        case 1 ..< 3: .nudge
+        case 3 ..< 5: .pointed
+        default: .alert
         }
     }
 
-    public static func < (lhs: EscalationStage, rhs: EscalationStage) -> Bool { lhs.rawValue < rhs.rawValue }
+    public static func < (lhs: EscalationStage, rhs: EscalationStage) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
 }
