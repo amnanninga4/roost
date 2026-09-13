@@ -92,7 +92,8 @@ enum ListActions {
         guard let title = cleaned(title) else { return nil }
         let project = ProjectRecord(id: newId(), title: title, createdAt: now)
         context.insert(project)
-        for (_, _) in steps.compactMap { cleaned($0) }.prefix(firstStepsLimit).enumerated() {
+        let firstSteps = steps.compactMap { cleaned($0) }.prefix(firstStepsLimit)
+        for (index, step) in firstSteps.enumerated() {
             context.insert(SubtaskRecord(
                 id: newId(),
                 projectId: project.id,
