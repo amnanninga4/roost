@@ -75,10 +75,10 @@ final class SeedTests: XCTestCase {
         let done = Completion(id: "c-1", choreId: "laundry", person: .anne, completedAt: Date(timeIntervalSince1970: 1_800_000_000))
         let record = CompletionRecord(done)
         XCTAssertNil(record.syncedAt)
-        XCTAssertFalse(record.deleted)
+        XCTAssertFalse(record.removed)
         XCTAssertEqual(try record.toCompletion(), done)
 
-        record.deleted = true
+        record.removed = true
         XCTAssertNil(try record.toCompletion(), "soft-deleted rows are invisible to RoostCore")
 
         let bad = ChoreRecord(id: "x", title: "x", cadence: "fortnightly", fixedAssignee: nil, category: "chore", sortOrder: 0)
