@@ -73,6 +73,10 @@ struct SyncAPI: Sendable {
         let person: String
         let choresVersion: Int
         let cursor: Int
+        /// The day the household started using Roost, as a Chicago calendar day (`2026-09-07`). The
+        /// server owns it, so both phones get the same scheduling floor. Optional so a server older
+        /// than R-23, or a test stub, still decodes; the phone then keeps whatever it had stored.
+        let activeFrom: String?
         let completions: [CompletionDTO]
         let chores: [ChoreDTO]?
         // The list deltas (SyncAPI+Lists.swift). Optional so a pre-R-9 server, or a test stub, still decodes.
@@ -80,6 +84,8 @@ struct SyncAPI: Sendable {
         let meals: [MealDTO]?
         let projects: [ProjectDTO]?
         let subtasks: [SubtaskDTO]?
+        /// The handoff delta (SyncAPI+Handoffs.swift). Optional for the same reason.
+        let handoffs: [HandoffDTO]?
     }
 
     /// `POST /pair` — the only unauthenticated call. The token it returns is the bearer for everything else.
@@ -123,6 +129,18 @@ struct SyncAPI: Sendable {
         let plain = ISO8601DateFormatter()
         plain.formatOptions = [.withInternetDateTime]
         return plain.date(from: s)
+    }
+
+    /// `activeFrom` is a calendar day, not a timestamp: `2026-09-07` means the start of that day in
+    /// America/Chicago, which is the floor `RoostCore.Scheduler` and `Tallies` count periods from. Parsed
+    /// through the household calendar, so the phone's own time zone never moves the household's start.
+    static func parseActiveFrom(_ value: String, calendar: HouseholdCalendar = HouseholdCalendar()) -> Date? {
+        let parts = value.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 3, let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]) else {
+            return nil
+        }
+        guard (1 ... 12).contains(month), (1 ... 31).contains(day) else { return nil }
+        return calendar.startOfDay(calendar.date(year: year, month: month, day: day))
     }
 
     let baseURL: URL

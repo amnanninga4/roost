@@ -21,16 +21,21 @@ struct TodayScreen: View {
     private var choreRecords: [ChoreRecord]
     @Query(filter: #Predicate<CompletionRecord> { !$0.removed })
     private var completionRecords: [CompletionRecord]
+    @Query(filter: #Predicate<HandoffRecord> { !$0.removed }, sort: \HandoffRecord.createdAt)
+    private var handoffRecords: [HandoffRecord]
     @Query private var syncStates: [SyncState]
 
     @State private var showSettings = false
     @State private var showKitchen = false
-    /// Two counters and a gate, so the feel of a tap is decided once and never on a cold launch:
+    /// Three counters and a gate, so the feel of a tap is decided once and never on a cold launch:
     /// a haptic fires when one of these changes, and they only change under a finger.
     @State private var checkOffs = 0
     @State private var undos = 0
     @State private var celebrations = 0
+    @State private var answers = 0
     @State private var celebration = TodayBoard.Celebration()
+    /// The row waiting on the one confirmation before an offer is made. Nil the rest of the time.
+    @State private var pendingOffer: TodayRow?
 
     private let calendar = HouseholdCalendar()
 
@@ -40,6 +45,11 @@ struct TodayScreen: View {
 
     private var me: Person? {
         state?.person.flatMap(Person.init(rawValue:))
+    }
+
+    /// The other half of the household, from this phone's own person.
+    private func other(than person: Person) -> Person {
+        person == .anne ? .wes : .anne
     }
 
     var body: some View {
@@ -59,15 +69,37 @@ struct TodayScreen: View {
         .roostHaptic(.checkOff, trigger: checkOffs)
         .roostHaptic(.undo, trigger: undos)
         .roostHaptic(.milestone, trigger: celebrations)
-        .task {
-            ensureActiveFrom()
-            await sync.syncNow()
+        .roostHaptic(.selection, trigger: answers)
+        .confirmationDialog(
+            offerPrompt,
+            isPresented: .init(get: { pendingOffer != nil }, set: {
+                if !$0 {
+                    pendingOffer = nil
+                }
+            }),
+            titleVisibility: .visible
+        ) {
+            if let row = pendingOffer {
+                Button(Strings.Handoffs.confirmAction(other(than: row.person).displayName)) { makeOffer(row) }
+            }
+            Button(Strings.Settings.cancel, role: .cancel) { pendingOffer = nil }
         }
+        .task { await sync.syncNow() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 sync.syncSoon()
             }
         }
+    }
+
+    /// The one question asked before a turn changes hands: who, what, and which period.
+    private var offerPrompt: String {
+        guard let row = pendingOffer else { return "" }
+        return Strings.Handoffs.confirmTitle(
+            other(than: row.person).displayName,
+            chore: row.chore.title,
+            period: row.chore.cadence.periodPhrase
+        )
     }
 
     private func content(asOf now: Date) -> some View {
@@ -77,12 +109,17 @@ struct TodayScreen: View {
                 TodayHeaderView(date: now, streaks: StreakHeaderModel(plan: plan), notice: notice(asOf: now))
                 ForEach(Person.allCases, id: \.self) { person in
                     let rows = TodayBoard.ordered(plan.rows(for: person))
+                    let isMine = person == me
                     PersonColumnView(
                         person: person,
                         rows: rows,
                         dueCount: plan.dueCount(for: person),
-                        isMine: person == me,
-                        toggle: { row in toggle(row, among: rows) }
+                        isMine: isMine,
+                        offers: isMine ? plan.offers(for: person) : [],
+                        toggle: { row in toggle(row, among: rows) },
+                        offer: { row in pendingOffer = row },
+                        withdraw: withdrawOffer,
+                        answer: answerOffer
                     )
                 }
             }
@@ -116,9 +153,28 @@ struct TodayScreen: View {
     private func plan(asOf now: Date) -> TodayPlan {
         let chores = choreRecords.compactMap { try? $0.toChore() }
         let completions = completionRecords.compactMap { try? $0.toCompletion() }
+        // The household start comes from the server on every /sync; today until the first one lands, so
+        // a phone that has never synced shows no backlog rather than a guess at one.
         let activeFrom = state?.activeFrom ?? calendar.startOfDay(now)
         return TodayPlanner.plan(
-            chores: chores, completions: completions, asOf: now, activeFrom: activeFrom, calendar: calendar
+            chores: chores,
+            completions: completions,
+            handoffs: handoffRecords.compactMap { try? $0.toSnapshot() },
+            asOf: now,
+            activeFrom: activeFrom,
+            calendar: calendar
+        )
+    }
+
+    /// The rules object the actions ask about eligibility. Built from the same inputs as the plan, so
+    /// `canOffer` cannot answer one thing on the row and another under the finger.
+    private func rules(asOf now: Date) -> HandoffRules {
+        let chores = choreRecords.compactMap { try? $0.toChore() }
+        let activeFrom = state?.activeFrom ?? calendar.startOfDay(now)
+        let live = HandoffPresentation.live(handoffRecords.compactMap { try? $0.toSnapshot() })
+        return HandoffRules(
+            scheduler: Scheduler(chores: chores, activeFrom: activeFrom, calendar: calendar),
+            handoffs: live
         )
     }
 
@@ -159,15 +215,40 @@ struct TodayScreen: View {
             undos += 1
         }
         try? context.save()
+        if case .due = row.kind {
+            // "Wes said no" has been read by the time you are checking things off again.
+            try? HandoffActions.clearNotices(for: row.person, in: context)
+        }
         sync.syncSoon()
     }
 
-    /// The household start date, fixed the first time the screen renders (or the earliest completion, if any).
-    private func ensureActiveFrom() {
-        guard let state, state.activeFrom == nil else { return }
+    // MARK: - Handoffs
+
+    /// The offer itself, after the one confirmation. `HandoffActions.offer` asks `HandoffRules` again and
+    /// returns nil if the answer changed between the long press and the tap — a sync landing in between
+    /// can settle the period — so nothing is queued that the server would only refuse.
+    private func makeOffer(_ row: TodayRow) {
+        pendingOffer = nil
         let now = Date()
-        let earliest = completionRecords.map(\.completedAt).min() ?? now
-        state.activeFrom = calendar.startOfDay(min(earliest, now))
-        try? context.save()
+        guard let mine = me, row.person == mine else { return }
+        let offered = try? HandoffActions.offer(
+            row.chore, from: mine, to: other(than: mine), rules: rules(asOf: now), on: now, in: context
+        )
+        guard offered != nil else { return }
+        answers += 1
+        sync.syncSoon()
+    }
+
+    /// Takes back an offer that never left the phone. Not reachable once it has synced: the server has no
+    /// withdraw route, so `PersonColumnView` stops offering the action.
+    private func withdrawOffer(_ id: String) {
+        try? HandoffActions.withdraw(id, in: context)
+        answers += 1
+    }
+
+    private func answerOffer(_ offer: IncomingOffer, _ decision: HandoffRules.Decision) {
+        try? HandoffActions.answer(offer.id, as: decision, in: context)
+        answers += 1
+        sync.syncSoon()
     }
 }

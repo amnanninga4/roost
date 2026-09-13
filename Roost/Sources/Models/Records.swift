@@ -1,7 +1,7 @@
 // SwiftData records for the local, offline-first store.
 // These mirror RoostCore's value types; converters live in Converters.swift.
 // No CloudKit. Sync bookkeeping lives on CompletionRecord and SyncState; the device token lives in the Keychain.
-// The shared lists (shopping, meals, projects, subtasks) are in ListRecords.swift.
+// The shared lists (shopping, meals, projects, subtasks) are in ListRecords.swift, handoffs in HandoffRecords.swift.
 import Foundation
 import SwiftData
 
@@ -9,8 +9,11 @@ enum RoostSchema {
     static let models: [any PersistentModel.Type] = [
         ChoreRecord.self, CompletionRecord.self, SyncState.self,
         ShoppingItemRecord.self, MealRecord.self, ProjectRecord.self, SubtaskRecord.self,
+        HandoffRecord.self,
     ]
-    static var schema: Schema { Schema(models) }
+    static var schema: Schema {
+        Schema(models)
+    }
 }
 
 /// One row of data/chores.json, persisted. `cadence`, `category`, and `fixedAssignee` are stored as
@@ -25,7 +28,15 @@ final class ChoreRecord {
     var sortOrder: Int
     var retired: Bool
 
-    init(id: String, title: String, cadence: String, fixedAssignee: String?, category: String, sortOrder: Int, retired: Bool = false) {
+    init(
+        id: String,
+        title: String,
+        cadence: String,
+        fixedAssignee: String?,
+        category: String,
+        sortOrder: Int,
+        retired: Bool = false
+    ) {
         self.id = id
         self.title = title
         self.cadence = cadence
@@ -53,7 +64,7 @@ final class CompletionRecord {
     var deleteSynced: Bool = false
     var rejected: Bool = false
     /// The server's seq for this row, when known. Informational only; the cursor lives on SyncState.
-    var seq: Int? = nil
+    var seq: Int?
 
     init(id: String, choreId: String, person: String, completedAt: Date, syncedAt: Date? = nil, removed: Bool = false) {
         self.id = id
@@ -64,8 +75,13 @@ final class CompletionRecord {
         self.removed = removed
     }
 
-    var needsPost: Bool { syncedAt == nil && !rejected && !removed }
-    var needsDelete: Bool { removed && !deleteSynced }
+    var needsPost: Bool {
+        syncedAt == nil && !rejected && !removed
+    }
+
+    var needsDelete: Bool {
+        removed && !deleteSynced
+    }
 }
 
 /// Single-row sync bookkeeping. `cursor` is the server's monotonic seq; `choresVersion` is the seeded list version.
@@ -75,10 +91,15 @@ final class SyncState {
     var cursor: Int
     var choresVersion: Int
     var lastSyncAt: Date?
-    var baseURL: String? = nil
-    var person: String? = nil
+    var baseURL: String?
+    var person: String?
     /// The day the household started using Roost; periods before it are ignored by the scheduler.
-    var activeFrom: Date? = nil
+    ///
+    /// The server owns it and every `/sync` carries it (`activeFrom`, a Chicago calendar day), so both
+    /// phones agree on the floor however long after the household started the second one was set up.
+    /// Nil until the first sync lands, which the screens read as today: a phone that has never synced
+    /// shows no backlog at all rather than a guess at one.
+    var activeFrom: Date?
 
     init(cursor: Int = 0, choresVersion: Int = 0, lastSyncAt: Date? = nil) {
         self.cursor = cursor
@@ -86,5 +107,7 @@ final class SyncState {
         self.lastSyncAt = lastSyncAt
     }
 
-    var isPaired: Bool { person != nil && baseURL != nil }
+    var isPaired: Bool {
+        person != nil && baseURL != nil
+    }
 }

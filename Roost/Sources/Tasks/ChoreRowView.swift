@@ -10,6 +10,13 @@ import SwiftUI
 
 struct ChoreRowView: View {
     let row: TodayRow
+    /// Offers this turn to the other person. Nil when `row.canOffer` is false, or on a column that is
+    /// not this phone's — you cannot give away work that was never yours.
+    var onOffer: (() -> Void)?
+    /// Takes an offer back. Nil unless the offer is still queued on this phone: there is no withdraw
+    /// endpoint on the server (`POST /handoffs` and the two answer routes are all of it), so once an
+    /// offer has synced the only honest answer is to wait for one.
+    var onWithdraw: (() -> Void)?
     let onToggle: () -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -53,11 +60,30 @@ struct ChoreRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(ChoreRowButtonStyle(fill: fill))
+        .contextMenu { handoffMenu }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.chore.title)
         .accessibilityValue(accessibilityValue)
         .accessibilityHint(row.isDone ? Strings.Tasks.hintUncheck : Strings.Tasks.hintCheck)
         .accessibilityAddTraits(.isButton)
+        .accessibilityActions { handoffMenu }
+    }
+
+    /// The handoff actions, in the long-press menu and in VoiceOver's actions rotor. Empty for almost
+    /// every row: a chore is only ever offered from the column of the person who owes it this period.
+    @ViewBuilder
+    private var handoffMenu: some View {
+        if let onOffer {
+            Button(Strings.Handoffs.ask(other.displayName), systemImage: "arrow.left.arrow.right", action: onOffer)
+        }
+        if let onWithdraw {
+            Button(Strings.Handoffs.withdraw, systemImage: "arrow.uturn.backward", action: onWithdraw)
+        }
+    }
+
+    /// The other half of the household, from the row's own person.
+    private var other: Person {
+        row.person == .anne ? .wes : .anne
     }
 
     // MARK: - Pieces
@@ -96,13 +122,14 @@ struct ChoreRowView: View {
         }
     }
 
-    /// The line under the words: how late it is, who it is pinned to, and — once the other phone is in
-    /// on it — that it is not a private problem any more. Empty for a row that is simply due today.
+    /// The line under the words: how late it is, who it is pinned to, who handed it over, and — once the
+    /// other phone is in on it — that it is not a private problem any more. Empty for a row that is
+    /// simply due today and nobody's business but this person's.
     @ViewBuilder
     private var meta: some View {
         let late = row.daysOverdue > 0
         let pinned = row.chore.fixedAssignee
-        if late || pinned != nil {
+        if late || pinned != nil || row.handoff != nil {
             // One line normally. At accessibility sizes a 40-pt chip leaves the note beside it a column
             // two characters wide, so the meta line becomes a stack instead.
             let layout = typeSize.isAccessibilitySize
@@ -117,6 +144,17 @@ struct ChoreRowView: View {
                 if let pinned {
                     RowBadge(text: pinned.displayName.uppercased(), tint: .assigned, fill: .assignedSoft)
                 }
+                if case let .takenFrom(giver) = row.handoff {
+                    // A settled fact, so it gets a chip; the states still in motion below get a line of
+                    // words instead, because a chip for a thing that is about to change reads as a label.
+                    RowBadge(text: Strings.Handoffs.from(giver.displayName), tint: .accent, fill: .accentSoft)
+                }
+                if let note = handoffNote {
+                    Text(note)
+                        .roostType(.caption)
+                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if !row.isDone, row.stage.isSharedWithTheOther {
                     Text(Strings.Tasks.onTheOtherPhone)
                         .roostType(.caption)
@@ -125,6 +163,17 @@ struct ChoreRowView: View {
                 }
             }
             .padding(.top, RoostSpacing.xxs)
+        }
+    }
+
+    /// The one line a handoff in motion puts under the row. An expired offer has none: nobody answered,
+    /// and being told so days later helps no one.
+    private var handoffNote: String? {
+        switch row.handoff {
+        case let .waiting(asked, _, _): Strings.Handoffs.waiting(asked.displayName)
+        case let .declined(by): Strings.Handoffs.saidNo(by.displayName)
+        case .refused: Strings.Handoffs.refused
+        case .takenFrom, .none: nil
         }
     }
 
@@ -140,6 +189,12 @@ struct ChoreRowView: View {
         }
         if let pinned = row.chore.fixedAssignee {
             parts.append(Strings.Tasks.always(pinned.displayName))
+        }
+        if case let .takenFrom(giver) = row.handoff {
+            parts.append(Strings.Handoffs.from(giver.displayName))
+        }
+        if let note = handoffNote {
+            parts.append(note)
         }
         return parts.joined(separator: ", ")
     }

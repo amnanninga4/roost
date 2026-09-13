@@ -274,6 +274,51 @@ final class SnapshotTests: XCTestCase {
         XCTAssertEqual(store.read(), written)
     }
 
+    /// The widget's promise is that it agrees with the Tasks tab, so the writer has to plan with the
+    /// handoffs too: a chore Anne gave away is Wes's on the Home Screen as well.
+    @MainActor
+    func testTheWriterPlansWithTheHandoffs() throws {
+        let container = try ModelContainer(
+            for: RoostSchema.schema,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = ModelContext(container)
+        // One daily chore, pinned to Anne, never done: hers and five days late.
+        let chore = Chore(id: "mop", title: "Mop floors", cadence: .daily, fixedAssignee: .anne, category: .chore)
+        try ChoreSeeder.seed(ChoreList(version: 1, chores: [chore]), into: context)
+        let state = try ChoreSeeder.syncState(in: context)
+        state.person = "anne"
+        state.activeFrom = activeFrom
+        try context.save()
+
+        let store = tempStore()
+        defer { store.clear() }
+        let writer = SnapshotWriter(container: container, store: store, now: { self.today }, reload: {})
+
+        let before = try XCTUnwrap(writer.write())
+        XCTAssertEqual(before.people.first { $0.id == "anne" }?.top.map(\.title), ["Mop floors"])
+        XCTAssertEqual(before.people.first { $0.id == "wes" }?.top, [])
+
+        // Wes took that day's turn. The widget has to move it too.
+        let day = cal.date(year: 2026, month: 9, day: 1, hour: 9)
+        context.insert(HandoffRecord(
+            id: "h-widget",
+            choreId: chore.id,
+            fromPerson: Person.anne.rawValue,
+            toPerson: Person.wes.rawValue,
+            periodIndex: cal.periodIndex(.daily, containing: day),
+            cadence: Cadence.daily.rawValue,
+            state: Handoff.State.accepted.rawValue,
+            createdAt: day,
+            syncedAt: day
+        ))
+        try context.save()
+
+        let after = try XCTUnwrap(writer.write())
+        XCTAssertEqual(after.people.first { $0.id == "wes" }?.top.map(\.title), ["Mop floors"])
+        XCTAssertEqual(after.people.first { $0.id == "anne" }?.top, [])
+    }
+
     /// No container means no widget, not a crash: the plan is still made, nothing is written, and WidgetKit
     /// is not told there is anything new.
     @MainActor

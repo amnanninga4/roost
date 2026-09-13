@@ -7,6 +7,7 @@
 #   /etc/roost/tokens.json hand-minted device tokens, root:roost 0640, read-only to the API
 #   /var/backups/roost    nightly DB copies, 30 kept
 #   offsite (grater)      roost-offsite.timer ~04:00 host-local → /mnt/storage-sdd/backups/roost, 30 kept
+#   verify                roost-verify.timer ~04:30 host-local → verify-backup.sh on newest local copy
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then echo "run with sudo" >&2; exit 1; fi
@@ -41,6 +42,10 @@ cp "$HERE/scripts/backup.sh" /opt/roost/server/backup.sh
 chmod 755 /opt/roost/server/backup.sh
 cp "$HERE/scripts/offsite-backup.sh" /opt/roost/server/offsite-backup.sh
 chmod 755 /opt/roost/server/offsite-backup.sh
+cp "$HERE/scripts/verify-backup.sh" /opt/roost/server/verify-backup.sh
+chmod 755 /opt/roost/server/verify-backup.sh
+cp "$HERE/scripts/restore.sh" /opt/roost/server/restore.sh
+chmod 755 /opt/roost/server/restore.sh
 cp "$REPO/data/chores.json" /opt/roost/data/chores.json
 # fonts for the status board, at the same relative path status.js resolves from server/src
 FONTS_SRC="$REPO/Packages/RoostDesign/Sources/RoostDesign/Resources/Fonts"
@@ -78,9 +83,12 @@ cp "$HERE/systemd/roost-backup.service" /etc/systemd/system/roost-backup.service
 cp "$HERE/systemd/roost-backup.timer" /etc/systemd/system/roost-backup.timer
 cp "$HERE/systemd/roost-offsite.service" /etc/systemd/system/roost-offsite.service
 cp "$HERE/systemd/roost-offsite.timer" /etc/systemd/system/roost-offsite.timer
+cp "$HERE/systemd/roost-verify.service" /etc/systemd/system/roost-verify.service
+cp "$HERE/systemd/roost-verify.timer" /etc/systemd/system/roost-verify.timer
 systemctl daemon-reload
 systemctl enable --now roost-backup.timer
 systemctl enable --now roost-offsite.timer
+systemctl enable --now roost-verify.timer
 systemctl enable roost.service
 systemctl restart roost.service
 

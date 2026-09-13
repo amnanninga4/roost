@@ -203,6 +203,60 @@ enum Strings {
         }
     }
 
+    /// Handing a turn over: the ask, the wait, the answer. One period at a time, never a rule change.
+    /// The "this week" / "today" wording matches the push the server sends, so the phone and the
+    /// notification say the same thing.
+    enum Handoffs {
+        /// The context-menu item on your own row: "Ask Wes to take this".
+        static func ask(_ name: String) -> String {
+            "Ask \(name) to take this"
+        }
+
+        /// The one confirmation, before anything is sent. "Ask Wes to take Laundry this week?"
+        static func confirmTitle(_ name: String, chore: String, period: String) -> String {
+            "Ask \(name) to take \(chore) \(period)?"
+        }
+
+        /// The confirming button: "Ask Wes".
+        static func confirmAction(_ name: String) -> String {
+            "Ask \(name)"
+        }
+
+        /// On your row while nobody has answered: "Asked Wes · waiting".
+        static func waiting(_ name: String) -> String {
+            "Asked \(name)\(Lists.metaSeparator)waiting"
+        }
+
+        /// Taking the ask back, offered only while it is still on this phone.
+        static let withdraw = "Don't ask after all"
+
+        /// The card in the other person's column: "Anne asked you to take Laundry this week".
+        static func incoming(_ name: String, chore: String, period: String) -> String {
+            "\(name) asked you to take \(chore) \(period)"
+        }
+
+        static let accept = "Accept"
+        static let decline = "Decline"
+
+        /// The chip on a row you took from the other person.
+        static func from(_ name: String) -> String {
+            "from \(name)"
+        }
+
+        /// They turned it down. Clears on your next check-off, or when the period ends.
+        static func saidNo(_ name: String) -> String {
+            "\(name) said no"
+        }
+
+        /// The server would not take the offer, and never will: the row is yours after all.
+        static let refused = "Couldn't hand that off"
+
+        /// Which period an offer covers, worded as the server's push words it (biweekly included).
+        static let periodToday = "today"
+        static let periodWeek = "this week"
+        static let periodMonth = "this month"
+    }
+
     /// Gear → All chores: the whole seeded list, grouped by cadence.
     enum Chores {
         static let eyebrow = "HOUSEHOLD LIST"

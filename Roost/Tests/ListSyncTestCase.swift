@@ -2,7 +2,8 @@
 // shape* functions, a full /sync body, and a test case that owns an in-memory store, a stub session,
 // and the row lookups.
 // MARK: - stub rows
-/// The server's timestamp on every stub row.
+
+// The server's timestamp on every stub row.
 @testable import Roost
 import RoostCore
 import SwiftData
@@ -60,15 +61,33 @@ func subtaskJSON(
     ]
 }
 
-/// A full /sync body: the completions helper plus the four list arrays.
+func handoffJSON(
+    id: String, choreId: String, from: String, to: String, periodIndex: Int, cadence: String = "weekly",
+    state: String = "pending", createdAt: String = listStamp, seq: Int, deleted: Bool = false
+) -> [String: Any] {
+    [
+        "id": id, "choreId": choreId, "from": from, "to": to, "periodIndex": periodIndex,
+        "cadence": cadence, "state": state,
+        "createdAt": createdAt, "updatedAt": listStamp, "deleted": deleted, "seq": seq,
+    ]
+}
+
+/// A full /sync body: the completions helper plus the four list arrays and the handoffs.
+/// `activeFrom` is omitted unless given, which is a server older than R-23 as far as the phone is concerned.
 func listsSyncJSON(
     person: String = "anne", cursor: Int, completions: [[String: Any]] = [], shopping: [[String: Any]] = [],
-    meals: [[String: Any]] = [], projects: [[String: Any]] = [], subtasks: [[String: Any]] = []
+    meals: [[String: Any]] = [], projects: [[String: Any]] = [], subtasks: [[String: Any]] = [],
+    handoffs: [[String: Any]] = [], activeFrom: String? = nil
 ) -> Data {
-    json([
+    var body: [String: Any] = [
         "serverTime": listStamp, "person": person, "choresVersion": 1, "cursor": cursor,
-        "completions": completions, "shopping": shopping, "meals": meals, "projects": projects, "subtasks": subtasks,
-    ])
+        "completions": completions, "shopping": shopping, "meals": meals, "projects": projects,
+        "subtasks": subtasks, "handoffs": handoffs,
+    ]
+    if let activeFrom {
+        body["activeFrom"] = activeFrom
+    }
+    return json(body)
 }
 
 // MARK: - the shared test case
@@ -111,6 +130,16 @@ class ListSyncTestCase: XCTestCase {
 
     func subtaskRow(_ id: String, in context: ModelContext? = nil) throws -> SubtaskRecord? {
         try (context ?? fresh()).fetch(FetchDescriptor<SubtaskRecord>(predicate: #Predicate { $0.id == id })).first
+    }
+
+    func handoffRow(_ id: String, in context: ModelContext? = nil) throws -> HandoffRecord? {
+        try (context ?? fresh()).fetch(FetchDescriptor<HandoffRecord>(predicate: #Predicate { $0.id == id })).first
+    }
+
+    func allHandoffs(in context: ModelContext? = nil) throws -> [HandoffRecord] {
+        try (context ?? fresh()).fetch(
+            FetchDescriptor<HandoffRecord>(sortBy: [SortDescriptor(\.createdAt)])
+        )
     }
 
     /// Pairs with a stub that accepts any token and reports Anne at the given cursor.
