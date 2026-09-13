@@ -23,6 +23,11 @@ command -v sqlite3 >/dev/null || { echo "sqlite3 CLI missing (needed by backup.s
 
 id -u roost >/dev/null 2>&1 || useradd --system --home-dir /var/lib/roost --shell /usr/sbin/nologin roost
 
+# Offsite backup runs as hinescreative with Group=roost to read /var/backups/roost (750).
+if id -u hinescreative >/dev/null 2>&1; then
+  usermod -aG roost hinescreative
+fi
+
 install -d -o root -g root -m 755 /opt/roost /opt/roost/server /opt/roost/data
 install -d -o roost -g roost -m 750 /var/lib/roost
 install -d -o root -g roost -m 750 /etc/roost
