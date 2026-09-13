@@ -12,7 +12,7 @@ Pure-logic Swift package for Roost. No UI, no SwiftData, no networking. The app 
 - **Handoff** — one person offering their turn at a chore to the other for a single period: `{ id, choreId, from, to, periodIndex, cadence, createdAt, state }`, state `pending | accepted | declined | expired`. Accepted outranks the pin and the rotation, for that period only.
 - **HandoffRules** — `canOffer(chore, from:on:)`, `offer(...)`, and the `resolve(...)` pair: answer one offer, or sweep the set and expire what is past its period.
 - **EscalationStage** — `dueToday` (0 days), `nudge` (1–2), `pointed` (3–4), `alert` (5+). The mockup's copy for each stage lives in the app.
-- **Tallies** — `doneThisWeek(asOf:completions:)` and `streak(for:asOf:completions:)`.
+- **Tallies** — `doneThisWeek(asOf:completions:)` and `streak(for:asOf:completions:handoffs:)`.
 
 ## Rules (provisional)
 
@@ -33,7 +33,7 @@ These are defaults so the app can be built. None of them are confirmed by Anne o
   The weights are a guess at effort — cleaning inside the ovens is most of an evening, scooping the litter is two minutes — and so is the 14-day window. Both live in `FairnessWeights.provisional` and `FairnessBalancer.windowDays`; change them there and everything downstream follows. A weekly is worth more than two dailies today, and nobody has argued about whether it should be.
 - **Handoffs.** Only the person who owes the chore for the current period can offer it, and there can be one open offer (pending or accepted) per chore per period. Accepting moves that one period; declining changes nothing and lets the offerer ask again; the offer dies when the period ends, so the next period reverts to the pin or the rotation. Answering after the period ended expires the offer instead of accepting it.
 - **Week tally.** Completions per person from Monday 00:00 to the next Monday 00:00, Chicago.
-- **Streak.** Consecutive days on which the person completed every daily chore assigned to them. Today counts once it is fully done; an unfinished today does not break the streak. A day with no dailies assigned counts as complete. Days before `activeFrom` never count.
+- **Streak.** Consecutive days on which the person completed every daily chore assigned to them. Today counts once it is fully done; an unfinished today does not break the streak. A day with no dailies assigned counts as complete. Days before `activeFrom` never count. Who a daily was assigned to on a past day follows the handoffs accepted for that day, each one judged against *that* day rather than against today, so giving a daily away moves it out of the offerer's streak and into the receiver's for that day alone — and the balancer never enters it (see below).
 
 ## How balancing works
 
@@ -66,7 +66,7 @@ What it still does not do, all of it deliberate:
 
 - **Nobody is marked away.** A person who is simply absent stops getting new work once their overdue pile outweighs the other person's load, which is the useful half of an away flag without the flag. The other half — not nagging them for the days they were gone — is not built.
 - **A big chore can overshoot.** Weights are coarse, so handing out one monthly (8) can leave a day lopsided until later periods even it out. Nobody has watched this happen yet.
-- **`plan` only.** `assignee(for:periodIndex:)` and `dueItem(...)` answer for one chore and cannot balance a list they cannot see, so `Tallies.streak` and anything else walking history get the plain rotation answer. That is intentional: rewriting who owed what last Tuesday would rewrite the streaks too.
+- **`plan` only.** `assignee(for:periodIndex:)` and `dueItem(...)` answer for one chore and cannot balance a list they cannot see, so `Tallies.streak` and anything else walking history get the unbalanced answer — handoff, then pin, then rotation. That is intentional: rewriting who owed what last Tuesday would rewrite the streaks too.
 - **Off by default.** `Scheduler(balancer:)` is nil unless a caller passes one, so switching the app over is a deliberate, separate change.
 
 ## Tests
