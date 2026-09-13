@@ -1,5 +1,6 @@
-// Meals tab: the bank of ideas. Add a title and an optional tag, mark one NEXT UP (swipe or long press),
-// note "Made it today", swipe to delete. Writes go to the store first, then kick a sync.
+// Meals tab: the bank of ideas. Add a title and, if you like, a tag; mark one NEXT UP so the badge
+// moves to it; say "Made it" and the row remembers when. Swipe a row away with five seconds to take
+// it back. Writes go to the store first, then kick a sync.
 import RoostCore
 import RoostDesign
 import SwiftData
@@ -15,69 +16,88 @@ struct MealsScreen: View {
     @State private var title = ""
     @State private var tag = ""
     @FocusState private var titleFocused: Bool
+    @State private var undo = ListUndo()
+    /// Counters the taps bump, so nothing buzzes for a row the other phone changed.
+    @State private var added = 0
+    @State private var marked = 0
 
     /// The next-up meal first, then newest ideas first.
     private var ordered: [MealRecord] {
-        meals.filter(\.nextUp) + meals.filter { !$0.nextUp }
+        let upNext = meals.filter(\.nextUp)
+        let rest = meals.filter { !$0.nextUp }
+        return upNext + rest
     }
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    ListScreenHeader(title: Strings.Tabs.meals, line: Strings.Meals.header(count: meals.count))
-                        .listHeaderRow()
+                    ListScreenHeader(
+                        title: Strings.Tabs.meals,
+                        line: Strings.Meals.header(count: meals.count),
+                        status: sync.statusLine
+                    )
+                    .listHeaderRow()
                 }
                 Section {
-                    AddRow(placeholder: Strings.Meals.add, text: $title, focused: $titleFocused, onSubmit: add) {
+                    ListComposer(placeholder: Strings.Meals.add, text: $title, focused: $titleFocused, onSubmit: add) {
                         if !title.isEmpty {
                             TextField(Strings.Meals.tag, text: $tag)
-                                .font(RoostFont.body(size: RoostFont.Size.caption, weight: .semibold))
-                                .foregroundStyle(RoostColor.inkSoft)
+                                .roostType(.subheadline)
+                                .foregroundStyle(RoostColor.Role.textSecondary.color)
                                 .submitLabel(.done)
                                 .onSubmit(add)
-                                .padding(.leading, 32)
+                                .padding(.leading, RoostSpacing.xl + RoostSpacing.md)
+                                .accessibilityLabel(Strings.Meals.tag)
                         }
                     }
                 }
                 Section {
                     if meals.isEmpty {
-                        EmptyLine(text: Strings.Meals.empty)
+                        ListEmptyState(
+                            symbol: "fork.knife", line: Strings.Meals.empty, hint: Strings.Meals.emptyHint
+                        )
                     }
                     ForEach(ordered) { meal in
-                        MealRow(meal: meal)
-                            .listRowBackground(RoostColor.surface)
-                            .swipeActions(edge: .leading) {
-                                Button { setNextUp(meal, !meal.nextUp) } label: {
-                                    Label(
-                                        meal.nextUp ? Strings.Meals.clearNextUp : Strings.Meals.nextUp,
-                                        systemImage: "flame"
-                                    )
-                                }
-                                .tint(RoostColor.meal)
-                            }
-                            .swipeToDelete { remove(meal) }
-                            .contextMenu {
-                                Button { setNextUp(meal, !meal.nextUp) } label: {
-                                    Label(
-                                        meal.nextUp ? Strings.Meals.clearNextUp : Strings.Meals.nextUp,
-                                        systemImage: "flame"
-                                    )
-                                }
-                                Button { madeToday(meal) } label: {
-                                    Label(Strings.Meals.madeToday, systemImage: "checkmark.circle")
-                                }
-                                Button(role: .destructive) { remove(meal) } label: {
-                                    Label(Strings.Lists.delete, systemImage: "trash")
-                                }
-                            }
+                        row(meal)
                     }
                 }
             }
             .listTabChrome()
-            .animation(.default, value: ordered.map(\.id))
+            .roostAnimation(.standard, value: ordered.map(\.id))
+            .roostHaptic(.selection, trigger: added)
+            .roostHaptic(.checkOff, trigger: marked)
+            .undoBar(undo)
         }
-        .tint(RoostColor.accent)
+        .tint(RoostColor.Role.accent.color)
+    }
+
+    private func row(_ meal: MealRecord) -> some View {
+        MealRow(meal: meal)
+            .listRowBackground(RoostColor.Role.surface.color)
+            .roostTransition(.row)
+            .swipeActions(edge: .leading) {
+                Button { setNextUp(meal, !meal.nextUp) } label: {
+                    Label(meal.nextUp ? Strings.Meals.clearNextUp : Strings.Meals.nextUp, systemImage: "flame")
+                }
+                .tint(RoostColor.Role.bonus.color)
+                Button { madeToday(meal) } label: {
+                    Label(Strings.Meals.madeIt, systemImage: "checkmark.circle")
+                }
+                .tint(RoostColor.Role.meals.color)
+            }
+            .swipeToDelete(rejected: meal.rejected) { remove(meal) }
+            .contextMenu {
+                Button { setNextUp(meal, !meal.nextUp) } label: {
+                    Label(meal.nextUp ? Strings.Meals.clearNextUp : Strings.Meals.nextUp, systemImage: "flame")
+                }
+                Button { madeToday(meal) } label: {
+                    Label(Strings.Meals.madeIt, systemImage: "checkmark.circle")
+                }
+                Button(role: .destructive) { remove(meal) } label: {
+                    Label(meal.rejected ? Strings.Lists.remove : Strings.Lists.delete, systemImage: "trash")
+                }
+            }
     }
 
     // MARK: actions
@@ -94,6 +114,7 @@ struct MealsScreen: View {
         }
         title = ""
         tag = ""
+        added += 1
         sync.syncSoon()
         refocus($titleFocused) // keep the keyboard up: ideas come in batches too
     }
@@ -105,58 +126,121 @@ struct MealsScreen: View {
 
     private func madeToday(_ meal: MealRecord) {
         try? ListActions.madeToday(meal, in: context)
+        marked += 1
         sync.syncSoon()
     }
 
+    /// The removal is in the store at once; its sync waits for the undo window (see `ListUndo`).
     private func remove(_ meal: MealRecord) {
+        let title = meal.title
         try? ListActions.removeMeal(meal, in: context)
-        sync.syncSoon()
+        undo.offer(Strings.Lists.removed(title), restore: { [context] in
+            _ = try? ListActions.restoreMeal(meal, in: context)
+            sync.syncSoon()
+        }, commit: {
+            sync.syncSoon()
+        })
     }
 }
 
 private struct MealRow: View {
     let meal: MealRecord
+    @Environment(\.dynamicTypeSize) private var typeSize
 
-    /// "Weeknight · last made Jul 20"; nil when there is nothing to say.
-    private var meta: String? {
+    /// "last made Tuesday"; nil until it has been made once.
+    private var lastMade: String? {
+        meal.lastMadeAt.map { Strings.Meals.lastMade(MealDates.lastMade($0)) }
+    }
+
+    private var hasMeta: Bool {
+        !meal.tag.isEmpty || lastMade != nil || meal.rejected || (meal.nextUp && typeSize.isAccessibilitySize)
+    }
+
+    private var nextUpBadge: some View {
+        TagBadge(text: Strings.Meals.nextUpBadge, role: .bonus, symbol: "flame.fill")
+            .roostTransition(.badge)
+    }
+
+    /// The row as one sentence, for VoiceOver: the title, the tag, when it was last made, and the
+    /// two flags that are drawn rather than written.
+    private var value: String {
         var parts: [String] = []
+        if meal.nextUp {
+            parts.append(Strings.Meals.nextUp)
+        }
         if !meal.tag.isEmpty {
             parts.append(meal.tag)
         }
-        if let made = meal.lastMadeAt {
-            parts.append(Strings.Meals.lastMade(made.formatted(.dateTime.month(.abbreviated).day())))
+        if let lastMade {
+            parts.append(lastMade)
         }
-        return parts.isEmpty ? nil : parts.joined(separator: Strings.Lists.metaSeparator)
+        if meal.rejected {
+            parts.append(Strings.Lists.didNotSyncValue)
+        }
+        return parts.joined(separator: Strings.Lists.metaSeparator)
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(RoostColor.meal)
-                .frame(width: 26, height: 26)
-                .background(RoostColor.mealSoft, in: RoundedRectangle(cornerRadius: 8))
+        HStack(spacing: RoostSpacing.md) {
+            MealGlyph()
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: RoostSpacing.xs) {
                 Text(meal.title)
-                    .font(RoostFont.display(size: RoostFont.Size.body, weight: .semibold))
-                    .foregroundStyle(RoostColor.ink)
-                if let meta {
-                    Text(meta)
-                        .font(RoostFont.body(size: RoostFont.Size.caption))
-                        .foregroundStyle(RoostColor.inkSoft)
+                    .roostType(.rowTitle)
+                    .foregroundStyle(RoostColor.Role.textPrimary.color)
+                if hasMeta {
+                    // At an accessibility size the badge cannot sit beside the title without
+                    // crushing it, so it joins the meta line under it.
+                    HStack(spacing: RoostSpacing.sm) {
+                        if meal.nextUp, typeSize.isAccessibilitySize {
+                            nextUpBadge
+                        }
+                        if !meal.tag.isEmpty {
+                            MetaChip(text: meal.tag, role: .meals)
+                        }
+                        if let lastMade {
+                            Text(lastMade)
+                                .roostType(.caption)
+                                .foregroundStyle(RoostColor.Role.textSecondary.color)
+                        }
+                        if meal.rejected {
+                            NotSyncedMarker()
+                        }
+                    }
                 }
             }
             .multilineTextAlignment(.leading)
 
-            Spacer(minLength: 8)
+            Spacer(minLength: RoostSpacing.sm)
 
-            if meal.nextUp {
-                TagBadge(text: Strings.Meals.nextUpBadge, color: RoostColor.meal, soft: RoostColor.mealSoft)
+            if meal.nextUp, !typeSize.isAccessibilitySize {
+                nextUpBadge
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, RoostSpacing.xs)
+        .frame(minHeight: RoostSpacing.minTapTarget)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        .roostAnimation(.standard, value: meal.nextUp)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(meal.title)
+        .accessibilityValue(value)
+    }
+}
+
+/// The meal icon from the mockup: a flame on its soft ground.
+private struct MealGlyph: View {
+    @ScaledMetric(relativeTo: .body) private var scaled: CGFloat = RoostSpacing.xl
+
+    private var side: CGFloat {
+        min(scaled, listGlyphCeiling)
+    }
+
+    var body: some View {
+        Image(systemName: "flame.fill")
+            .roostType(.caption)
+            .foregroundStyle(RoostColor.Role.meals.color)
+            .frame(width: side, height: side)
+            .background(RoostColor.Role.mealsSoft.color, in: RoostRadius.shape(RoostRadius.md))
+            .accessibilityHidden(true)
     }
 }

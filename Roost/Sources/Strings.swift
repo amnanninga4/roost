@@ -16,12 +16,36 @@ enum Strings {
     /// Shared by the three list tabs.
     enum Lists {
         static let delete = "Delete"
+        /// The swipe action on a row the server refused: it never reached the server, so nothing is deleted there.
+        static let remove = "Remove"
         /// Joins the parts of a meta line: "Weeknight · last made Jul 20"
         static let metaSeparator = " · "
         /// VoiceOver, on the small avatar: "Added by Anne"
         static func addedBy(_ name: String) -> String {
             "Added by \(name)"
         }
+
+        /// The marker on a row the server refused. Plain: it is not an error the reader can fix by retrying.
+        static let didNotSync = "Didn't sync"
+        /// VoiceOver, appended to such a row's value.
+        static let didNotSyncValue = "Didn't sync"
+
+        /// The floating bar after a swipe-delete, for the five seconds it can be taken back.
+        static let undo = "Undo"
+        /// "Bread removed"
+        static func removed(_ title: String) -> String {
+            "\(title) removed"
+        }
+
+        /// "3 items removed", after Clear bought.
+        static func removedCount(_ count: Int) -> String {
+            "\(count) \(count == 1 ? "item" : "items") removed"
+        }
+
+        /// VoiceOver, on the undo bar.
+        static let undoHint = "Puts it back"
+        /// VoiceOver, on the composer's text field.
+        static let composerHint = "Return adds it and keeps the keyboard up"
     }
 
     enum Shopping {
@@ -32,6 +56,12 @@ enum Strings {
 
         static let add = "Add an item…"
         static let empty = "Nothing on the list."
+        /// Under the empty line: what to do about it.
+        static let emptyHint = "Type what you need above."
+        /// The section the ticked rows sink into.
+        static let boughtSection = "Bought"
+        /// Clears that section: the rows are removed, with five seconds to take it back.
+        static let clearBought = "Clear bought"
         /// VoiceOver: a row's state, and what a tap does to it.
         static let bought = "Bought"
         static let stillNeeded = "Still needed"
@@ -48,16 +78,23 @@ enum Strings {
         static let add = "Add an idea…"
         static let tag = "Tag, like Weeknight"
         static let empty = "No ideas saved yet."
+        /// Under the empty line: what to do about it.
+        static let emptyHint = "Save something you both like."
         /// The badge on the meal that is next up.
         static let nextUpBadge = "NEXT UP"
         /// Swipe action / context menu.
         static let nextUp = "Next up"
         static let clearNextUp = "Clear next up"
-        static let madeToday = "Made it today"
-        /// "last made Jul 20"; the date is formatted by the screen.
+        /// The action that stamps today's date on a meal. Shorter than the sentence it used to be.
+        static let madeIt = "Made it"
+        /// "last made Jul 20" / "last made Tuesday"; `MealDates` picks the wording of the date part.
         static func lastMade(_ when: String) -> String {
             "last made \(when)"
         }
+
+        /// The two recent days get a word instead of a date.
+        static let today = "today"
+        static let yesterday = "yesterday"
     }
 
     enum Projects {
@@ -71,7 +108,18 @@ enum Strings {
         static let start = "Start"
         static let addStep = "Add a step…"
         static let empty = "No projects yet."
+        /// Under the empty line: what to do about it.
+        static let emptyHint = "Name one and list its first steps."
         static let deleteProject = "Delete project"
+        /// The chip on a card whose every step is done.
+        static let doneChip = "DONE"
+        /// What to do with a finished project: it leaves the list without losing anything.
+        static let archive = "Archive"
+        /// VoiceOver, on a finished card, before the step count.
+        static let finished = "Finished"
+        /// VoiceOver actions on a step, because the drag handle is a gesture it cannot make.
+        static let moveUp = "Move up"
+        static let moveDown = "Move down"
         /// "1/5"
         static func progress(done: Int, total: Int) -> String {
             "\(done)/\(total)"
