@@ -14,6 +14,17 @@ struct RoostApp: App {
 
     init() {
         try? RoostFonts.register()
+        #if DEBUG
+            // `-roostUITestState <name>`: an in-memory store with a fixed set of records and no server to
+            // reach. See Sources/Debug/UITestSeed.swift. Nothing below runs in that case — the fixture has
+            // already seeded its own chores, and the on-disk store is left alone.
+            if let seed = UITestSeed.current {
+                let container = seed.makeContainer()
+                self.container = container
+                _sync = State(initialValue: SyncCoordinator(container: container, tokenStore: seed.tokenStore))
+                return
+            }
+        #endif
         let container = Self.openStore()
         self.container = container
         _sync = State(initialValue: SyncCoordinator(container: container))
