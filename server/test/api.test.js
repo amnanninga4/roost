@@ -74,6 +74,8 @@ test("health needs no auth; everything else does", async () => {
   assert.equal(h.body.cursor, 0);
   assert.equal(h.body.devices, 2);
   assert.equal(h.body.tokensFileError, null);
+  assert.equal(typeof h.body.rev, "string", "/health must include rev");
+  assert.ok(h.body.rev.length > 0);
 
   assert.equal((await call("GET", "/chores")).status, 401);
   assert.equal((await call("GET", "/chores", { token: "wrong-token-0123456789" })).status, 401);
@@ -84,6 +86,19 @@ test("health needs no auth; everything else does", async () => {
   assert.equal(ok.status, 200);
   assert.equal(ok.body.chores.length, 31);
   assert.equal(ok.body.version, 1);
+});
+
+test("/health rev prefers ROOST_REV env", async () => {
+  const prev = process.env.ROOST_REV;
+  process.env.ROOST_REV = "test-rev-sha-abc123";
+  try {
+    const h = await call("GET", "/health");
+    assert.equal(h.status, 200);
+    assert.equal(h.body.rev, "test-rev-sha-abc123");
+  } finally {
+    if (prev === undefined) delete process.env.ROOST_REV;
+    else process.env.ROOST_REV = prev;
+  }
 });
 
 test("completion POST is idempotent on client id and stamps person from token", async () => {

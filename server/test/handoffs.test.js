@@ -184,32 +184,61 @@ test("accepted handoff overrides rotation for that exact period only", async () 
   assert.equal(item.viaHandoff, true);
 });
 
-test("expiry sweep marks open handoffs expired when period ends; declined stays declined", async () => {
-  // Jump past the Tue daily period (h-rot accepted) into Wednesday.
-  clock = new Date("2026-09-16T12:00:00.000Z");
+test("R-21: expiry sweep expires pending only; accepted survives and still overrides", async () => {
+  // Pending offer for Wed daily litter — will expire when we jump past Wednesday.
+  clock = new Date("2026-09-16T12:00:00.000Z"); // Wed Sep 16
+  const wedPeriod = periodIndex("daily", clock);
+  const wedOwner = assigneeFor(litter, wedPeriod, listHandoffs(app.db), clock);
+  const wedTo = wedOwner === "anne" ? "wes" : "anne";
+  const pendingOffer = await offer(wedOwner === "anne" ? ANNE : WES, {
+    id: "h-pend-expire",
+    choreId: "scoop-litter",
+    to: wedTo,
+  });
+  assert.equal(pendingOffer.status, 201);
+  assert.equal(pendingOffer.body.state, "pending");
+
+  // Jump past Wed into Thursday — pending expires; accepted h-rot (Tue) stays accepted.
+  clock = new Date("2026-09-17T12:00:00.000Z");
   const expired = expireOpenHandoffs(app.db, clock);
-  assert.ok(expired.some((r) => r.id === "h-rot" && r.state === "expired"));
+  assert.ok(expired.some((r) => r.id === "h-pend-expire" && r.state === "expired"), "pending past period expires");
+  assert.ok(!expired.some((r) => r.id === "h-rot"), "accepted must not be swept");
+
+  const rot = app.db.prepare("SELECT state FROM handoffs WHERE id = 'h-rot'").get();
+  assert.equal(rot.state, "accepted", "accepted daily handoff survives sweep");
+  const tuePeriod = periodIndex("daily", new Date("2026-09-15T12:00:00.000Z"));
+  assert.equal(
+    assigneeFor(litter, tuePeriod, listHandoffs(app.db), clock),
+    "anne",
+    "accepted override still counts after period ends"
+  );
+  assert.equal(acceptedOverride("scoop-litter", tuePeriod, listHandoffs(app.db), clock)?.toPerson, "anne");
+  assert.equal(effectiveState({ ...rot, periodIndex: tuePeriod, cadence: "daily" }, clock), "accepted");
 
   const lit = app.db.prepare("SELECT state FROM handoffs WHERE id = 'h-lit'").get();
   assert.equal(lit.state, "declined", "declined is left alone");
 
-  // Laundry weekly period for week of Sep 14 ends Sunday Sep 20; still open Mon→Wed.
+  // Laundry weekly accepted h-1 still in its week mid-week.
   const laundryRow = app.db.prepare("SELECT state FROM handoffs WHERE id = 'h-1'").get();
-  assert.equal(laundryRow.state, "accepted", "weekly handoff still in period");
+  assert.equal(laundryRow.state, "accepted", "weekly handoff still accepted");
 
-  // After week ends, laundry handoff expires.
+  // After week ends, accepted laundry still does NOT expire and still overrides that period.
   clock = new Date("2026-09-21T12:00:00.000Z"); // Mon Sep 21
   const more = expireOpenHandoffs(app.db, clock);
-  assert.ok(more.some((r) => r.id === "h-1" && r.state === "expired"));
+  assert.ok(!more.some((r) => r.id === "h-1"), "accepted weekly must not expire");
+  assert.equal(app.db.prepare("SELECT state FROM handoffs WHERE id = 'h-1'").get().state, "accepted");
 
   const period = periodIndex("weekly", clock);
-  assert.equal(assigneeFor(laundry, period - 1, listHandoffs(app.db), clock), "anne", "expired no longer overrides");
+  assert.equal(
+    assigneeFor(laundry, period - 1, listHandoffs(app.db), clock),
+    "wes",
+    "past accepted period still overrides (R-21)"
+  );
 });
 
 test("GET /sync includes handoffs deltas and runs expiry", async () => {
-  clock = new Date("2026-09-14T12:00:00.000Z");
-  // Fresh offer so sync has something with a high seq after prior tests' writes.
-  // Owner of laundry this week is anne again (prior accept expired).
+  // Next week after h-1's accepted period — Anne owns laundry again for this periodIndex.
+  clock = new Date("2026-09-21T12:00:00.000Z");
   const offered = await offer(ANNE, { id: "h-sync", choreId: "laundry", to: "wes" });
   assert.equal(offered.status, 201);
   const seq = offered.body.seq;
@@ -229,12 +258,12 @@ test("GET /sync includes handoffs deltas and runs expiry", async () => {
 });
 
 test("status board shows → recipient arrow for accepted handoff", async () => {
-  clock = new Date("2026-09-14T17:00:00.000Z");
+  clock = new Date("2026-09-21T17:00:00.000Z");
   // Clear the prior weekly period so the due item is THIS week (the one h-sync covers).
   tick();
   const done = await call("POST", "/completions", {
     token: ANNE,
-    body: { id: "c-laundry-prev", choreId: "laundry", completedAt: "2026-09-10T18:00:00.000Z" },
+    body: { id: "c-laundry-prev", choreId: "laundry", completedAt: "2026-09-17T18:00:00.000Z" },
   });
   assert.equal(done.status, 201);
 
@@ -288,7 +317,9 @@ test("assigneeFor pure: accepted beats pin and rotation; pending does not", () =
     },
   ];
   assert.equal(assigneeFor(litter, rotPeriod, rotAccepted, asOf), other);
-  assert.equal(effectiveState(rotAccepted[0], chicagoLocal(2026, 9, 17, 9)), "expired");
+  // R-21: accepted does not become expired once the period ends
+  assert.equal(effectiveState(rotAccepted[0], chicagoLocal(2026, 9, 17, 9)), "accepted");
+  assert.equal(effectiveState({ ...rotAccepted[0], state: "pending" }, chicagoLocal(2026, 9, 17, 9)), "expired");
 });
 
 test("POST /handoffs: future periodIndex → 400; cadence mismatch → 400", async () => {
@@ -336,6 +367,59 @@ test("POST /handoffs: past periodIndex → 201 then expired on next /sync", asyn
   assert.ok(row, "past-period handoff should appear in sync");
   assert.equal(row.state, "expired");
   assert.equal(app.db.prepare("SELECT state FROM handoffs WHERE id = 'h-past'").get().state, "expired");
+});
+
+
+test("R-21: overdue item for accepted past period stays with acceptor; streak unchanged after sweep", async () => {
+  // Pure fixtures — do not depend on shared DB mutation order beyond listHandoffs helpers.
+  const mon = chicagoLocal(2026, 9, 14, 12); // Mon
+  const tue = chicagoLocal(2026, 9, 15, 12);
+  const wed = chicagoLocal(2026, 9, 16, 12);
+  const monPeriod = periodIndex("daily", mon);
+  // Mon rotation for scoop-litter is anne; accepted handoff to wes for Monday.
+  const handoffs = [
+    {
+      id: "h-streak",
+      choreId: "scoop-litter",
+      fromPerson: "anne",
+      toPerson: "wes",
+      periodIndex: monPeriod,
+      cadence: "daily",
+      state: "accepted",
+      createdAt: mon.toISOString(),
+    },
+  ];
+  assert.equal(assigneeFor(litter, monPeriod, handoffs, wed), "wes");
+  assert.equal(acceptedOverride("scoop-litter", monPeriod, handoffs, wed)?.toPerson, "wes");
+
+  // No completion → Monday still due on Wednesday; stays with acceptor.
+  const item = dueItemFor(litter, { completions: [], asOf: wed, handoffs, activeFrom: chicagoLocal(2026, 9, 14, 0) });
+  assert.ok(item);
+  assert.equal(item.periodIndex, monPeriod);
+  assert.equal(item.person, "wes");
+  assert.equal(item.viaHandoff, true);
+  assert.ok(item.daysOverdue >= 1);
+
+  // Streak: with handoff, Monday's daily was Wes's — Anne incomplete Monday does not break Anne's streak counting.
+  // Build a tiny chore set and completions so streak is deterministic, then "sweep" is a no-op on accepted.
+  const chores = [litter];
+  const completions = [];
+  const before = boardStats({ chores, completions, asOf: tue, activeFrom: chicagoLocal(2026, 9, 14, 0), handoffs });
+  // Simulate expireOpenHandoffs on an in-memory accepted row: state stays accepted.
+  const swept = handoffs.map((h) => ({ ...h })); // accepted untouched
+  const after = boardStats({ chores, completions, asOf: tue, activeFrom: chicagoLocal(2026, 9, 14, 0), handoffs: swept });
+  assert.equal(after.anne.streak, before.anne.streak);
+  assert.equal(after.wes.streak, before.wes.streak);
+  assert.equal(assigneeFor(litter, monPeriod, swept, wed), "wes");
+});
+
+test("R-21: resolveHandoff on accepted past-period row returns ok unchanged", async () => {
+  // h-rot is accepted for Tue; jump past that period and accept again — must not expire.
+  clock = new Date("2026-09-18T12:00:00.000Z");
+  const again = await accept(ANNE, "h-rot");
+  assert.equal(again.status, 200);
+  assert.equal(again.body.state, "accepted");
+  assert.equal(app.db.prepare("SELECT state FROM handoffs WHERE id = 'h-rot'").get().state, "accepted");
 });
 
 test("no unhandled errors logged", () => {

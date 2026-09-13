@@ -42,8 +42,16 @@ chmod 755 /opt/roost/server/backup.sh
 cp "$HERE/scripts/offsite-backup.sh" /opt/roost/server/offsite-backup.sh
 chmod 755 /opt/roost/server/offsite-backup.sh
 cp "$REPO/data/chores.json" /opt/roost/data/chores.json
+# Best-effort deploy rev for GET /health (readable by roost service).
+if [[ -d "$REPO/.git" ]] && command -v git >/dev/null 2>&1; then
+  git -C "$REPO" rev-parse HEAD > /opt/roost/.deployed-rev 2>/dev/null || echo unknown > /opt/roost/.deployed-rev
+else
+  echo unknown > /opt/roost/.deployed-rev
+fi
 chown -R root:root /opt/roost
 chmod -R a+rX /opt/roost
+# Explicitly world-readable so the roost user can read the rev file
+chmod 644 /opt/roost/.deployed-rev
 
 # tokens file: create empty on first install, never overwrite
 if [[ ! -f /etc/roost/tokens.json ]]; then

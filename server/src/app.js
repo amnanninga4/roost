@@ -29,6 +29,7 @@
 //          one call for the app: cursor, choresVersion, chores (only when version differs), and the
 //          completions / shopping / meals / projects / subtasks / bonus / handoffs deltas (every row with seq > cursor)
 import http from "node:http";
+import { readFileSync } from "node:fs";
 import {
   openDb,
   seedChores,
@@ -94,6 +95,19 @@ class BadRequest extends Error {
   constructor(message) {
     super(message);
     this.status = 400;
+  }
+}
+
+
+/** Deployed git SHA for /health. ROOST_REV env wins; else /opt/roost/.deployed-rev from install.sh. */
+function readDeployedRev() {
+  if (process.env.ROOST_REV != null && process.env.ROOST_REV !== "") {
+    return String(process.env.ROOST_REV).trim();
+  }
+  try {
+    return readFileSync("/opt/roost/.deployed-rev", "utf8").trim() || "unknown";
+  } catch {
+    return "unknown";
   }
 }
 
@@ -240,6 +254,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         pendingCodes: pendingCodes(db, iso()),
         tokensFileError,
         push: push.health(),
+        rev: readDeployedRev(),
       });
     }
 
