@@ -45,10 +45,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 45
     steps:
-      # fetch-depth: 0 so the SwiftLint step below can diff against the base commit.
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       # The macos-26 image ships Xcode 26.6 (default), 26.5, 26.4.1, 26.3, 26.2,
       # 26.1.1 and 26.0.1 under /Applications/Xcode_<version>.app. 26.6 is pinned
@@ -88,35 +85,11 @@ jobs:
         continue-on-error: true
         run: swiftformat --lint .
 
-      # SwiftLint errors are fatal; warnings are not (no --strict). Scoped to the
-      # Swift files the change touches, because the committed tree already carries
-      # ~105 error-severity violations (93 identifier_name, 10 force_try,
-      # 2 large_tuple) — all .swiftlint.yml opinion rather than defects, so a
-      # whole-tree gate would fail every PR on day one. Clearing that baseline, by
-      # relaxing the config or renaming, is the same pending follow-up as the
-      # format sweep; when it is clean this collapses to `swiftlint lint --quiet .`.
-      # The full-tree count is printed first so the baseline stays visible.
+      # SwiftLint errors are fatal; warnings are not (no --strict). Whole tree:
+      # the baseline has been 0 error-severity violations since the .swiftlint.yml
+      # relax in PR #26 and the format sweep in PR #59.
       - name: swiftlint
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          set -euo pipefail
-          echo "Whole-tree baseline (not gated):"
-          echo "  error-severity violations:   $(swiftlint lint --quiet . 2>/dev/null | grep -c ': error:' || true)"
-          echo "  warning-severity violations: $(swiftlint lint --quiet . 2>/dev/null | grep -c ': warning:' || true)"
-          echo
-          if [ -z "${BASE_SHA:-}" ] || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
-            echo "No usable base commit (${BASE_SHA:-none}); nothing to gate."
-            exit 0
-          fi
-          changed=$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD -- '*.swift')
-          if [ -z "$changed" ]; then
-            echo "No Swift files changed against $BASE_SHA; nothing to gate."
-            exit 0
-          fi
-          echo "Linting changed Swift files (errors are fatal):"
-          echo "$changed" | sed 's/^/  /'
-          printf '%s\n' "$changed" | tr '\n' '\0' | xargs -0 swiftlint lint --quiet
+        run: swiftlint lint --quiet .
 
       # iPhone 17 Pro is on every iOS runtime the image ships (26.2, 26.4, 26.5),
       # so the destination resolves without pinning an OS; it is also the device
