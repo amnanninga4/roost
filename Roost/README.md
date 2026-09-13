@@ -115,7 +115,7 @@ Roost/
     Screens/ShoppingScreen.swift Shopping tab: composer, to-buy rows, Bought section + "Clear bought", check-off, swipe to delete with undo
     Screens/MealsScreen.swift Meals tab: composer (title + tag), NEXT UP badge, "Made it" + "last made …", tag chips, swipe to delete with undo
     Screens/ProjectsScreen.swift Projects tab: composer, one card per project with an animated bar and a counting number, steps reorderable by drag, DONE chip + Archive
-    Screens/ListParts.swift   pieces the three list tabs share: header + sync line, the composer, check circle, avatar, chips, the "Didn't sync" marker, empty states, swipe-to-delete, the undo bar and its five-second window
+    Screens/ListParts.swift   pieces the three list tabs share: header + sync line, the composer, check circle, avatar, chips, the "Didn't sync" marker, empty states, swipe-to-delete, the undo bar and its five-second window, and `RoostTextActionStyle` — a text-only action that holds 44 pt, used from the onboarding screens too
     Screens/SettingsScreen.swift Gear -> Settings: paired as, device, paired since, server, last sync, Unpair, version
     Screens/SettingsModel.swift  the GET /me call behind those rows, and the fallback when it fails
     Screens/ChoreListScreen.swift the R-2 list, reachable from the gear menu as "All chores"
