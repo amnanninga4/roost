@@ -211,7 +211,11 @@ xcodebuild -project Roost/Roost.xcodeproj -scheme Roost \
 
 `RoostUITests` is a UI test target (`xyz.hinescreative.roost.uitests`, iOS 26) in the same scheme, so the one
 `xcodebuild … test` line above runs it and so does CI. Twelve tests: nine accessibility audits, one per
-screen, and three over a 200-row Shopping list. It adds about three and a half minutes to a CI run.
+screen, and three over a 200-row Shopping list. It costs three and a half minutes on a laptop and **six
+minutes on CI** — 367 s of the GitHub runner's time against the unit tests' 7 s, which took the `app` job
+from about 260 s to 660 s. Nearly all of it is XCUITest launching the app nine times and waiting for it to
+go idle, so the way to keep it from growing is fewer launches, not faster assertions: an audit that only
+needs a screen another test already reaches belongs in that test.
 
 ### The seed argument
 
@@ -289,12 +293,16 @@ throughout. The findings print on every run so the debt stays visible.
 `ScrollPerformanceTests` loads the 200-row fixture and, on this simulator:
 
 - `XCTOSSignpostMetric.scrollDecelerationMetric` times the deceleration after one fast flick at **2.433 s**,
-  relative standard deviation **0.023%**. Hitch time ratio and frame rate need a real display and the
-  simulator does not report them; they will appear the first time this runs on a device.
+  relative standard deviation **0.023%**. The GitHub runner measures **2.443 s** at 0.295% — within half a
+  percent of a laptop, because deceleration is the app's own animation and not the harness's. That is what
+  makes it worth a recorded baseline: a real regression would show against the noise. Hitch time ratio and
+  frame rate need a real display and the simulator does not report them; they will appear the first time
+  this runs on a device.
 - the list builds **10 of 204 rows**, which is the gate: a `List` draws a screenful, a
-  `ScrollView { VStack }` would draw all 204.
+  `ScrollView { VStack }` would draw all 204. Ten on both machines.
 - eight flicks take **22.7 s**, 2.84 s each, almost all of it XCUITest synthesising the gesture and waiting
-  for the app to go idle. The budget is 6 s a flick — an order of magnitude, not a percent.
+  for the app to go idle. The budget is 6 s a flick — an order of magnitude, not a percent, which is why the
+  slower CI runner's 3.06 s a flick still passes with room.
 
 ## Pairing
 
