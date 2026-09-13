@@ -8,13 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		0273AA5A9A61365FA374B865 /* RoostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB7CD878D6E5D1D301380265 /* RoostApp.swift */; };
+		030A1A4E16008095EC4ACBEC /* TodayBoardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D62C8D4BBDB30C32EAE5DD3D /* TodayBoardTests.swift */; };
 		055617C9ACFE6CBBDE275101 /* StubURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EABB822893431DD76826FD3E /* StubURLProtocol.swift */; };
 		0B2B919BB74D364214308BFB /* RoostDesign in Frameworks */ = {isa = PBXBuildFile; productRef = F4ECABF10A49EE066AC31CE3 /* RoostDesign */; };
 		0D3864D2C93A09F703225872 /* StreakHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D07271A0DB7B2161F47FEC0 /* StreakHeaderView.swift */; };
 		18485F39E0B4CDB1B02E6B81 /* ListFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */; };
 		2347B4ABDED89703835BF319 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAEAF0E0517F0553804A8F8C /* OnboardingFlow.swift */; };
 		2D43EE358CB53644986BA17A /* Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7168ED6D6C114A915763462 /* Records.swift */; };
+		2E2149CEFE29CE3492ED5CAE /* ConfettiSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 9980756453393B8457967646 /* ConfettiSwiftUI */; };
+		2ED08758CF2846C25CE631E1 /* CelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 914CE8A769B8F22F8D11E3C7 /* CelebrationView.swift */; };
 		2F5F84EFDC6F2F1C4826C688 /* StreakHeaderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10E35F985A65EA17D991EC0 /* StreakHeaderModel.swift */; };
+		2F7772077A0025FA02E2647F /* ChoreRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4FB2096EA8937E8ADFE9F25 /* ChoreRowView.swift */; };
 		31978A5D325DC887E237D3B4 /* ListSyncTestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A766015E6769CD2060D80A49 /* ListSyncTestCase.swift */; };
 		329775D2FAB960D6284980BD /* OnboardingPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D23E6AAE5D72F9033FC491B /* OnboardingPage.swift */; };
 		3BD71332F35529FC3CEA0964 /* RoostAppMarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3CD8363F11629A32892822 /* RoostAppMarker.swift */; };
@@ -24,6 +28,7 @@
 		47641B203590A9E1117FB6F1 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437D3C9DA2143287D04065E3 /* RootTabView.swift */; };
 		4798048D31F0170904D22EFE /* NotificationCenterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942C42CA2EA09654B4A81C62 /* NotificationCenterClient.swift */; };
 		482F3F523C9CB57C640A68FA /* MealsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A097437EB479AA01D6F9E7E8 /* MealsScreen.swift */; };
+		4C25971AEC9CDF6ACC9626E7 /* PersonColumnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48A55826328A91D661A3B83 /* PersonColumnView.swift */; };
 		51CB33641254A3B45130E629 /* SyncStatusCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AFCE9C866EBFF99D6AF71CE /* SyncStatusCopyTests.swift */; };
 		52B72B23F1E34310AB575E93 /* ListCraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA7C1B8D87C1351A417B2668 /* ListCraftTests.swift */; };
 		5B25ACFB4582FE9B45713720 /* ServerEndpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = A71B879CE7DB2DB09F27382D /* ServerEndpoint.swift */; };
@@ -48,6 +53,7 @@
 		945FB8FE02B65A30A5E26481 /* Converters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2D83207427DCFB1F79CBC4 /* Converters.swift */; };
 		9556C1ACC4D00A39B7D6C422 /* TodayPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B250C6201CB77F9FC9A682 /* TodayPlannerTests.swift */; };
 		986D647BFF97684348BA8C55 /* NotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E03CE0F01E84A59CEB8FA510 /* NotificationTests.swift */; };
+		A00A50CB2CBA2323AB230E6A /* TodayBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6297B456DD7EB7A1202308B9 /* TodayBoard.swift */; };
 		A5B86F7672E58C68A4513F8F /* SettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F91BCDBE7D063EBBAE6D91B /* SettingsScreen.swift */; };
 		A5E0D12DFB87114797C31D22 /* ListRecords.swift in Sources */ = {isa = PBXBuildFile; fileRef = E343A40CD3BE9DD30C5E0C8C /* ListRecords.swift */; };
 		A9034DED020DA09E49340196 /* SyncClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ECED567106C945B909F1CC /* SyncClient.swift */; };
@@ -61,6 +67,7 @@
 		C88E648BDD73E1D2A3D3BC69 /* SyncAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C322C42624D2C3E5EF44F476 /* SyncAPI.swift */; };
 		CAECD7BEBC9EAB3C0F829554 /* EscalationCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */; };
 		CBD97B628EFA73DC8E450A8B /* SyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C8735ABEAA4E3E01A86404 /* SyncTests.swift */; };
+		CCCF645732C916D4F6D9580E /* TaskStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84347A76B73F4360AC90C950 /* TaskStyle.swift */; };
 		D9D760A57FDD626BABA6E126 /* SyncStatusCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05390DDCE31552965B11233 /* SyncStatusCopy.swift */; };
 		DB6810B7CF4593870E82C488 /* SettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56F18DF87B379A6F7A5447A /* SettingsModel.swift */; };
 		DC04BB3F6E4538144F8E1AE0 /* ListPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7450DA745986794A3E6746CA /* ListPresentation.swift */; };
@@ -68,6 +75,7 @@
 		E274B04EE2C27DEE16ECB458 /* Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9775AC21FAD79898ED7EB5F1 /* Strings.swift */; };
 		E2C0B1662B4A0FED10454A6B /* ConfirmStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4D668C1CD34C526A61A855 /* ConfirmStep.swift */; };
 		E35E03E05E5B7C537A12365E /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC47AB8F7A08A46B66B44C8C /* TokenStore.swift */; };
+		E95E22092316D40DA5A03453 /* TodayHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61495BD8F24558544DA45CB /* TodayHeaderView.swift */; };
 		EAE46CF8C08A8EC16963D42B /* RoostCore in Frameworks */ = {isa = PBXBuildFile; productRef = DD721A217C1DD1E947483581 /* RoostCore */; };
 		EDF0DF81C19C4A0EE5C7DE7F /* TodayPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080ACA808436919384EF6875 /* TodayPlanner.swift */; };
 		F09F47F7201F64D4DDA19BF9 /* ListCreateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3A83AF60338C3D3E81A5795 /* ListCreateTests.swift */; };
@@ -104,6 +112,7 @@
 		5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModelTests.swift; sourceTree = "<group>"; };
 		536756D46ADB902008069020 /* ListParts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListParts.swift; sourceTree = "<group>"; };
 		5BA7D9CFBDE2D59E17D85996 /* SyncAPI+Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Lists.swift"; sourceTree = "<group>"; };
+		6297B456DD7EB7A1202308B9 /* TodayBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayBoard.swift; sourceTree = "<group>"; };
 		6A9D18E18A848E75999983A1 /* RoostDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoostDesign; path = ../Packages/RoostDesign; sourceTree = SOURCE_ROOT; };
 		70EEA3303FF22CD208D77A66 /* KitchenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModel.swift; sourceTree = "<group>"; };
 		714F89110CAB1289D39246BC /* ListActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListActions.swift; sourceTree = "<group>"; };
@@ -118,9 +127,11 @@
 		7B7CB6EA6C1C6F20BCAD2797 /* TokenSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenSheet.swift; sourceTree = "<group>"; };
 		7CDB030F573210AC01F0A2AD /* RootGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootGate.swift; sourceTree = "<group>"; };
 		7D23E6AAE5D72F9033FC491B /* OnboardingPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPage.swift; sourceTree = "<group>"; };
+		84347A76B73F4360AC90C950 /* TaskStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskStyle.swift; sourceTree = "<group>"; };
 		8E7ED3A3F187B7D465B0F1EB /* ListDeltaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListDeltaTests.swift; sourceTree = "<group>"; };
 		8EF09CEC861E840F923EDA47 /* TodayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayScreen.swift; sourceTree = "<group>"; };
 		8F4D668C1CD34C526A61A855 /* ConfirmStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmStep.swift; sourceTree = "<group>"; };
+		914CE8A769B8F22F8D11E3C7 /* CelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationView.swift; sourceTree = "<group>"; };
 		91B62EB6553B1FB18A2AC5B0 /* NotificationsStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationsStep.swift; sourceTree = "<group>"; };
 		942C42CA2EA09654B4A81C62 /* NotificationCenterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationCenterClient.swift; sourceTree = "<group>"; };
 		97311C9DACA1247F9240941D /* PairAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairAPITests.swift; sourceTree = "<group>"; };
@@ -143,8 +154,12 @@
 		C0B250C6201CB77F9FC9A682 /* TodayPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlannerTests.swift; sourceTree = "<group>"; };
 		C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListFailureTests.swift; sourceTree = "<group>"; };
 		C322C42624D2C3E5EF44F476 /* SyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAPI.swift; sourceTree = "<group>"; };
+		C48A55826328A91D661A3B83 /* PersonColumnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonColumnView.swift; sourceTree = "<group>"; };
 		C56F18DF87B379A6F7A5447A /* SettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModel.swift; sourceTree = "<group>"; };
 		CE52B0C57CE02C2906E1DB63 /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
+		D4FB2096EA8937E8ADFE9F25 /* ChoreRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreRowView.swift; sourceTree = "<group>"; };
+		D61495BD8F24558544DA45CB /* TodayHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayHeaderView.swift; sourceTree = "<group>"; };
+		D62C8D4BBDB30C32EAE5DD3D /* TodayBoardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayBoardTests.swift; sourceTree = "<group>"; };
 		DC47AB8F7A08A46B66B44C8C /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
 		DE87345DE3AD1EF332142F9A /* WelcomeStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeStep.swift; sourceTree = "<group>"; };
 		DEB1E461FBB61E46D4B13B15 /* SeedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedTests.swift; sourceTree = "<group>"; };
@@ -168,6 +183,7 @@
 			files = (
 				EAE46CF8C08A8EC16963D42B /* RoostCore in Frameworks */,
 				0B2B919BB74D364214308BFB /* RoostDesign in Frameworks */,
+				2E2149CEFE29CE3492ED5CAE /* ConfettiSwiftUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -205,6 +221,7 @@
 				8BD617DDE82100B44D9616B2 /* Root */,
 				657DFCA58CD7D7B71649A14F /* Screens */,
 				7661E35906772CB229A01B8D /* Sync */,
+				F8E483F293DBEA08F10545E8 /* Tasks */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -306,6 +323,7 @@
 				EABB822893431DD76826FD3E /* StubURLProtocol.swift */,
 				9AFCE9C866EBFF99D6AF71CE /* SyncStatusCopyTests.swift */,
 				97C8735ABEAA4E3E01A86404 /* SyncTests.swift */,
+				D62C8D4BBDB30C32EAE5DD3D /* TodayBoardTests.swift */,
 				C0B250C6201CB77F9FC9A682 /* TodayPlannerTests.swift */,
 			);
 			path = Tests;
@@ -337,6 +355,19 @@
 				356F45852D23F470A2889DFE /* NotificationScheduler.swift */,
 			);
 			path = Notifications;
+			sourceTree = "<group>";
+		};
+		F8E483F293DBEA08F10545E8 /* Tasks */ = {
+			isa = PBXGroup;
+			children = (
+				914CE8A769B8F22F8D11E3C7 /* CelebrationView.swift */,
+				D4FB2096EA8937E8ADFE9F25 /* ChoreRowView.swift */,
+				C48A55826328A91D661A3B83 /* PersonColumnView.swift */,
+				84347A76B73F4360AC90C950 /* TaskStyle.swift */,
+				6297B456DD7EB7A1202308B9 /* TodayBoard.swift */,
+				D61495BD8F24558544DA45CB /* TodayHeaderView.swift */,
+			);
+			path = Tasks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -376,6 +407,7 @@
 			packageProductDependencies = (
 				DD721A217C1DD1E947483581 /* RoostCore */,
 				F4ECABF10A49EE066AC31CE3 /* RoostDesign */,
+				9980756453393B8457967646 /* ConfettiSwiftUI */,
 			);
 			productName = Roost;
 			productReference = 76764903F0C41339B67FE451 /* Roost.app */;
@@ -410,6 +442,7 @@
 			mainGroup = 79EDDC42C02814046DF8FA9D;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				4F4E3FE6A83EF3B85CDCE9F4 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */,
 				89C0251992E5207AB4C13BEA /* XCLocalSwiftPackageReference "../Packages/RoostCore" */,
 				9B43AC9F93EAD85B50F1D2B1 /* XCLocalSwiftPackageReference "../Packages/RoostDesign" */,
 			);
@@ -440,7 +473,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2ED08758CF2846C25CE631E1 /* CelebrationView.swift in Sources */,
 				5C3E33554F496E34DB9C74FF /* ChoreListScreen.swift in Sources */,
+				2F7772077A0025FA02E2647F /* ChoreRowView.swift in Sources */,
 				C71145DD7AB59557F27CE674 /* ChoreSeeder.swift in Sources */,
 				B9C4B9191FC4BF20EBC4B3C7 /* CodeEntryField.swift in Sources */,
 				897D6DF2647646219513177D /* CodeStep.swift in Sources */,
@@ -463,6 +498,7 @@
 				2347B4ABDED89703835BF319 /* OnboardingFlow.swift in Sources */,
 				329775D2FAB960D6284980BD /* OnboardingPage.swift in Sources */,
 				78EC0CDCB1FF0855CAF558F0 /* PairingModel.swift in Sources */,
+				4C25971AEC9CDF6ACC9626E7 /* PersonColumnView.swift in Sources */,
 				F179D4A20958CF6C5C074DD0 /* ProjectsScreen.swift in Sources */,
 				2D43EE358CB53644986BA17A /* Records.swift in Sources */,
 				0273AA5A9A61365FA374B865 /* RoostApp.swift in Sources */,
@@ -481,6 +517,9 @@
 				A9034DED020DA09E49340196 /* SyncClient.swift in Sources */,
 				7D58C56AB7C0F907F6E82391 /* SyncCoordinator.swift in Sources */,
 				D9D760A57FDD626BABA6E126 /* SyncStatusCopy.swift in Sources */,
+				CCCF645732C916D4F6D9580E /* TaskStyle.swift in Sources */,
+				A00A50CB2CBA2323AB230E6A /* TodayBoard.swift in Sources */,
+				E95E22092316D40DA5A03453 /* TodayHeaderView.swift in Sources */,
 				EDF0DF81C19C4A0EE5C7DE7F /* TodayPlanner.swift in Sources */,
 				602AFC08808EC82D9B6584DA /* TodayScreen.swift in Sources */,
 				C853344873DAF928B5A701AA /* TokenSheet.swift in Sources */,
@@ -511,6 +550,7 @@
 				055617C9ACFE6CBBDE275101 /* StubURLProtocol.swift in Sources */,
 				51CB33641254A3B45130E629 /* SyncStatusCopyTests.swift in Sources */,
 				CBD97B628EFA73DC8E450A8B /* SyncTests.swift in Sources */,
+				030A1A4E16008095EC4ACBEC /* TodayBoardTests.swift in Sources */,
 				9556C1ACC4D00A39B7D6C422 /* TodayPlannerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -764,7 +804,23 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		4F4E3FE6A83EF3B85CDCE9F4 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/simibac/ConfettiSwiftUI";
+			requirement = {
+				kind = exactVersion;
+				version = 3.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		9980756453393B8457967646 /* ConfettiSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4F4E3FE6A83EF3B85CDCE9F4 /* XCRemoteSwiftPackageReference "ConfettiSwiftUI" */;
+			productName = ConfettiSwiftUI;
+		};
 		DD721A217C1DD1E947483581 /* RoostCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RoostCore;
