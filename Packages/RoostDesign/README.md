@@ -2,13 +2,15 @@
 
 The mockup's visual system as a Swift package: color tokens that follow light/dark, the three typefaces, and a swatchbook preview. SwiftUI only. iOS 18+, macOS 15+.
 
-Source of truth for the values is `roost-app-mockup.html` (the `:root` block and the dark blocks). Change the HTML first, then this package, so the two never drift.
+Source of truth for the values is `roost-app-mockup.html` (the `:root` blocks and the `.app-shell` block). Change the HTML first, then this package, so the two never drift.
 
 ## Colors
 
 `RoostColor.<name>` is a `Color` that resolves per appearance. `RoostColor.<name>Token` exposes the raw hex for both schemes.
 
-| Token | Light | Dark | Used for |
+The mockup carries two light palettes. `:root` styles the marketing page; `.app-shell` (the phone frame, "Colorful app styling") overrides ten tokens with a more saturated set. The app is the phone frame, so the defaults below use the `.app-shell` values where they exist. Dark values are the `:root` dark block; `.app-shell` has no dark override.
+
+| Token | App light | Dark | Used for |
 |---|---|---|---|
 | `bg` | `#F3F6F2` | `#121A15` | page background |
 | `surface` | `#FFFFFF` | `#1B241D` | cards |
@@ -16,16 +18,16 @@ Source of truth for the values is `roost-app-mockup.html` (the `:root` block and
 | `ink` | `#1F2A22` | `#EAF2EC` | text |
 | `inkSoft` | `#5C6C60` | `#9FB3A4` | secondary text |
 | `line` | `#DCE6DA` | `#2B3830` | dividers, strokes |
-| `accent` | `#2F6F5E` | `#6FC2A6` | primary green |
-| `accentSoft` | `#DCEBE3` | `#1E362E` | accent background |
-| `gold` | `#B9812E` | `#D9A754` | bonus / points |
-| `goldSoft` | `#F3E4C9` | `#3A2D15` | |
-| `info` | `#3E6B8A` | `#7FB3D9` | neutral notices |
-| `infoSoft` | `#DCE7EE` | `#1E2E3A` | |
-| `tease` | `#AE4568` | `#E389A8` | 3-day nudge |
-| `teaseSoft` | `#F4DEE6` | `#3A2129` | |
-| `alert` | `#C81E3A` | `#FF6478` | 5-day red alert |
-| `alertSoft` | `#FBDCE1` | `#3D1620` | |
+| `accent` | `#2F8F72` | `#6FC2A6` | primary green |
+| `accentSoft` | `#CFEEE1` | `#1E362E` | accent background |
+| `gold` | `#E08F2E` | `#D9A754` | bonus / points |
+| `goldSoft` | `#FBE3C2` | `#3A2D15` | |
+| `info` | `#4C7FE0` | `#7FB3D9` | neutral notices |
+| `infoSoft` | `#DEE6FC` | `#1E2E3A` | |
+| `tease` | `#D6487A` | `#E389A8` | 3-day nudge |
+| `teaseSoft` | `#FBDCE8` | `#3A2129` | |
+| `alert` | `#E2233F` | `#FF6478` | 5-day red alert |
+| `alertSoft` | `#FCD9DF` | `#3D1620` | |
 | `meal` | `#C2571F` | `#E8935A` | meals tab |
 | `mealSoft` | `#F5DCC8` | `#3A2415` | |
 | `assign` | `#6B4FA0` | `#B79EE0` | auto-assigned / pinned |
@@ -33,6 +35,18 @@ Source of truth for the values is `roost-app-mockup.html` (the `:root` block and
 | `shadow` | `rgba(31,42,34,0.14)` | `rgba(0,0,0,0.45)` | card shadow |
 
 `RoostColor.all` lists every token; `RoostColor.pairs` gives the seven strong/soft pairs.
+
+### Page palette
+
+The marketing page's `:root` light values for the ten overridden tokens live under `RoostColor.Page.<name>` (same dark values), in case that page is ever rebuilt in SwiftUI. App screens should not use them.
+
+| Token | Page light |
+|---|---|
+| `accent` / `accentSoft` | `#2F6F5E` / `#DCEBE3` |
+| `gold` / `goldSoft` | `#B9812E` / `#F3E4C9` |
+| `info` / `infoSoft` | `#3E6B8A` / `#DCE7EE` |
+| `tease` / `teaseSoft` | `#AE4568` / `#F4DEE6` |
+| `alert` / `alertSoft` | `#C81E3A` / `#FBDCE1` |
 
 ## Type
 
