@@ -13,6 +13,9 @@ struct TodayHeaderView: View {
                 Text(dateLine)
                     .roostType(.monoLabel)
                     .foregroundStyle(RoostColor.Role.accent.color)
+                    // So the accessibility audit can name this line: its label is today's date, which is
+                    // not something a test can match on. See Roost/UITests/AccessibilityAuditTests.swift.
+                    .accessibilityIdentifier("dateEyebrow")
                 Text(Strings.Tasks.today)
                     .roostType(.displayLarge)
                     .foregroundStyle(RoostColor.Role.textPrimary.color)

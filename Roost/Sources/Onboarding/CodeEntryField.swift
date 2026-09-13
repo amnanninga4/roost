@@ -127,11 +127,20 @@ struct CodeEntryField: View {
     /// waiting, which is the same guarantee without the cost.
     private var field: some View {
         TextField("", text: $raw)
+            // The system body rather than a `RoostType` rung: nobody ever sees this field's own text — the
+            // boxes behind it are the drawing — and the system styles are the only ones the accessibility
+            // audit can tell scale with Dynamic Type. A rung here bought nothing and cost a finding.
+            .font(.body)
             .keyboardType(.numberPad)
             .textContentType(.oneTimeCode)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .focused($isFocused)
+            // Invisible to the eye *and* to VoiceOver: `described` above is the one element, with the
+            // label, the value, and the action that opens the keyboard. Saying so explicitly also keeps
+            // the field out of the accessibility audit, which otherwise reports the UIKit text field
+            // behind it as a control whose (never-rendered) text does not scale.
+            .accessibilityHidden(true)
             .opacity(0.01)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())

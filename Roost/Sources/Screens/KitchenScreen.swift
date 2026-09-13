@@ -8,6 +8,24 @@ import SwiftData
 // Refreshes three ways: the @Query rows re-render on any store change (a check-off on the other phone lands
 // through sync), the coordinator's last sync is observed for the bottom line, and a 60-second timeline
 // moves the date, the days-late counts, and the "Synced …" wording without a store change.
+//
+// D-6 moved this screen onto the design system, which it had been the last holdout from. Three things came
+// out of that, all of them things the accessibility audit was failing on:
+//
+//   - Type is `RoostType` rungs rather than `RoostFont.<face>(size:)`, so every line here follows the
+//     reader's text size. The one literal size left is the due count, which is the point of the screen —
+//     a number you can read from the other side of the kitchen — and it scales through `@ScaledMetric`
+//     with a ceiling so the largest accessibility size cannot push the two columns off the screen.
+//   - A card's colour is now its fill and its border; the words on it are `textPrimary` and
+//     `textSecondary`. The old version set the title and the badge in the stage's own colour, and in this
+//     palette that is 2.1:1 for the nudge stage against its own soft partner — the one contrast finding on
+//     this screen that no amount of squinting excused.
+//   - The stage's colour comes from `EscalationStage.role` / `.fillRole` (Tasks/TaskStyle.swift) instead of
+//     a second private mapping here, which is what the old comment already claimed. A chore now looks the
+//     same on the counter as it does on the phone, because there is one table.
+//
+// Close holds 44 pt: its padding is inside the button's label, not wrapped around the button, which is the
+// difference between a 44-pt target and a 30-pt one that merely looks like a 44-pt one.
 import SwiftUI
 import UIKit
 
@@ -25,6 +43,9 @@ struct KitchenScreen: View {
 
     /// What the idle timer was before this screen disabled it, put back on dismiss.
     @State private var idleTimerWasDisabled = false
+    /// The due count's point size at the reader's text size. 52 at the default, which is the size the
+    /// counter was drawn at before it scaled at all.
+    @ScaledMetric(relativeTo: .largeTitle) private var scaledCount: CGFloat = 52
 
     private let calendar = HouseholdCalendar()
 
@@ -32,7 +53,7 @@ struct KitchenScreen: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             content(asOf: context.date)
         }
-        .background(RoostColor.bg.ignoresSafeArea())
+        .background(RoostColor.Role.background.color.ignoresSafeArea())
         .contentShape(Rectangle())
         .onTapGesture { dismiss() }
         .onAppear {
@@ -49,7 +70,7 @@ struct KitchenScreen: View {
                                  handoffs: handoffRecords,
                                  activeFrom: syncStates.first?.activeFrom, asOf: now, calendar: calendar)
         return ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: RoostSpacing.xl) {
                 topBar(now: now)
                 if !model.alerts.isEmpty {
                     AlertBanner(items: model.alerts)
@@ -57,26 +78,27 @@ struct KitchenScreen: View {
                 columns(model)
                 if model.isCaughtUp {
                     Text(Strings.Kitchen.caughtUp)
-                        .font(RoostFont.display(size: RoostFont.Size.title, weight: .semibold))
-                        .foregroundStyle(RoostColor.inkSoft)
+                        .roostType(.display)
+                        .foregroundStyle(RoostColor.Role.textSecondary.color)
                         .frame(maxWidth: .infinity)
-                        .padding(.top, 36)
+                        .padding(.top, RoostSpacing.xxl)
                         .accessibilityAddTraits(.isHeader)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-            .padding(.bottom, 72)
+            .padding(.horizontal, RoostSpacing.screenMargin)
+            .padding(.top, RoostSpacing.sm)
+            // Room for the "Synced …" pill below the last card rather than over it.
+            .padding(.bottom, RoostSpacing.xxxl + RoostSpacing.xl)
         }
         .scrollBounceBehavior(.basedOnSize)
         .overlay(alignment: .bottom) {
             Text(KitchenModel.syncedLine(lastSyncAt: sync.lastSyncAt, now: now))
-                .font(RoostFont.mono(size: RoostFont.Size.caption, weight: .medium))
-                .foregroundStyle(RoostColor.inkSoft)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(RoostColor.bg.opacity(0.92), in: Capsule())
-                .padding(.bottom, 10)
+                .roostType(.monoTally)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+                .padding(.horizontal, RoostSpacing.md)
+                .padding(.vertical, RoostSpacing.sm)
+                .background(RoostColor.Role.background.color, in: RoostRadius.pillShape)
+                .padding(.bottom, RoostSpacing.sm)
                 .allowsHitTesting(false)
         }
     }
@@ -86,32 +108,45 @@ struct KitchenScreen: View {
     private func topBar(now: Date) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(now.formatted(.dateTime.weekday(.wide).month(.wide).day().locale(.autoupdatingCurrent)).uppercased())
-                .font(RoostFont.mono(size: 15, weight: .semibold))
-                .kerning(1.4)
-                .foregroundStyle(RoostColor.accent)
+                .roostType(.monoLabel)
+                .foregroundStyle(RoostColor.Role.accent.color)
+                // The same identifier the Tasks tab's date line carries, for the same reason: its label is
+                // today's date. See Roost/UITests/AccessibilityAuditTests.swift.
+                .accessibilityIdentifier("dateEyebrow")
                 .accessibilityAddTraits(.isHeader)
-            Spacer()
-            Button(Strings.Kitchen.close) { dismiss() }
-                .font(RoostFont.mono(size: RoostFont.Size.meta, weight: .semibold))
-                .foregroundStyle(RoostColor.inkSoft)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(RoostColor.surface2, in: Capsule())
-                .overlay(Capsule().stroke(RoostColor.line, lineWidth: 1))
-                .buttonStyle(.plain)
+            Spacer(minLength: RoostSpacing.sm)
+            closeButton
         }
     }
 
+    /// The one control on the screen. The padding and the 44 pt live on the label, so the target is the
+    /// whole pill rather than the two words inside it.
+    private var closeButton: some View {
+        Button {
+            dismiss()
+        } label: {
+            Text(Strings.Kitchen.close)
+                .roostType(.monoLabel)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+                .padding(.horizontal, RoostSpacing.md)
+                .frame(minHeight: RoostSpacing.minTapTarget)
+                .background(RoostColor.Role.surfaceElevated.color, in: RoostRadius.pillShape)
+                .overlay(RoostRadius.pillShape.stroke(RoostColor.Role.separator.color, lineWidth: 1))
+                .contentShape(RoostRadius.pillShape)
+        }
+        .buttonStyle(.plain)
+    }
+
     private func columns(_ model: KitchenModel) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: RoostSpacing.md) {
             ForEach(model.columns, id: \.person) { column in
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: RoostSpacing.md) {
                     columnHead(column)
                     if column.overdue.isEmpty {
                         if !model.isCaughtUp {
                             Text(Strings.Kitchen.columnClear)
-                                .font(RoostFont.body(size: RoostFont.Size.body))
-                                .foregroundStyle(RoostColor.inkSoft)
+                                .roostType(.callout)
+                                .foregroundStyle(RoostColor.Role.textSecondary.color)
                         }
                     } else {
                         ForEach(column.overdue) { item in
@@ -127,21 +162,29 @@ struct KitchenScreen: View {
     private func columnHead(_ column: KitchenModel.Column) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(column.person.displayName)
-                .font(RoostFont.display(size: RoostFont.Size.title, weight: .bold))
-                .foregroundStyle(RoostColor.ink)
+                .roostType(.display)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
             Text("\(column.dueCount)")
-                .font(RoostFont.mono(size: 52, weight: .semibold))
+                .font(RoostFont.mono(size: countSize, weight: .semibold))
                 .monospacedDigit()
-                .foregroundStyle(RoostColor.ink)
-                .padding(.top, 2)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
+                .padding(.top, RoostSpacing.xxs)
             Text(Strings.Kitchen.dueTodayLabel)
-                .font(RoostFont.mono(size: RoostFont.Size.eyebrow, weight: .semibold))
-                .kerning(1.2)
-                .foregroundStyle(RoostColor.inkSoft)
+                .roostType(.monoLabel)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(column.person.displayName), \(Strings.Kitchen.dueToday(column.dueCount))")
     }
+
+    /// The due count, the one number on the screen that is meant to be read from a distance. It grows with
+    /// the reader's text size and stops at `Self.countCeiling`, past which two three-digit columns would
+    /// not fit side by side on any phone.
+    private var countSize: CGFloat {
+        min(scaledCount, Self.countCeiling)
+    }
+
+    private static let countCeiling: CGFloat = 76
 }
 
 /// The shared shout: every alert-stage chore from either person, named, until it is done.
@@ -149,91 +192,86 @@ private struct AlertBanner: View {
     let items: [KitchenModel.Item]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 12, weight: .bold))
+        VStack(alignment: .leading, spacing: RoostSpacing.md) {
+            Label {
                 Text(Strings.Kitchen.alertHeading)
-                    .font(RoostFont.mono(size: RoostFont.Size.eyebrow, weight: .semibold))
-                    .kerning(1.2)
+                    .roostType(.monoLabel)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .roostType(.caption)
             }
-            .foregroundStyle(RoostColor.alert)
+            .foregroundStyle(RoostColor.Role.danger.color)
             ForEach(items) { item in
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                    // The shout is the size of the type and the red around it; the words themselves are
+                    // ink, because `danger` on `dangerSoft` is 3.6:1 and this is the line that matters most.
                     Text(item.copy)
-                        .font(RoostFont.display(size: 26, weight: .bold))
-                        .foregroundStyle(RoostColor.alert)
+                        .roostType(.display)
+                        .foregroundStyle(RoostColor.Role.textPrimary.color)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("\(item.person.displayName.uppercased()) · \(Strings.Kitchen.daysLate(item.daysOverdue))")
-                        .font(RoostFont.mono(size: RoostFont.Size.caption, weight: .semibold))
-                        .kerning(0.8)
-                        .foregroundStyle(RoostColor.ink)
+                        .roostType(.monoTally)
+                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityElement(children: .combine)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .background(RoostColor.alertSoft, in: RoundedRectangle(cornerRadius: 18))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(RoostColor.alert, lineWidth: 2))
+        .padding(RoostSpacing.lg)
+        .background(RoostColor.Role.dangerSoft.color, in: RoostRadius.cardShape)
+        .overlay(RoostRadius.cardShape.stroke(RoostColor.Role.danger.color, lineWidth: 2))
     }
 }
 
-/// One overdue chore in a person's column: stage label, title, and the escalation line, in the stage's color.
+/// One overdue chore in a person's column: how late it is, the chore, and the escalation line.
+///
+/// The stage is the card — its fill and its border — and the words on it are ink. That is the other way
+/// round from the first version of this screen, which set the title and the badge in the stage's own
+/// colour; in this palette that reads at 2.1:1 for a nudge and 3.6:1 for an alert, and a counter display
+/// is read from further away than anything else in the app, not closer.
 private struct OverdueCard: View {
     let item: KitchenModel.Item
 
+    /// The stage's fill, from `Tasks/TaskStyle.swift`. `dueToday` never reaches this card — the column
+    /// only lists what is overdue — but the inset panel is the right answer if it ever does.
+    private var fill: Color {
+        (item.stage.fillRole ?? .surfaceElevated).color
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: RoostSpacing.xs) {
             Text(Strings.Kitchen.daysLate(item.daysOverdue))
-                .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .bold))
-                .kerning(0.8)
-                .foregroundStyle(item.stage.tint)
+                .roostType(.monoLabel)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
+                .fixedSize(horizontal: false, vertical: true)
             Text(item.chore.title)
-                .font(RoostFont.display(size: RoostFont.Size.sectionTitle, weight: .bold))
-                .foregroundStyle(item.stage.tint)
+                .roostType(.title)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
                 .fixedSize(horizontal: false, vertical: true)
             Text(item.copy)
-                .font(RoostFont.body(size: RoostFont.Size.meta))
-                .foregroundStyle(RoostColor.ink)
+                .roostType(.subheadline)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
                 .fixedSize(horizontal: false, vertical: true)
             // The same chip the Tasks tab puts on a row somebody handed over: an overdue chore on the
             // counter should say whose turn it actually was this period.
             if let giver = item.handedOverBy {
                 Text(Strings.Handoffs.from(giver.displayName))
-                    .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .semibold))
-                    .foregroundStyle(RoostColor.accent)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(RoostColor.accentSoft, in: Capsule())
+                    .roostType(.monoLabel)
+                    .foregroundStyle(RoostColor.Role.textPrimary.color)
+                    .padding(.horizontal, RoostSpacing.sm)
+                    .padding(.vertical, RoostSpacing.xxs)
+                    .background(RoostColor.Role.accentSoft.color, in: RoostRadius.pillShape)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(item.stage.softTint, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(item.stage.tint, lineWidth: item.stage == .alert ? 2 : 1))
+        .padding(RoostSpacing.md)
+        .background(fill, in: RoostRadius.rowShape)
+        .overlay(
+            RoostRadius.rowShape
+                .stroke(item.stage.role.color, lineWidth: item.stage == .alert ? 2 : 1)
+        )
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// The Tasks tab's stage colors (TodayRowView), so a chore looks the same on the counter as on the phone.
-private extension EscalationStage {
-    var tint: Color {
-        switch self {
-        case .dueToday: RoostColor.ink
-        case .nudge: RoostColor.gold
-        case .pointed: RoostColor.tease
-        case .alert: RoostColor.alert
-        }
-    }
-
-    var softTint: Color {
-        switch self {
-        case .dueToday: RoostColor.surface2
-        case .nudge: RoostColor.goldSoft
-        case .pointed: RoostColor.teaseSoft
-        case .alert: RoostColor.alertSoft
-        }
     }
 }
 

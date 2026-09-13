@@ -103,10 +103,38 @@
                 context.insert(record)
             }
 
+            seedHandoffs(into: context, day: day, calendar: calendar)
             seedShopping(into: context, day: day)
             seedMeals(into: context, day: day)
             seedProjects(into: context, day: day)
             try context.save()
+        }
+
+        /// The three handoff states a row can be in, so the Tasks tab's audit sees all of them: the offer
+        /// card waiting for Anne's answer, the "FROM WES" chip on a turn she took, and the one-line note
+        /// after a no.
+        ///
+        /// The period a handoff names has to be the chore's oldest incomplete one, because that is the
+        /// period the row on screen is about. A pending offer also has to be for the *current* period —
+        /// `Handoff.hasExpired` retires a pending offer the moment its period ends — while accepted and
+        /// declined stand for good, which is why those two sit on chores that are already overdue.
+        @MainActor
+        private func seedHandoffs(into context: ModelContext, day: (Int) -> Date, calendar: HouseholdCalendar) {
+            for (index, offer) in Self.handoffs.enumerated() {
+                let record = HandoffRecord(
+                    id: "uitest-handoff-\(index)",
+                    choreId: offer.choreId,
+                    fromPerson: offer.from.rawValue,
+                    toPerson: offer.to.rawValue,
+                    periodIndex: calendar.periodIndex(.daily, containing: day(offer.periodDaysAgo * -1)),
+                    cadence: Cadence.daily.rawValue,
+                    state: offer.state.rawValue,
+                    createdAt: day(offer.periodDaysAgo * -1),
+                    // Synced, so nothing is queued and the row offers no "take it back" it cannot honour.
+                    syncedAt: day(offer.periodDaysAgo * -1)
+                )
+                context.insert(record)
+            }
         }
 
         @MainActor
@@ -242,6 +270,32 @@
                 SeededCompletion(choreId: "uitest-laundry", person: .wes, daysAgo: 1),
                 SeededCompletion(choreId: "uitest-sweep", person: .wes, daysAgo: 0),
                 SeededCompletion(choreId: "uitest-mail", person: .wes, daysAgo: 2),
+            ]
+        }
+
+        struct SeededHandoff {
+            let choreId: String
+            let from: Person
+            let to: Person
+            /// The period, as whole days before today. It must be the chore's oldest incomplete period:
+            /// that is the period the row on screen is about.
+            let periodDaysAgo: Int
+            let state: Handoff.State
+        }
+
+        /// One of each, all on daily chores so a period is a day:
+        ///
+        ///  - `uitest-laundry` is Wes's and due today, so a pending offer to Anne is still inside its
+        ///    period: Anne gets the card, and Wes's row reads "Asked Anne".
+        ///  - `uitest-trash` is Wes's and five days late; an accepted turn never expires, so the row moves
+        ///    into Anne's column wearing the "FROM WES" chip.
+        ///  - `uitest-cat-water` is Anne's and three days late; a declined offer never expires either, so
+        ///    her row carries the "Wes said no" line.
+        static var handoffs: [SeededHandoff] {
+            [
+                SeededHandoff(choreId: "uitest-laundry", from: .wes, to: .anne, periodDaysAgo: 0, state: .pending),
+                SeededHandoff(choreId: "uitest-trash", from: .wes, to: .anne, periodDaysAgo: 5, state: .accepted),
+                SeededHandoff(choreId: "uitest-cat-water", from: .anne, to: .wes, periodDaysAgo: 3, state: .declined),
             ]
         }
 

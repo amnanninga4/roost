@@ -32,10 +32,9 @@ struct NotificationsStep: View {
                     Task { await ask() }
                 }
                 Button(Strings.Onboarding.notificationsSkip, action: onFinished)
-                    .buttonStyle(.plain)
                     .roostType(.callout)
                     .foregroundStyle(RoostColor.Role.textSecondary.color)
-                    .frame(minHeight: RoostSpacing.minTapTarget)
+                    .buttonStyle(RoostTextActionStyle(alignment: .center))
                     .disabled(asking)
             }
         }

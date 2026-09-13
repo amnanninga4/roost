@@ -19,6 +19,44 @@ private enum ComposerBorder {
     static let dash: [CGFloat] = [5, 4]
 }
 
+/// A text-only action — "Clear bought", "Undo", "Try again", "Not now" — that still holds a 44 pt target.
+///
+/// It exists because of a trap worth naming once. `Button("x", action:).frame(minHeight: 44)` lays the
+/// button out 44 pt tall but leaves the button's own tappable area the size of the two words inside it:
+/// the frame wraps the button, not its content, and a `.plain` button's hit region is its content. The
+/// accessibility audit sees the small one and is right to. A `ButtonStyle` is applied *to* the content, so
+/// the height and the shape land where the taps do.
+///
+/// `alignment` is where the words sit inside the taller band — trailing for a button on the right of a
+/// section header, leading for one under a paragraph.
+struct RoostTextActionStyle: ButtonStyle {
+    var alignment: Alignment = .leading
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(minHeight: RoostSpacing.minTapTarget, alignment: alignment)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .animation(
+                RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion),
+                value: configuration.isPressed
+            )
+    }
+}
+
+extension ButtonStyle where Self == RoostTextActionStyle {
+    /// A text-only action that holds 44 pt, with the words at the leading edge of the band.
+    static var roostTextAction: RoostTextActionStyle {
+        RoostTextActionStyle()
+    }
+
+    /// The same, with the words at the trailing edge — a button on the right of a section header.
+    static var roostTrailingTextAction: RoostTextActionStyle {
+        RoostTextActionStyle(alignment: .trailing)
+    }
+}
+
 /// Title in the display face over the count line and the sync line, like the Tasks tab's header.
 struct ListScreenHeader: View {
     let title: String
@@ -342,6 +380,7 @@ struct UndoBar: View {
             Button(Strings.Lists.undo, action: undo)
                 .roostType(.headline)
                 .foregroundStyle(RoostColor.Role.accent.color)
+                .buttonStyle(.roostTextAction)
                 .accessibilityHint(Strings.Lists.undoHint)
         }
         .padding(.horizontal, RoostSpacing.lg)

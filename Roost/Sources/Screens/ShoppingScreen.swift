@@ -90,7 +90,7 @@ struct ShoppingScreen: View {
             Button(Strings.Shopping.clearBought, action: clearBought)
                 .roostType(.footnote)
                 .foregroundStyle(RoostColor.Role.accent.color)
-                .frame(minHeight: RoostSpacing.minTapTarget, alignment: .trailing)
+                .buttonStyle(.roostTrailingTextAction)
         }
         .textCase(nil)
     }

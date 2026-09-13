@@ -1,10 +1,22 @@
 // Does the Shopping list still scroll when there are 200 rows on it?
 //
-// Two measurements of the same flick, because they answer different questions. The signpost metric is the
-// one worth reading: `scrollDecelerationMetric` collects the frame rate and the hitch time ratio of the
-// deceleration after a swipe, which is what a dropped frame actually looks like to a thumb. The wall clock
-// is the one worth gating on, because a `measure` block's numbers live in the result bundle and cannot be
-// asserted on from inside the test — a plain elapsed-time bound can.
+// Three measurements, because on a simulator they answer different halves of the question.
+//
+//   `testShoppingScrollDeceleration` is the numbers: `XCTOSSignpostMetric.scrollDecelerationMetric` times
+//   the deceleration after one fast flick. It records rather than asserts, because a `measure` block's
+//   values live in the result bundle and cannot be read from inside the test. On this simulator it is
+//   2.43 s with a relative standard deviation of 0.06% — the flick is the same flick every time. Hitch
+//   time ratio and frame rate are the metrics worth watching, and the simulator does not report them:
+//   they need a real display, so they will appear the first time this runs on a device.
+//
+//   `testShoppingListStaysLazy` is the assertion that would actually catch the regression the numbers are
+//   there to warn about. A `List` builds only the rows it is about to draw; a `ScrollView { VStack }`
+//   builds all 204. Counting the cells in the accessibility tree tells the two apart with no timing in it
+//   at all, which is why it is the gate.
+//
+//   `testShoppingScrollStaysInBudget` is a smoke alarm on wall-clock time, with a budget set well wide of
+//   what was observed (2.9 s a flick) because most of that is XCUITest synthesising the gesture and
+//   waiting for the app to go idle, not the app drawing. It catches an order of magnitude, not a percent.
 //
 // The fixture is `shopping-large`: the four hand-written rows plus 200 more, every fifth one long enough
 // to wrap, so the row heights are uneven the way a real list's are.
@@ -13,9 +25,13 @@ import XCTest
 final class ScrollPerformanceTests: RoostUITestCase {
     /// How many full-screen flicks the wall-clock pass makes.
     private static let flicks = 8
-    /// The bound for those flicks, end to end. A flick that lands and settles is comfortably inside
-    /// 1.5 s even on a cold CI runner; 2.5 s each is the point at which something is wrong rather than slow.
-    private static let flickBudget: TimeInterval = 2.5
+    /// Seconds per flick, end to end. Observed: 2.9 on this simulator, almost all of it harness overhead.
+    private static let flickBudget: TimeInterval = 6
+    /// The fixture's length: `UITestSeed.longListLength` plus the four hand-written rows.
+    private static let rowCount = 204
+    /// A phone shows about a dozen of these rows. Thirty is generous headroom for a taller screen and for
+    /// the rows a collection view keeps just off each edge; 204 is what a non-lazy stack would report.
+    private static let lazyCeiling = 30
 
     /// The list itself. A SwiftUI `List` is a collection view, so this is what carries the scroll.
     private func shoppingList(in app: XCUIApplication) -> XCUIElement {
@@ -28,15 +44,18 @@ final class ScrollPerformanceTests: RoostUITestCase {
         let app = launch(.shoppingLarge)
         waitForTasks(in: app)
         openTab("Shopping", in: app)
+        // The header's own count, which is the one thing on screen that proves all 204 rows are in the
+        // store. One of them is in the Bought section, hence the 1.
+        let header = "\(Self.rowCount) items · 1 already bought"
         XCTAssertTrue(
-            app.staticTexts["Item 001"].waitForExistence(timeout: Self.timeout),
-            "the 200-row fixture never appeared"
+            app.staticTexts[header].waitForExistence(timeout: Self.timeout),
+            "the \(Self.rowCount)-row fixture never appeared"
         )
         return app
     }
 
-    /// The frame rate and hitch time ratio of the deceleration after one fast flick. Read the numbers in
-    /// the result bundle (`xcrun xcresulttool get test-results tests`), or in Xcode's report.
+    /// The deceleration after one fast flick. Read the numbers in the result bundle
+    /// (`xcrun xcresulttool get test-results tests`), or in Xcode's report.
     func testShoppingScrollDeceleration() {
         let app = openLongShoppingList()
         let list = shoppingList(in: app)
@@ -52,8 +71,21 @@ final class ScrollPerformanceTests: RoostUITestCase {
         }
     }
 
-    /// The gate: eight flicks down the list, each inside its budget. This is what fails if the list ever
-    /// stops being lazy, or a row's body grows something expensive.
+    /// The gate: the list draws a screenful, not the whole fixture. This is what fails if the `List` is
+    /// ever replaced by a `ScrollView` and a `VStack`, or if `ForEach` is handed a non-lazy container.
+    func testShoppingListStaysLazy() {
+        let app = openLongShoppingList()
+        let cells = app.collectionViews.firstMatch.cells.count
+        print("scroll: \(cells) of \(Self.rowCount) rows built")
+        XCTAssertLessThan(
+            cells, Self.lazyCeiling,
+            "the Shopping list built \(cells) of \(Self.rowCount) rows — it is not lazy any more"
+        )
+        XCTAssertGreaterThan(cells, 1, "no rows were built at all")
+    }
+
+    /// Eight flicks down the list, each inside a budget set an order of magnitude, not a percent, above
+    /// what was observed.
     func testShoppingScrollStaysInBudget() {
         let app = openLongShoppingList()
         let list = shoppingList(in: app)
@@ -73,10 +105,10 @@ final class ScrollPerformanceTests: RoostUITestCase {
             + "(\(String(format: "%.2f", each)) s each)")
         XCTAssertLessThan(
             each, Self.flickBudget,
-            "a flick through the 200-row Shopping list took \(String(format: "%.2f", each)) s"
+            "a flick through the \(Self.rowCount)-row Shopping list took \(String(format: "%.2f", each)) s"
         )
 
         // And the list really did move: the row that was at the top is not any more.
-        XCTAssertFalse(app.staticTexts["Item 001"].isHittable, "the list did not scroll")
+        XCTAssertFalse(app.staticTexts["Cat litter"].isHittable, "the list did not scroll")
     }
 }
