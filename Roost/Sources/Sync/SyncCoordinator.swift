@@ -8,12 +8,14 @@ import RoostCore
 @Observable
 final class SyncCoordinator {
     let client: SyncClient
+    let notifications: NotificationScheduler
     private(set) var isSyncing = false
     private(set) var lastOutcome: SyncOutcome?
     private(set) var lastSyncAt: Date?
 
     init(container: ModelContainer) {
         client = SyncClient(modelContainer: container)
+        notifications = NotificationScheduler(container: container)
     }
 
     /// Kick a sync without waiting. Safe to call from any tap; the actor coalesces overlapping calls.
@@ -27,7 +29,10 @@ final class SyncCoordinator {
         let outcome = await client.syncNow()
         isSyncing = false
         lastOutcome = outcome
-        if case .synced = outcome { lastSyncAt = Date() }
+        if case .synced = outcome {
+            lastSyncAt = Date()
+            await notifications.replan()
+        }
         return outcome
     }
 
@@ -35,12 +40,14 @@ final class SyncCoordinator {
         let person = try await client.pair(baseURL: baseURL, token: token)
         lastOutcome = .synced(posted: 0, deleted: 0, received: 0)
         lastSyncAt = Date()
+        await notifications.enableAfterPairing()
         return person
     }
 
     func unpair() async throws {
         try await client.unpair()
         lastOutcome = .unpaired
+        await notifications.replan()
     }
 
     var statusLine: String {
