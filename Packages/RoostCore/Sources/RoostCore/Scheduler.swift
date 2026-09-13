@@ -21,6 +21,20 @@ public struct DueItem: Sendable, Hashable, Identifiable {
     }
 }
 
+extension DueItem {
+    /// The same item owed by the other person. Only the balancing pass uses this.
+    func with(person: Person) -> DueItem {
+        DueItem(
+            chore: chore,
+            person: person,
+            periodIndex: periodIndex,
+            periodStart: periodStart,
+            periodLastDay: periodLastDay,
+            daysOverdue: daysOverdue
+        )
+    }
+}
+
 /// Computes what is due for each person on a given day.
 ///
 /// Model: every chore has integer periods per its cadence (see `HouseholdCalendar`). A chore is complete
@@ -30,23 +44,32 @@ public struct DueItem: Sendable, Hashable, Identifiable {
 ///
 /// Assignment, in order: an accepted `Handoff` for that exact period wins; otherwise the chore's pin; otherwise
 /// the `Rotation`. Handoffs are optional everywhere, so a caller that does not use them behaves as before.
+///
+/// `plan(on:completions:handoffs:)` then runs the optional `balancer` over the whole day's list, which can move
+/// an item that is unpinned, un-handed-off, and still inside its period. Nothing else consults the balancer:
+/// `assignee(for:periodIndex:)` and `dueItem(...)` answer for one chore at a time and cannot balance a list
+/// they cannot see, so `Tallies` and anything else walking history gets the plain rotation answer.
 public struct Scheduler: Sendable {
     public let chores: [Chore]
     public let rotation: Rotation
     public let calendar: HouseholdCalendar
     /// Periods before this date are ignored. Set it to the day the household started using Roost.
     public let activeFrom: Date
+    /// nil is today's behaviour: no balancing pass, every item stays where handoff, pin, or rotation put it.
+    public let balancer: FairnessBalancer?
 
     public init(
         chores: [Chore],
         activeFrom: Date,
         rotation: Rotation = RoundRobinRotation(),
-        calendar: HouseholdCalendar = HouseholdCalendar()
+        calendar: HouseholdCalendar = HouseholdCalendar(),
+        balancer: FairnessBalancer? = nil
     ) {
         self.chores = chores
         self.activeFrom = activeFrom
         self.rotation = rotation
         self.calendar = calendar
+        self.balancer = balancer
     }
 
     public func assignee(for chore: Chore, periodIndex: Int) -> Person {
@@ -67,14 +90,29 @@ public struct Scheduler: Sendable {
     }
 
     /// Everything due on `date`, keyed by person. Items are ordered most overdue first, then by chore order.
+    /// With a `balancer`, the day's reassignable items are spread across the two of them before the split.
     public func plan(on date: Date, completions: [Completion], handoffs: [Handoff] = []) -> [Person: [DueItem]] {
         let byChore = Dictionary(grouping: completions, by: \.choreId)
-        var result: [Person: [DueItem]] = [.anne: [], .wes: []]
+        var items: [DueItem] = []
         for chore in chores {
             let forChore = byChore[chore.id] ?? []
             guard let item = dueItem(for: chore, on: date, completions: forChore, handoffs: handoffs) else {
                 continue
             }
+            items.append(item)
+        }
+        if let balancer {
+            items = balancer.balance(
+                items,
+                chores: chores,
+                completions: completions,
+                handoffs: handoffs,
+                on: date,
+                calendar: calendar
+            )
+        }
+        var result: [Person: [DueItem]] = [.anne: [], .wes: []]
+        for item in items {
             result[item.person, default: []].append(item)
         }
         for person in Person.allCases {
