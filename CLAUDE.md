@@ -17,6 +17,7 @@ Household app for Anne and Wes. Native iOS (SwiftUI, SwiftData), a small Node sy
 - Before calling app work done: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test` prints `** TEST SUCCEEDED **`, and any new or changed screen has been rendered in the simulator and looked at.
 - Before calling server work done: `cd server && npm test` passes with no network.
 - Swift files are formatted by swiftformat and linted by swiftlint through the committed hook in `.claude/hooks`. Configs are `.swiftformat` and `.swiftlint.yml`.
+- Agent worktrees live under `.claude/worktrees/`, and swiftformat applies the main clone's config there, so `.swiftformat` must not exclude `.claude`. Run whole-tree formatting only in CI or from a fresh worktree outside the clone; the hook formats one file at a time.
 - User-facing strings live in `Roost/Sources/Strings.swift`. Plain wording, no marketing copy.
 - No secrets in the repo: no Team ID, certificates, provisioning profiles, APNs keys, or device tokens.
 - Do not seed shopping, meals, or projects from the mockup. They start empty.
