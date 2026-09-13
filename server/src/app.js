@@ -1,6 +1,7 @@
 // HTTP surface. Plain node:http, JSON in/out.
 //
 //   GET    /health                        no auth
+//   GET    /status                        no auth — kitchen status board (HTML)
 //   GET    /chores                        chores + version
 //   GET    /completions?cursor=<n>        completions with seq > cursor, includes deleted rows
 //   POST   /completions                   { id, choreId, completedAt } -> 201 new / 200 replay
@@ -21,6 +22,7 @@ import {
   touchDevice,
 } from "./db.js";
 import { createTokenStore, bearerFrom } from "./auth.js";
+import { statusHandler } from "./status.js";
 
 const MAX_BODY = 64 * 1024;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
@@ -121,6 +123,8 @@ export function createApp({ dbPath, choresPath, tokensPath, now = () => new Date
         tokensFileError,
       });
     }
+
+    if (req.method === "GET" && path === "/status") return statusHandler(db, req, res, { now });
 
     const device = tokens.lookup(bearerFrom(req));
     if (!device) return send(res, 401, { error: "unauthorized" });
