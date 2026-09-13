@@ -379,8 +379,9 @@ export function createPush({
       const completions = db
         .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
         .all();
+      const handoffs = listHandoffs(db);
       const activeFrom = parseActiveFrom(getMeta(db, "activeFrom"));
-      const due = dueItems({ chores, completions, asOf, activeFrom });
+      const due = dueItems({ chores, completions, asOf, activeFrom, handoffs, balance: false });
       const sentAt = asOf.toISOString();
       for (const person of PEOPLE) {
         for (const item of due[person] ?? []) {

@@ -225,6 +225,35 @@ test("red-alert sweep notifies partner for stage>=3; collapse-id; persists acros
   assert.ok(firstCount > 0);
 });
 
+test("R-25b: accepted handoff routes red-alert to taker's partner naming the taker", async () => {
+  // Laundry is weekly fixedAssignee=anne. Oldest incomplete week at asOf Sep 20 is
+  // periodIndex 35 (stage alert). An accepted anne→wes handoff for that period must
+  // make dueItems assign wes, so the red-alert goes to anne and names Wes.
+  app.db.prepare("DELETE FROM push_tokens").run();
+  app.db.prepare("DELETE FROM push_alerts").run();
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+
+  const asOf = new Date("2026-09-20T17:00:00.000Z");
+  const nowIso = asOf.toISOString();
+  app.db.prepare(
+    `INSERT INTO handoffs (id, choreId, fromPerson, toPerson, periodIndex, cadence, state, createdAt, updatedAt, deletedAt, seq)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`
+  ).run("r25b-laundry-35", "laundry", "anne", "wes", 35, "weekly", "accepted", nowIso, nowIso, 1);
+
+  sent.length = 0;
+  await app.push.runRedAlertSweep(asOf);
+
+  const laundryAlerts = sent.filter((r) => r.headers["apns-collapse-id"] === "red-laundry");
+  assert.equal(laundryAlerts.length, 1, "exactly one red-alert for handed-off laundry");
+  const req = laundryAlerts[0];
+  assert.equal(req.deviceToken, ANNE_PUSH, "alert goes to taker's partner (anne), not rotation partner");
+  assert.match(req.body.aps.alert.title, /red alert/i);
+  assert.equal(req.body.aps.alert.body, "Wes's chore is overdue: Laundry");
+
+  app.db.prepare("DELETE FROM handoffs WHERE id = ?").run("r25b-laundry-35");
+});
+
 test("red-alert sweep respects meta activeFrom (no spam on fresh pair)", async () => {
   const { setMeta } = await import("../src/db.js");
   const { chicagoDateString } = await import("../src/rules.js");
