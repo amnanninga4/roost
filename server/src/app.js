@@ -20,7 +20,7 @@
 //   DELETE /subtasks/:id                  soft delete
 //   /bonus, /bonus/:id/{claim,complete}   first-to-claim bonus tasks; routes and rules live in bonus.js
 //   POST   /pair                          no auth — { code, deviceName } -> { token, person }; pairing.js
-//   DELETE /pair/self                     unpair the calling device; pairing.js
+//   DELETE /pair/self                     unpair the calling device (paired tokens only); pairing.js
 //   GET    /sync?cursor=<n>&choresVersion=<v>
 //          one call for the app: cursor, choresVersion, chores (only when version differs), and the
 //          completions / shopping / meals / projects / subtasks / bonus deltas (every row with seq > cursor)
@@ -94,11 +94,11 @@ class BadRequest extends Error {
 export function createApp({ dbPath, choresPath, tokensPath, now = () => new Date(), log = console.error }) {
   const db = openDb(dbPath);
   const seeded = seedChores(db, choresPath);
-  const tokens = createTokenStore(tokensPath, { log });
+  const tokens = createTokenStore(tokensPath, { db, log });
   const lastTouched = new Map(); // tokenHash -> ms; throttles devices-table writes on read-only polls
 
   const iso = () => now().toISOString();
-  const pairing = createPairing({ db, tokens, tokensPath, hashToken, bearerFrom, send, readJson, now });
+  const pairing = createPairing({ db, tokens, hashToken, bearerFrom, send, readJson, now });
 
   function send(res, status, body) {
     const json = JSON.stringify(body);

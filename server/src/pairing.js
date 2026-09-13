@@ -1,22 +1,25 @@
 // Pairing codes. A phone pairs by typing a short code, not by pasting a 43-character bearer token.
 //
 // `src/mkcode.js` mints a 6-digit code that names the person and the device it is for and lives for 15
-// minutes. The phone POSTs it to /pair with its own device name; the server mints a real bearer token
-// exactly as mktoken.js does, appends it to the tokens file, marks the code consumed with that token's
-// hash, and hands the token back. Bearer tokens are still the only long-lived credential — the code is a
-// one-shot way to hand one over, and DELETE /pair/self gives it back.
+// minutes. The phone POSTs it to /pair with its own device name; the server mints a real bearer token,
+// records its SHA-256 in `paired_tokens`, marks the code consumed, and hands the token back. Bearer
+// tokens are still the only long-lived credential — the code is a one-shot way to hand one over.
+//
+// Paired tokens live in SQLite, never in the tokens file. The API only ever reads `/etc/roost/tokens.json`
+// (root:roost 0640, hand-minted by mktoken.js): rewriting it from a request is not atomic, so a crash or
+// a full disk mid-write would truncate it and lock every device out, and the unit keeps /etc read-only on
+// purpose. A row here is also revocable from the shell (`src/devices.js`) with no file edit and no restart.
 //
 // Everything pairing lives here so it sits next to the other tables: db.js only runs PAIRING_SCHEMA,
 // app.js only builds the routes and dispatches to them, /health only reads pendingCodes().
 //
-// No `seq` column: codes never reach the phones through /sync, so they stay outside the sync cursor.
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+// No `seq` on either table: neither codes nor tokens reach the phones through /sync.
 import { randomBytes, randomInt } from "node:crypto";
 import { PEOPLE } from "./db.js";
 
-// No people CHECK in this schema, for the reason bonus.js gives: db.js imports this file for
+// No people CHECK in either table, for the reason bonus.js gives: db.js imports this file for
 // PAIRING_SCHEMA, so PEOPLE is not initialised while this module evaluates (module cycle).
-// createPairingCode reads PEOPLE at call time and is the only writer of `person`.
+// createPairingCode reads PEOPLE at call time, and it is the only writer of `person` in both.
 export const PAIRING_SCHEMA = `
 CREATE TABLE IF NOT EXISTS pairing_codes (
   code        TEXT PRIMARY KEY,
@@ -28,6 +31,13 @@ CREATE TABLE IF NOT EXISTS pairing_codes (
   tokenHash   TEXT
 );
 CREATE INDEX IF NOT EXISTS pairing_codes_expires ON pairing_codes(expiresAt);
+CREATE TABLE IF NOT EXISTS paired_tokens (
+  tokenHash TEXT PRIMARY KEY,
+  person    TEXT NOT NULL,
+  label     TEXT NOT NULL,
+  createdAt TEXT NOT NULL,
+  revokedAt TEXT
+);
 `;
 
 const CODE_LEN = 6;
@@ -38,9 +48,16 @@ const CODE_RE = /^\d{6}$/;
 export const DEFAULT_MINUTES = 15;
 const MINUTES_MAX = 24 * 60;
 const TOKEN_BYTES = 32; // as mktoken.js: 32 random bytes -> 43 base64url chars
-const TOKEN_MODE = 0o640; // as mktoken.js; only applies when the file is created
 const DEVICE_NAME_MAX = 60;
-const RATE_LIMIT = 10; // /pair attempts per window, per source address
+const RATE_LIMIT = 10; // answered /pair attempts per window, per source address
+/**
+ * And a cap across every source. A 6-digit code has 1,000,000 values and lives 15 minutes, so the
+ * per-address limit alone does not bound a guess: every new address brings its own budget. 30 answered
+ * attempts a minute bounds one code's whole lifetime to about 450 guesses — roughly 1 in 2,200 of
+ * landing on a live code before it expires — no matter how many addresses the guesses come from.
+ */
+const RATE_GLOBAL_LIMIT = 30;
+const RATE_GLOBAL_KEY = "*";
 const RATE_WINDOW_MS = 60_000;
 const RATE_KEYS_MAX = 512; // swept when exceeded, so a spoofed-header flood cannot grow the map
 
@@ -95,33 +112,67 @@ export function createPairingCode(db, { person, deviceLabel, minutes = DEFAULT_M
   throw new Error(`no free pairing code after ${CODE_DRAWS} draws`);
 }
 
-/**
- * Mint a bearer token and append it to the tokens file, the same way src/mktoken.js does: 32 random
- * bytes as base64url, the whole file rewritten, 0640 when it has to be created. Returns the token.
- * The server never stores it — only its SHA-256 lands in the DB.
- */
-export function mintToken(tokensPath, { person, device }) {
-  const current = existsSync(tokensPath) ? JSON.parse(readFileSync(tokensPath, "utf8")) : {};
-  const token = randomBytes(TOKEN_BYTES).toString("base64url");
-  current[token] = { person, device };
-  writeFileSync(tokensPath, JSON.stringify(current, null, 2) + "\n", { mode: TOKEN_MODE });
-  return token;
+/** A bearer token of the shape mktoken.js mints. The token itself is never stored, only its hash. */
+export function mintTokenValue() {
+  return randomBytes(TOKEN_BYTES).toString("base64url");
 }
 
-/** Drop `token` from the tokens file. True when it was there. */
-export function revokeToken(tokensPath, token) {
-  if (!existsSync(tokensPath)) return false;
-  const current = JSON.parse(readFileSync(tokensPath, "utf8"));
-  if (!(token in current)) return false;
-  delete current[token];
-  writeFileSync(tokensPath, JSON.stringify(current, null, 2) + "\n", { mode: TOKEN_MODE });
+/**
+ * Record a minted token and spend the code it came from, in ONE transaction: the code stays live unless
+ * the token is really stored, and no token is stored without its code being spent.
+ */
+export function storePairedToken(db, { tokenHash, person, label, code }, nowIso) {
+  db.exec("BEGIN");
+  try {
+    db.prepare("INSERT INTO paired_tokens (tokenHash, person, label, createdAt) VALUES (?, ?, ?, ?)").run(
+      tokenHash,
+      person,
+      label,
+      nowIso
+    );
+    db.prepare("UPDATE pairing_codes SET consumedAt = ?, tokenHash = ? WHERE code = ?").run(nowIso, tokenHash, code);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+}
+
+/**
+ * Revoke a paired token: the store stops accepting it on the very next request (it reads this table
+ * live), and its `devices` row goes with it. One code path for DELETE /pair/self and src/devices.js.
+ * False when the hash is not a live paired token; nothing here can touch a hand-minted file token.
+ */
+export function revokePairedToken(db, tokenHash, nowIso) {
+  const row = db.prepare("SELECT revokedAt FROM paired_tokens WHERE tokenHash = ?").get(tokenHash);
+  if (!row || row.revokedAt) return false;
+  db.exec("BEGIN");
+  try {
+    db.prepare("UPDATE paired_tokens SET revokedAt = ? WHERE tokenHash = ?").run(nowIso, tokenHash);
+    db.prepare("DELETE FROM devices WHERE tokenHash = ?").run(tokenHash);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
   return true;
 }
 
+/** Every paired token with the `devices` lastSeen, newest first. Revoked rows included, flagged. */
+export function listPairedTokens(db) {
+  return db
+    .prepare(
+      `SELECT p.tokenHash, p.person, p.label, p.createdAt, p.revokedAt, d.lastSeen
+       FROM paired_tokens p LEFT JOIN devices d ON d.tokenHash = p.tokenHash
+       ORDER BY p.createdAt DESC`
+    )
+    .all();
+}
+
 /**
- * Sliding-window attempt counter for the one public endpoint. In memory: a restart forgets it, which is
- * fine — it exists so a 6-digit code cannot be ground through, and codes expire in minutes anyway.
- * Rejected attempts are not recorded, so the window is `limit` answered attempts per `windowMs`.
+ * Sliding-window attempt counter. In memory: a restart forgets it, which is fine — it exists so a
+ * 6-digit code cannot be ground through, and codes expire in minutes anyway. Rejected attempts are not
+ * recorded, so a window holds `limit` answered attempts.
  */
 export function createRateLimiter({ limit = RATE_LIMIT, windowMs = RATE_WINDOW_MS, keysMax = RATE_KEYS_MAX } = {}) {
   const hits = new Map(); // key -> ms timestamps still inside the window
@@ -153,29 +204,32 @@ export function clientIp(req) {
 }
 
 /**
- * The /pair routes, built once per app because the rate limiter is per-process state.
+ * The /pair routes, built once per app because the rate limiters are per-process state.
  *   POST   /pair        NO AUTH  { code, deviceName } -> 200 { token, person }
- *                                404 for any unusable code, 429 over the attempt limit
- *   DELETE /pair/self   bearer   drops the calling device's token and its devices row
+ *                                404 for any unusable code, 429 over either attempt limit
+ *   DELETE /pair/self   bearer   revokes the calling device's paired token and its devices row;
+ *                                403 for a hand-minted token, which only the tokens file can revoke
  * `routes(req, res, path)` returns true when it answered the request, false to fall through.
  */
 export function createPairing({
   db,
   tokens,
-  tokensPath,
   hashToken,
   bearerFrom,
   send,
   readJson,
   now,
   limiter = createRateLimiter(),
+  globalLimiter = createRateLimiter({ limit: RATE_GLOBAL_LIMIT }),
 }) {
   const iso = () => now().toISOString();
 
   async function routes(req, res, path) {
     if (req.method === "POST" && path === "/pair") {
-      // Counted before the body is read: a flood of junk bodies costs a guesser the same as a flood of codes.
-      if (!limiter.allow(clientIp(req), now().getTime())) {
+      // Counted before the body is read: a flood of junk bodies costs a guesser the same as a flood of
+      // codes. Short-circuited, so an attempt refused by one limiter is not charged to the other.
+      const tMs = now().getTime();
+      if (!limiter.allow(clientIp(req), tMs) || !globalLimiter.allow(RATE_GLOBAL_KEY, tMs)) {
         send(res, 429, { error: "too many pairing attempts, wait a minute" });
         return true;
       }
@@ -193,30 +247,29 @@ export function createPairing({
         send(res, 404, { error: "invalid or expired code" });
         return true;
       }
-      // Synchronous from here, so no other request can land between minting and consuming. The token is
-      // written first: if that throws, the code is still live and the phone can try again.
-      const token = mintToken(tokensPath, { person: row.person, device: `${row.deviceLabel} · ${deviceName}` });
-      db.prepare("UPDATE pairing_codes SET consumedAt = ?, tokenHash = ? WHERE code = ?").run(
-        nowIso,
-        hashToken(token),
-        code
+      const token = mintTokenValue();
+      // One transaction, so a failure leaves the code live rather than spent on a token nobody has.
+      storePairedToken(
+        db,
+        { tokenHash: hashToken(token), person: row.person, label: `${row.deviceLabel} · ${deviceName}`, code },
+        nowIso
       );
-      tokens.refresh(); // the store keys off mtime; force it so the token works on the very next request
+      // No store reload: the token store reads paired_tokens live, so this works on the next request.
       send(res, 200, { token, person: row.person });
       return true;
     }
 
     if (req.method === "DELETE" && path === "/pair/self") {
-      const bearer = bearerFrom(req);
-      const device = tokens.lookup(bearer);
+      const device = tokens.lookup(bearerFrom(req));
       if (!device) {
         send(res, 401, { error: "unauthorized" });
         return true;
       }
-      revokeToken(tokensPath, bearer);
-      // `devices` is db.js's table, keyed by the same hash the store just handed back.
-      db.prepare("DELETE FROM devices WHERE tokenHash = ?").run(device.tokenHash);
-      tokens.refresh(); // the next request with this token is a 401
+      if (device.source !== "paired") {
+        send(res, 403, { error: "this device was set up by hand; remove it from the tokens file" });
+        return true;
+      }
+      revokePairedToken(db, device.tokenHash, iso());
       send(res, 200, { unpaired: true, person: device.person, label: device.label });
       return true;
     }

@@ -1,9 +1,11 @@
-// Bearer device tokens. No accounts, no signup.
-// Tokens file: { "<token>": { "person": "anne" | "wes", "device": "Anne iPhone" } }
+// Bearer device tokens. No accounts, no signup. Two sources, checked in this order:
+//   1. the tokens file, hand-minted by mktoken.js and never written by the API:
+//      { "<token>": { "person": "anne" | "wes", "device": "Anne iPhone" } }
+//   2. the `paired_tokens` table, written by POST /pair (pairing.js) when a phone redeems a code.
 // The file is read at startup and re-read when its mtime changes, so rotating a token is: edit file, done.
-// POST /pair (pairing.js) appends to the same file and calls refresh(), so a just-minted token works at once.
 // A file that fails to parse after an edit is logged (once per mtime) and reported in /health; the last
-// good set stays active until the file is fixed, so a broken edit cannot lock every device out.
+// good set stays active until the file is fixed, so a broken edit cannot lock every device out. The table
+// is read live on every lookup, so pairing and revoking take effect on the very next request.
 import { readFileSync, statSync } from "node:fs";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { PEOPLE } from "./db.js";
@@ -26,7 +28,7 @@ export function parseTokens(json) {
   return byHash;
 }
 
-export function createTokenStore(path, { log = console.error } = {}) {
+export function createTokenStore(path, { db, log = console.error } = {}) {
   let byHash = new Map();
   let mtimeMs = -1;
   let lastError = null;
@@ -53,7 +55,7 @@ export function createTokenStore(path, { log = console.error } = {}) {
   mtimeMs = statSync(path).mtimeMs;
 
   return {
-    /** Returns { tokenHash, person, label } or null. */
+    /** Returns { tokenHash, person, label, source: "file" | "paired" } or null. */
     lookup(bearer) {
       reload();
       if (typeof bearer !== "string" || bearer.length < 16) return null;
@@ -61,17 +63,20 @@ export function createTokenStore(path, { log = console.error } = {}) {
       for (const [known, info] of byHash) {
         const a = Buffer.from(known, "hex");
         const b = Buffer.from(h, "hex");
-        if (a.length === b.length && timingSafeEqual(a, b)) return { tokenHash: known, ...info };
+        if (a.length === b.length && timingSafeEqual(a, b)) return { tokenHash: known, ...info, source: "file" };
       }
-      return null;
+      // pairing.js owns this table. The primary-key lookup compares SHA-256 of the presented token, not
+      // the token, so an index probe leaks nothing a timing-safe walk would hide.
+      const paired = db
+        ?.prepare("SELECT person, label FROM paired_tokens WHERE tokenHash = ? AND revokedAt IS NULL")
+        .get(h);
+      return paired ? { tokenHash: h, person: paired.person, label: paired.label, source: "paired" } : null;
     },
+    /** Devices that can authenticate right now: file entries plus unrevoked paired tokens. */
     size() {
-      return byHash.size;
-    },
-    /** Re-read now, ignoring the mtime cache: /pair writes the file and needs its token live on the next request. */
-    refresh() {
-      mtimeMs = -1;
       reload();
+      const active = db?.prepare("SELECT COUNT(*) AS n FROM paired_tokens WHERE revokedAt IS NULL").get().n ?? 0;
+      return byHash.size + active;
     },
     /** Null when the current file parsed cleanly; otherwise the logged message. */
     error() {

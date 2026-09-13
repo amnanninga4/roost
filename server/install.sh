@@ -4,7 +4,7 @@
 # Layout:
 #   /opt/roost            code (server/ + data/chores.json), owned by root, read by roost
 #   /var/lib/roost        SQLite database, owned by roost
-#   /etc/roost/tokens.json device tokens, root:roost 0660 (the API appends to it when a phone pairs)
+#   /etc/roost/tokens.json hand-minted device tokens, root:roost 0640, read-only to the API
 #   /var/backups/roost    nightly DB copies, 30 kept
 #   offsite (grater)      roost-offsite.timer ~04:00 host-local → /mnt/storage-sdd/backups/roost, 30 kept
 set -euo pipefail
@@ -50,8 +50,8 @@ if [[ ! -f /etc/roost/tokens.json ]]; then
   echo '{}' > /etc/roost/tokens.json
 fi
 chown root:roost /etc/roost/tokens.json
-# group-writable: POST /pair appends the token it mints for a pairing code, running as the roost user
-chmod 660 /etc/roost/tokens.json
+# read-only to the service: tokens minted by POST /pair go in the DB, never in this file
+chmod 640 /etc/roost/tokens.json
 
 # units
 sed "s|@NODE@|$NODE|g" "$HERE/systemd/roost.service" > /etc/systemd/system/roost.service
@@ -71,5 +71,8 @@ echo
 echo "health:"; curl -fsS http://127.0.0.1:8790/health || echo "(not answering yet)"
 echo
 echo "devices in /etc/roost/tokens.json: $("$NODE" -e 'console.log(Object.keys(require("/etc/roost/tokens.json")).length)')"
-echo "pair a phone: sudo ROOST_DB=/var/lib/roost/roost.db $NODE /opt/roost/server/src/mkcode.js anne \"Anne iPhone\""
-echo "fallback (hand over a token directly): sudo ROOST_TOKENS=/etc/roost/tokens.json $NODE /opt/roost/server/src/mktoken.js anne \"Anne iPhone\""
+echo "pair a phone:  sudo -u roost ROOST_DB=/var/lib/roost/roost.db $NODE /opt/roost/server/src/mkcode.js anne \"Anne iPhone\""
+echo "devices:       sudo -u roost ROOST_DB=/var/lib/roost/roost.db ROOST_TOKENS=/etc/roost/tokens.json $NODE /opt/roost/server/src/devices.js list"
+echo "revoke one:    sudo -u roost ROOST_DB=/var/lib/roost/roost.db $NODE /opt/roost/server/src/devices.js revoke <hashPrefix>"
+echo "fallback (token by hand, root writes the file): sudo ROOST_TOKENS=/etc/roost/tokens.json $NODE /opt/roost/server/src/mktoken.js anne \"Anne iPhone\""
+echo "run the two DB tools as the roost user, never as root: root-owned roost.db-wal would stall the service"

@@ -1,6 +1,7 @@
-// D-PAIR-S: pairing codes. A phone pairs with a 6-digit code from mkcode instead of a pasted token;
-// /pair mints the bearer token behind it, /pair/self hands it back.
-import { test, before, after } from "node:test";
+// D-PAIR-S: pairing codes. A phone pairs with a 6-digit code from mkcode instead of a pasted token.
+// /pair mints the bearer token behind it into `paired_tokens` (never into the tokens file, which the API
+// only reads), /pair/self hands it back, and src/devices.js lists and revokes from the shell.
+import { test, before, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -9,7 +10,7 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "../src/app.js";
 import { hashToken } from "../src/auth.js";
-import { createPairingCode } from "../src/pairing.js";
+import { createPairingCode, storePairedToken } from "../src/pairing.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CHORES = resolve(here, "../../data/chores.json");
@@ -20,7 +21,7 @@ const WES = "wes-token-0123456789abcdef";
 let dir, base, app, dbPath, tokensPath;
 const logged = [];
 // Real time, not a fixed date: mkcode runs in its own process on the real clock, and the codes it mints
-// have to still be live for this app. tick() moves the app's clock on from there.
+// have to still be live for this app.
 let clock = new Date();
 const tick = (ms = 1000) => (clock = new Date(clock.getTime() + ms));
 
@@ -34,13 +35,16 @@ before(async () => {
   base = `http://127.0.0.1:${app.server.address().port}`;
 });
 
+// Both /pair limiters are per-minute, so every test starts in a window of its own.
+beforeEach(() => tick(60_000));
+
 after(async () => {
   await new Promise((r) => app.server.close(r));
   app.db.close();
   rmSync(dir, { recursive: true, force: true });
 });
 
-/** `ip` sets X-Forwarded-For and `cfIp` CF-Connecting-IP, so each test gets its own rate-limit bucket. */
+/** `ip` sets X-Forwarded-For and `cfIp` CF-Connecting-IP, so a test can pick its own address bucket. */
 const call = async (method, path, { token, body, raw, ip, cfIp } = {}) => {
   const res = await fetch(base + path, {
     method,
@@ -55,19 +59,31 @@ const call = async (method, path, { token, body, raw, ip, cfIp } = {}) => {
   return { status: res.status, body: await res.json() };
 };
 
-/** The real CLI, in its own process, against the same DB file the app has open. */
-const mkcode = (...args) =>
-  execFileSync(process.execPath, ["--no-warnings=ExperimentalWarning", "src/mkcode.js", ...args], {
+/** The real CLIs, in their own process, against the same DB file the app has open. */
+const cli = (script, ...args) =>
+  execFileSync(process.execPath, ["--no-warnings=ExperimentalWarning", `src/${script}`, ...args], {
     cwd: SERVER,
-    env: { ...process.env, ROOST_DB: dbPath },
+    env: { ...process.env, ROOST_DB: dbPath, ROOST_TOKENS: tokensPath },
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"], // captured, so the usage-message cases do not print here
   });
+const mkcode = (...args) => cli("mkcode.js", ...args);
+const devices = (...args) => cli("devices.js", ...args);
+const devicesFail = (...args) => {
+  try {
+    devices(...args);
+    return assert.fail("expected devices.js to exit non-zero");
+  } catch (err) {
+    return { status: err.status, stderr: String(err.stderr) };
+  }
+};
 
 const codeFrom = (out) => /^pairing code .*: (\d{6})$/m.exec(out)?.[1];
 const codeFor = (...args) => codeFrom(mkcode(...args));
 const tokenFile = () => JSON.parse(readFileSync(tokensPath, "utf8"));
 const codeRow = (code) => app.db.prepare("SELECT * FROM pairing_codes WHERE code = ?").get(code);
+const pairedRow = (token) => app.db.prepare("SELECT * FROM paired_tokens WHERE tokenHash = ?").get(hashToken(token));
+const activePaired = () => app.db.prepare("SELECT COUNT(*) AS n FROM paired_tokens WHERE revokedAt IS NULL").get().n;
 const liveCount = () =>
   app.db
     .prepare("SELECT COUNT(*) AS n FROM pairing_codes WHERE consumedAt IS NULL AND expiresAt > ?")
@@ -78,6 +94,13 @@ function unusedCode() {
   let n = 0;
   while (codeRow(String(n).padStart(6, "0"))) n++;
   return String(n).padStart(6, "0");
+}
+
+/** Pair a fresh device and return its token. */
+async function pairDevice(person, label, deviceName, ip) {
+  const paired = await call("POST", "/pair", { body: { code: codeFor(person, label), deviceName }, ip });
+  assert.equal(paired.status, 200, "pairing a fresh code");
+  return paired.body.token;
 }
 
 let anneCode;
@@ -108,7 +131,7 @@ test("mkcode prints a fresh 6-digit code per device, unconsumed, with --minutes 
   assert.throws(() => mkcode("anne", "Phone", "--minutes", "soon"), /Command failed/);
 });
 
-test("POST /pair needs no bearer and its token authenticates on the very next request", async () => {
+test("POST /pair needs no bearer, and its token authenticates on the very next request", async () => {
   assert.equal((await call("GET", "/chores")).status, 401);
 
   const paired = await call("POST", "/pair", { body: { code: anneCode, deviceName: "Anne's iPhone" }, ip: "203.0.113.1" });
@@ -118,17 +141,19 @@ test("POST /pair needs no bearer and its token authenticates on the very next re
   assert.deepEqual(Object.keys(paired.body).sort(), ["person", "token"], "the response carries nothing else");
 
   const chores = await call("GET", "/chores", { token: paired.body.token });
-  assert.equal(chores.status, 200, "no restart, no mtime wait");
+  assert.equal(chores.status, 200, "no restart, no file write, no reload");
   assert.equal(chores.body.chores.length, 31);
 
-  const entry = tokenFile()[paired.body.token];
-  assert.deepEqual(entry, { person: "anne", device: "Anne iPhone · Anne's iPhone" }, "mkcode label · the phone's own name");
-  assert.equal(Object.keys(tokenFile()).length, 2, "appended, the existing device untouched");
-  assert.equal((await call("GET", "/chores", { token: WES })).status, 200);
+  const row = pairedRow(paired.body.token);
+  assert.equal(row.person, "anne");
+  assert.equal(row.label, "Anne iPhone · Anne's iPhone", "mkcode label · the phone's own name");
+  assert.equal(row.revokedAt, null);
+  assert.deepEqual(Object.keys(tokenFile()), [WES], "the tokens file is untouched: the API only reads it");
 
-  const row = codeRow(anneCode);
-  assert.ok(row.consumedAt, "the code is consumed");
-  assert.equal(row.tokenHash, hashToken(paired.body.token), "consumed with the token's hash, never the token");
+  const code = codeRow(anneCode);
+  assert.ok(code.consumedAt, "the code is consumed");
+  assert.equal(code.tokenHash, hashToken(paired.body.token), "recorded by hash, never the token");
+  assert.equal((await call("GET", "/chores", { token: WES })).status, 200, "the hand-minted device still works");
 });
 
 test("a code works once: a replay, an unknown code and an expired one all answer the same 404", async () => {
@@ -144,17 +169,41 @@ test("a code works once: a replay, an unknown code and an expired one all answer
   // Minted with a `now` from January, so it expired months before this app's clock.
   const stale = createPairingCode(app.db, { person: "wes", deviceLabel: "Wes iPhone", minutes: 15 }, "2026-01-02T03:04:05.000Z");
   assert.equal(stale.expiresAt, "2026-01-02T03:19:05.000Z");
-  const before = Object.keys(tokenFile()).length;
+  const before = activePaired();
   const expired = await call("POST", "/pair", { body: { code: stale.code, deviceName: "Phone" }, ip });
   assert.equal(expired.status, 404);
   assert.deepEqual(expired.body, used.body);
-  assert.equal(Object.keys(tokenFile()).length, before, "a 404 mints nothing");
+  assert.equal(activePaired(), before, "a 404 mints nothing");
   assert.equal(codeRow(stale.code).consumedAt, null, "and consumes nothing");
+});
+
+test("the mint is one transaction: a failure after the INSERT leaves the code live", async () => {
+  const code = createPairingCode(app.db, { person: "wes", deviceLabel: "Wes iPhone", minutes: 15 }, clock.toISOString()).code;
+  const tokenHash = "f".repeat(64);
+  // A db that fails exactly on the second statement of the transaction.
+  const failing = {
+    exec: (sql) => app.db.exec(sql),
+    prepare: (sql) => {
+      if (sql.startsWith("UPDATE pairing_codes")) throw new Error("disk went away");
+      return app.db.prepare(sql);
+    },
+  };
+  assert.throws(
+    () => storePairedToken(failing, { tokenHash, person: "wes", label: "Wes iPhone · Phone", code }, clock.toISOString()),
+    /disk went away/
+  );
+
+  assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM paired_tokens WHERE tokenHash = ?").get(tokenHash).n, 0, "rolled back");
+  assert.equal(codeRow(code).consumedAt, null, "the code was not spent");
+
+  const paired = await call("POST", "/pair", { body: { code, deviceName: "Phone" }, ip: "203.0.113.3" });
+  assert.equal(paired.status, 200, "so the phone can just try again");
+  assert.equal((await call("GET", "/chores", { token: paired.body.token })).status, 200);
 });
 
 test("malformed /pair bodies are 400, never 500", async () => {
   const code = unusedCode();
-  const bad = (body, ip = "203.0.113.3") => call("POST", "/pair", { body, ip });
+  const bad = (body, ip = "203.0.113.4") => call("POST", "/pair", { body, ip });
   assert.equal((await bad({})).status, 400);
   assert.equal((await bad({ code })).status, 400, "deviceName required");
   assert.equal((await bad({ deviceName: "Phone" })).status, 400, "code required");
@@ -162,14 +211,14 @@ test("malformed /pair bodies are 400, never 500", async () => {
   assert.equal((await bad({ code: "abcdef", deviceName: "Phone" })).status, 400);
   assert.equal((await bad({ code, deviceName: "   " })).status, 400);
   assert.equal((await bad({ code, deviceName: "x".repeat(61) })).status, 400);
-  const raw = (r) => call("POST", "/pair", { raw: r, ip: "203.0.113.4" });
+  const raw = (r) => call("POST", "/pair", { raw: r, ip: "203.0.113.5" });
   assert.equal((await raw("null")).status, 400);
   assert.equal((await raw("[1,2]")).status, 400);
   assert.equal((await raw("{not json")).status, 400);
   assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
 });
 
-test("the 11th /pair attempt in a minute is 429; other addresses and the next minute are clear", async () => {
+test("the 11th /pair attempt in a minute from one address is 429; other addresses and the next minute are clear", async () => {
   const ip = "198.51.100.5";
   const code = unusedCode();
   const attempt = (extra = {}) => call("POST", "/pair", { body: { code, deviceName: "Phone" }, ip, ...extra });
@@ -185,12 +234,21 @@ test("the 11th /pair attempt in a minute is 429; other addresses and the next mi
   assert.equal((await attempt()).status, 404, "the window slides");
 });
 
+test("and 30 answered attempts a minute across every address, however many addresses they come from", async () => {
+  const code = unusedCode();
+  const attempt = (ip) => call("POST", "/pair", { body: { code, deviceName: "Phone" }, ip });
+
+  for (const ip of ["198.51.100.10", "198.51.100.11", "198.51.100.12"]) {
+    for (let i = 1; i <= 10; i++) assert.equal((await attempt(ip)).status, 404, `${ip} attempt ${i}`);
+  }
+  assert.equal((await attempt("198.51.100.13")).status, 429, "a fresh address is still refused: the global cap is spent");
+
+  tick(60_000);
+  assert.equal((await attempt("198.51.100.13")).status, 404, "the global window slides too");
+});
+
 test("DELETE /pair/self revokes the calling device only", async () => {
-  const paired = await call("POST", "/pair", {
-    body: { code: codeFor("wes", "Wes iPhone"), deviceName: "16 Pro" },
-    ip: "203.0.113.5",
-  });
-  const token = paired.body.token;
+  const token = await pairDevice("wes", "Wes iPhone", "16 Pro", "203.0.113.6");
   assert.equal((await call("GET", "/chores", { token })).status, 200);
   assert.ok(app.db.prepare("SELECT 1 FROM devices WHERE tokenHash = ?").get(hashToken(token)), "device row recorded");
 
@@ -202,22 +260,57 @@ test("DELETE /pair/self revokes the calling device only", async () => {
   assert.deepEqual(gone.body, { unpaired: true, person: "wes", label: "Wes iPhone · 16 Pro" });
 
   assert.equal((await call("GET", "/chores", { token })).status, 401, "the token stops working immediately");
-  assert.equal(token in tokenFile(), false, "gone from the tokens file");
+  assert.ok(pairedRow(token).revokedAt, "kept as a revoked row, not deleted");
   assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM devices WHERE tokenHash = ?").get(hashToken(token)).n, 0);
   assert.equal((await call("GET", "/chores", { token: WES })).status, 200, "the other device still works");
 });
 
-test("/health counts codes still waiting, and needs no auth", async () => {
-  const baseline = liveCount();
+test("DELETE /pair/self will not touch a hand-minted token: 403, and it keeps working", async () => {
+  const refused = await call("DELETE", "/pair/self", { token: WES });
+  assert.equal(refused.status, 403);
+  assert.deepEqual(refused.body, { error: "this device was set up by hand; remove it from the tokens file" });
+  assert.deepEqual(Object.keys(tokenFile()), [WES], "the file is untouched");
+  assert.equal((await call("GET", "/chores", { token: WES })).status, 200);
+});
+
+test("devices.js lists both sources and revokes a paired token from the shell", async () => {
+  const token = await pairDevice("anne", "Anne iPad", "iPad mini", "203.0.113.7");
+  assert.equal((await call("GET", "/chores", { token })).status, 200, "seen once, so it has a lastSeen");
+
+  const listed = devices("list");
+  assert.match(listed, /^paired\s+[0-9a-f]{8}\s+anne\s+Anne iPad · iPad mini\s+\d{4}-/m, "paired row with its lastSeen");
+  assert.match(listed, /^file\s+[0-9a-f]{8}\s+wes\s+Wes test/m, "the hand-minted device is listed too");
+  assert.match(listed, /^revoked\s+[0-9a-f]{8}\s+wes\s+Wes iPhone · 16 Pro/m, "and the one revoked earlier");
+
+  const prefix = hashToken(token).slice(0, 8);
+  assert.match(devices("revoke", prefix), /revoked anne \/ Anne iPad · iPad mini/);
+  assert.equal((await call("GET", "/chores", { token })).status, 401, "revoked from the shell, 401 on the next request");
+  assert.match(devices("revoke", prefix), /was already revoked/, "idempotent");
+
+  const byHand = devicesFail("revoke", hashToken(WES).slice(0, 8));
+  assert.equal(byHand.status, 1);
+  assert.match(byHand.stderr, /set up by hand; remove its line from/);
+  assert.deepEqual(Object.keys(tokenFile()), [WES], "and the file is still untouched");
+  assert.equal((await call("GET", "/chores", { token: WES })).status, 200);
+
+  assert.equal(devicesFail("revoke", "deadbeef").status, 1, "unknown prefix");
+  assert.match(devicesFail("revoke", "deadbeef").stderr, /no device whose token hash starts with/);
+  assert.equal(devicesFail("revoke", "ab").status, 2, "too short to be a device");
+  assert.equal(devicesFail("wat").status, 2);
+});
+
+test("/health counts devices and codes still waiting, and needs no auth", async () => {
   const health = await call("GET", "/health");
   assert.equal(health.status, 200);
-  assert.equal(health.body.pendingCodes, baseline);
-  assert.ok(baseline >= 1, "Anne's iPad code is still waiting");
+  assert.equal(health.body.devices, 1 + activePaired(), "one hand-minted device plus the live paired tokens");
 
-  const code = codeFor("anne", "Anne iPad");
+  const baseline = liveCount();
+  assert.equal(health.body.pendingCodes, baseline);
+
+  const code = codeFor("anne", "Anne iPhone");
   assert.equal((await call("GET", "/health")).body.pendingCodes, baseline + 1, "a new code is pending");
 
-  const paired = await call("POST", "/pair", { body: { code, deviceName: "iPad" }, ip: "203.0.113.6" });
+  const paired = await call("POST", "/pair", { body: { code, deviceName: "iPhone" }, ip: "203.0.113.8" });
   assert.equal(paired.status, 200);
   assert.equal((await call("GET", "/health")).body.pendingCodes, baseline, "a consumed code is not pending");
 

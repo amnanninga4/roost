@@ -11,6 +11,7 @@
     "start": "node --no-warnings=ExperimentalWarning src/server.js",
     "test": "node --no-warnings=ExperimentalWarning --test",
     "mkcode": "node --no-warnings=ExperimentalWarning src/mkcode.js",
+    "devices": "node --no-warnings=ExperimentalWarning src/devices.js",
     "mktoken": "node --no-warnings=ExperimentalWarning src/mktoken.js"
   }
 }
