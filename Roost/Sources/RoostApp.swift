@@ -22,7 +22,7 @@ struct RoostApp: App {
 
     var body: some Scene {
         WindowGroup {
-            TodayScreen()
+            RootTabView()
                 .environment(sync)
         }
         .modelContainer(container)
