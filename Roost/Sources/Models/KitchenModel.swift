@@ -2,8 +2,8 @@
 // Built from the same TodayPlan the Tasks tab uses, so the two screens can never disagree about who owes what.
 // No SwiftUI here; the grouping, sorting, and the caught-up rule are testable on their own.
 import Foundation
-import SwiftData
 import RoostCore
+import SwiftData
 
 struct KitchenModel: Equatable {
     /// One overdue chore. `copy` is the row's escalation subtitle from EscalationCopy; it is never nil here
@@ -14,8 +14,13 @@ struct KitchenModel: Equatable {
         let stage: EscalationStage
         let daysOverdue: Int
         let copy: String
+        /// Who handed this turn over, when somebody did. The same "from Anne" chip the Tasks tab shows:
+        /// an overdue chore on the counter should say whose turn it actually was.
+        let handedOverBy: Person?
 
-        var id: String { "\(person.rawValue):\(chore.id)" }
+        var id: String {
+            "\(person.rawValue):\(chore.id)"
+        }
     }
 
     struct Column: Equatable {
@@ -34,7 +39,9 @@ struct KitchenModel: Equatable {
     let alerts: [Item]
 
     /// True when neither person has anything overdue. Due-today rows do not count; the screen stays calm.
-    var isCaughtUp: Bool { columns.allSatisfy { $0.overdue.isEmpty } }
+    var isCaughtUp: Bool {
+        columns.allSatisfy(\.overdue.isEmpty)
+    }
 
     func column(for person: Person) -> Column {
         columns.first { $0.person == person } ?? Column(person: person, dueCount: 0, overdue: [])
@@ -45,11 +52,28 @@ struct KitchenModel: Equatable {
         columns = Person.allCases.map { person in
             let overdue = plan.rows(for: person).enumerated()
                 .compactMap { index, row -> (order: Int, item: Item)? in
-                    guard !row.isDone, row.stage > .dueToday, let copy = EscalationCopy.subtitle(for: row) else { return nil }
-                    return (index, Item(chore: row.chore, person: person, stage: row.stage, daysOverdue: row.daysOverdue, copy: copy))
+                    guard !row.isDone, row.stage > .dueToday,
+                          let copy = EscalationCopy.subtitle(for: row) else { return nil }
+                    var handedOverBy: Person?
+                    if case let .takenFrom(giver) = row.handoff {
+                        handedOverBy = giver
+                    }
+                    return (
+                        index,
+                        Item(
+                            chore: row.chore,
+                            person: person,
+                            stage: row.stage,
+                            daysOverdue: row.daysOverdue,
+                            copy: copy,
+                            handedOverBy: handedOverBy
+                        )
+                    )
                 }
                 .sorted { a, b in
-                    if a.item.stage != b.item.stage { return a.item.stage > b.item.stage }
+                    if a.item.stage != b.item.stage {
+                        return a.item.stage > b.item.stage
+                    }
                     return a.order < b.order
                 }
                 .map(\.item)
@@ -59,19 +83,26 @@ struct KitchenModel: Equatable {
             .flatMap { $0.overdue.filter { $0.stage == .alert } }
             .enumerated()
             .sorted { a, b in
-                if a.element.daysOverdue != b.element.daysOverdue { return a.element.daysOverdue > b.element.daysOverdue }
+                if a.element.daysOverdue != b.element
+                    .daysOverdue
+                {
+                    return a.element.daysOverdue > b.element.daysOverdue
+                }
                 return a.offset < b.offset
             }
             .map(\.element)
     }
 
-    /// The store path, identical to the Tasks tab: active chores + live completions through TodayPlanner,
-    /// with `activeFrom` falling back to today for a household that has not fixed its start date yet.
-    init(chores: [ChoreRecord], completions: [CompletionRecord], activeFrom: Date?, asOf now: Date,
-         calendar: HouseholdCalendar = HouseholdCalendar()) {
+    /// The store path, identical to the Tasks tab: active chores, live completions and live handoffs
+    /// through TodayPlanner, with `activeFrom` falling back to today for a phone that has not synced yet.
+    init(chores: [ChoreRecord], completions: [CompletionRecord], handoffs: [HandoffRecord] = [],
+         activeFrom: Date?, asOf now: Date,
+         calendar: HouseholdCalendar = HouseholdCalendar())
+    {
         let plan = TodayPlanner.plan(
             chores: chores.compactMap { try? $0.toChore() },
             completions: completions.compactMap { try? $0.toCompletion() },
+            handoffs: handoffs.compactMap { try? $0.toSnapshot() },
             asOf: now,
             activeFrom: activeFrom ?? calendar.startOfDay(now),
             calendar: calendar
@@ -82,7 +113,9 @@ struct KitchenModel: Equatable {
     /// "Synced just now" inside a minute, "Synced 5 minutes ago" after, "Not synced yet" before the first sync.
     static func syncedLine(lastSyncAt: Date?, now: Date = Date()) -> String {
         guard let lastSyncAt else { return Strings.Kitchen.neverSynced }
-        if now.timeIntervalSince(lastSyncAt) < 60 { return Strings.Kitchen.syncedJustNow }
+        if now.timeIntervalSince(lastSyncAt) < 60 {
+            return Strings.Kitchen.syncedJustNow
+        }
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .full
         return Strings.Kitchen.synced(f.localizedString(for: lastSyncAt, relativeTo: now))

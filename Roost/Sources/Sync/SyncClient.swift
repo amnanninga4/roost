@@ -3,7 +3,9 @@
 // syncNow():  1. POST every completion that needs it (idempotent on id; 400 → rejected, never retried)
 //             2. DELETE every soft-deleted completion the server has not acknowledged (404 counts as done)
 //             3. replay the list queues the same way (ListSync.swift: POST creates, PATCH edits, DELETE removals)
-//             4. GET /sync?cursor=&choresVersion= and apply the delta; store the new cursor
+//             4. replay the handoff queues (HandoffSync.swift: POST offers, then POST accept/decline)
+//             5. GET /sync?cursor=&choresVersion= and apply the delta; store the household start date and,
+//                only once every delta row has landed, the new cursor
 // Offline or 5xx is not an error: the queue stays and the next call retries. An in-flight guard makes
 // overlapping callers coalesce into one extra pass, so "sync after every tap" never stampedes.
 import Foundation
@@ -244,6 +246,7 @@ actor SyncClient {
             let lists = try await replayLists(api: api, now: now())
             posted += lists.posted
             deleted += lists.deleted
+            posted += try await replayHandoffs(api: api, now: now())
 
             let response = try await api.sync(cursor: state.cursor, choresVersion: state.choresVersion)
             let received = try apply(response, to: state)
@@ -316,6 +319,14 @@ actor SyncClient {
             applied += 1
         }
         applied += try applyListDelta(response, now: now())
+        applied += try applyHandoffDelta(response, now: now())
+        // The household start the server sent, kept as the last known value when a response carries none
+        // (an older server, a stub) or when the phone never got a response at all.
+        if let sent = response.activeFrom, let day = SyncAPI.parseActiveFrom(sent) {
+            state.activeFrom = day
+        }
+        // Last, and only now: every delta row above is applied, so a cursor that moves can never leave a
+        // row behind. A throw anywhere above leaves the old cursor and the next pass asks for it again.
         state.cursor = max(state.cursor, response.cursor)
         state.choresVersion = response.choresVersion
         return applied

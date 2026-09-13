@@ -1,8 +1,8 @@
-import XCTest
+@testable import Roost
+import RoostCore
 import SwiftData
 import UserNotifications
-import RoostCore
-@testable import Roost
+import XCTest
 
 /// Records what the scheduler asks of the notification center. Never talks to iOS.
 @MainActor
@@ -26,7 +26,9 @@ final class FakeNotificationCenter: NotificationCenterClient {
     }
 
     func add(_ request: UNNotificationRequest) async throws {
-        if let addDelay { try await Task.sleep(for: addDelay) }
+        if let addDelay {
+            try await Task.sleep(for: addDelay)
+        }
         pending.removeAll { $0.identifier == request.identifier }
         pending.append(request)
     }
@@ -48,7 +50,13 @@ private enum Fixture {
 
     static let chores: [Chore] = [
         Chore(id: "scoop-litter", title: "Scoop litter", cadence: .daily, fixedAssignee: .anne, category: .catCare),
-        Chore(id: "refill-cat-water", title: "Refill cat water", cadence: .daily, fixedAssignee: .anne, category: .catCare),
+        Chore(
+            id: "refill-cat-water",
+            title: "Refill cat water",
+            cadence: .daily,
+            fixedAssignee: .anne,
+            category: .catCare
+        ),
         Chore(id: "wipe-tables", title: "Wipe down tables", cadence: .daily, fixedAssignee: .anne, category: .chore),
         Chore(id: "vacuum-basement", title: "Vacuum basement", cadence: .daily, fixedAssignee: .anne, category: .chore),
         Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore),
@@ -62,9 +70,24 @@ private enum Fixture {
     /// laundry: week of Aug 31–Sep 6 still open → due today
     /// garbage (Wes): never → 5 days late, but not Anne's
     static let completions: [Completion] = [
-        Completion(id: "c1", choreId: "scoop-litter", person: .anne, completedAt: cal.date(year: 2026, month: 9, day: 4)),
-        Completion(id: "c2", choreId: "refill-cat-water", person: .anne, completedAt: cal.date(year: 2026, month: 9, day: 2)),
-        Completion(id: "c3", choreId: "wipe-tables", person: .anne, completedAt: cal.date(year: 2026, month: 9, day: 2)),
+        Completion(
+            id: "c1",
+            choreId: "scoop-litter",
+            person: .anne,
+            completedAt: cal.date(year: 2026, month: 9, day: 4)
+        ),
+        Completion(
+            id: "c2",
+            choreId: "refill-cat-water",
+            person: .anne,
+            completedAt: cal.date(year: 2026, month: 9, day: 2)
+        ),
+        Completion(
+            id: "c3",
+            choreId: "wipe-tables",
+            person: .anne,
+            completedAt: cal.date(year: 2026, month: 9, day: 2)
+        ),
     ]
 
     static func due(on date: Date = morning, completions: [Completion] = completions) -> [Person: [DueItem]] {
@@ -79,7 +102,13 @@ private enum Fixture {
 
 final class NotificationPlannerTests: XCTestCase {
     func testFixturePlanProducesExpectedSet() throws {
-        let planned = NotificationPlanner.plan(due: Fixture.due(), for: .anne, on: Fixture.morning, now: Fixture.morning, calendar: Fixture.cal)
+        let planned = NotificationPlanner.plan(
+            due: Fixture.due(),
+            for: .anne,
+            on: Fixture.morning,
+            now: Fixture.morning,
+            calendar: Fixture.cal
+        )
         let byId = Dictionary(uniqueKeysWithValues: planned.map { ($0.id, $0) })
 
         XCTAssertEqual(Set(byId.keys), [
@@ -108,18 +137,41 @@ final class NotificationPlannerTests: XCTestCase {
 
     func testNothingDueSkipsTheDigest() {
         let allDone = Fixture.chores.filter { $0.fixedAssignee == .anne }.enumerated().map {
-            Completion(id: "d\($0.offset)", choreId: $0.element.id, person: .anne, completedAt: Fixture.cal.date(year: 2026, month: 9, day: 6, hour: 6))
+            Completion(
+                id: "d\($0.offset)",
+                choreId: $0.element.id,
+                person: .anne,
+                completedAt: Fixture.cal.date(year: 2026, month: 9, day: 6, hour: 6)
+            )
         }
-        let planned = NotificationPlanner.plan(due: Fixture.due(completions: allDone), for: .anne, on: Fixture.morning, now: Fixture.morning, calendar: Fixture.cal)
+        let planned = NotificationPlanner.plan(
+            due: Fixture.due(completions: allDone),
+            for: .anne,
+            on: Fixture.morning,
+            now: Fixture.morning,
+            calendar: Fixture.cal
+        )
         XCTAssertEqual(planned, [])
     }
 
     func testFireTimesAlreadyPassedAreDropped() {
-        let planned = NotificationPlanner.plan(due: Fixture.due(), for: .anne, on: Fixture.morning, now: Fixture.evening, calendar: Fixture.cal)
+        let planned = NotificationPlanner.plan(
+            due: Fixture.due(),
+            for: .anne,
+            on: Fixture.morning,
+            now: Fixture.evening,
+            calendar: Fixture.cal
+        )
         XCTAssertEqual(planned, [], "at 19:00 both today's 09:00 and 18:00 have passed")
 
         let noon = Fixture.cal.date(year: 2026, month: 9, day: 6, hour: 12)
-        let afternoon = NotificationPlanner.plan(due: Fixture.due(), for: .anne, on: Fixture.morning, now: noon, calendar: Fixture.cal)
+        let afternoon = NotificationPlanner.plan(
+            due: Fixture.due(),
+            for: .anne,
+            on: Fixture.morning,
+            now: noon,
+            calendar: Fixture.cal
+        )
         XCTAssertEqual(afternoon.count, 4, "digest gone, the four 18:00 pings remain")
         XCTAssertFalse(afternoon.contains { $0.id.hasPrefix("roost.digest.") })
     }
@@ -128,11 +180,23 @@ final class NotificationPlannerTests: XCTestCase {
         let due = Fixture.due()
         XCTAssertEqual(due[.wes]?.map(\.chore.id), ["garbage"], "fixture sanity: Wes has an alert-stage chore")
 
-        let anne = NotificationPlanner.plan(due: due, for: .anne, on: Fixture.morning, now: Fixture.morning, calendar: Fixture.cal)
+        let anne = NotificationPlanner.plan(
+            due: due,
+            for: .anne,
+            on: Fixture.morning,
+            now: Fixture.morning,
+            calendar: Fixture.cal
+        )
         XCTAssertFalse(anne.contains { $0.id.contains("garbage") })
         XCTAssertFalse(anne.contains { $0.body.contains("Garbage") || $0.title.contains("Garbage") })
 
-        let wes = NotificationPlanner.plan(due: due, for: .wes, on: Fixture.morning, now: Fixture.morning, calendar: Fixture.cal)
+        let wes = NotificationPlanner.plan(
+            due: due,
+            for: .wes,
+            on: Fixture.morning,
+            now: Fixture.morning,
+            calendar: Fixture.cal
+        )
         XCTAssertEqual(Set(wes.map(\.id)), ["roost.digest.2026-09-06", "roost.overdue.garbage.2026-09-06"])
         XCTAssertEqual(wes.first { $0.id.hasPrefix("roost.overdue.") }?.title, "Garbage can to street emergency")
     }
@@ -144,7 +208,12 @@ final class NotificationPlannerTests: XCTestCase {
     }
 
     func testRequestTriggersAtChicagoWallClock() throws {
-        let planned = PlannedNotification(id: "roost.overdue.x.2026-09-06", title: "t", body: "b", fireAt: Fixture.sixPM)
+        let planned = PlannedNotification(
+            id: "roost.overdue.x.2026-09-06",
+            title: "t",
+            body: "b",
+            fireAt: Fixture.sixPM
+        )
         let request = NotificationPlanner.request(for: planned, calendar: Fixture.cal)
         XCTAssertEqual(request.identifier, "roost.overdue.x.2026-09-06")
         XCTAssertEqual(request.content.title, "t")
@@ -168,7 +237,10 @@ final class NotificationSchedulerTests: XCTestCase {
     private var now = Fixture.morning
 
     override func setUpWithError() throws {
-        container = try ModelContainer(for: RoostSchema.schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        container = try ModelContainer(
+            for: RoostSchema.schema,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
         center = FakeNotificationCenter()
         now = Fixture.morning
         let ctx = ModelContext(container)
@@ -180,7 +252,13 @@ final class NotificationSchedulerTests: XCTestCase {
     }
 
     private func scheduler(horizonDays: Int = 1) -> NotificationScheduler {
-        NotificationScheduler(container: container, center: center, now: { [self] in now }, horizonDays: horizonDays, observesForeground: false)
+        NotificationScheduler(
+            container: container,
+            center: center,
+            now: { [self] in now },
+            horizonDays: horizonDays,
+            observesForeground: false
+        )
     }
 
     private func pair(as person: Person) throws {
@@ -211,7 +289,44 @@ final class NotificationSchedulerTests: XCTestCase {
             "roost.overdue.vacuum-basement.2026-09-06",
         ])
         XCTAssertEqual(center.badge, 4)
-        XCTAssertFalse(center.pending.contains { $0.identifier.contains("garbage") }, "Wes's chore never reaches Anne's phone")
+        XCTAssertFalse(
+            center.pending.contains { $0.identifier.contains("garbage") },
+            "Wes's chore never reaches Anne's phone"
+        )
+    }
+
+    /// Reminding somebody about a chore they handed away is the one thing a reminder must not do, so the
+    /// plan reads the handoffs too: the row leaves Anne's set and Wes's phone picks it up.
+    func testAHandedOverChoreLeavesTheOfferersReminders() async throws {
+        try pair(as: .anne)
+        let ctx = ModelContext(container)
+        // vacuum-basement is Anne's, never done, and its oldest open daily period is Sep 1.
+        let day = Fixture.cal.date(year: 2026, month: 9, day: 1, hour: 9)
+        ctx.insert(HandoffRecord(
+            id: "h-notify",
+            choreId: "vacuum-basement",
+            fromPerson: Person.anne.rawValue,
+            toPerson: Person.wes.rawValue,
+            periodIndex: Fixture.cal.periodIndex(.daily, containing: day),
+            cadence: Cadence.daily.rawValue,
+            state: Handoff.State.accepted.rawValue,
+            createdAt: day,
+            syncedAt: day
+        ))
+        try ctx.save()
+
+        await scheduler().replan()
+        XCTAssertFalse(
+            center.pending.contains { $0.identifier.contains("vacuum-basement") },
+            "Wes took that turn, so it is not on Anne's phone any more"
+        )
+        XCTAssertEqual(center.badge, 3)
+
+        // The same store on Wes's phone: now it is his.
+        try pair(as: .wes)
+        center = FakeNotificationCenter()
+        await scheduler().replan()
+        XCTAssertTrue(center.pending.contains { $0.identifier.contains("vacuum-basement") })
     }
 
     func testReplanClearsThePreviousSet() async throws {
@@ -222,7 +337,12 @@ final class NotificationSchedulerTests: XCTestCase {
 
         // Anne vacuums: the alert disappears, the badge drops, nothing is duplicated.
         let ctx = ModelContext(container)
-        ctx.insert(CompletionRecord(id: "c4", choreId: "vacuum-basement", person: "anne", completedAt: Fixture.cal.date(year: 2026, month: 9, day: 6, hour: 7, minute: 30)))
+        ctx.insert(CompletionRecord(
+            id: "c4",
+            choreId: "vacuum-basement",
+            person: "anne",
+            completedAt: Fixture.cal.date(year: 2026, month: 9, day: 6, hour: 7, minute: 30)
+        ))
         try ctx.save()
         await s.replan()
 
@@ -238,7 +358,10 @@ final class NotificationSchedulerTests: XCTestCase {
         await scheduler(horizonDays: 2).replan()
         let ids = Set(center.pending.map(\.identifier))
         XCTAssertTrue(ids.contains("roost.digest.2026-09-07"))
-        XCTAssertTrue(ids.contains("roost.overdue.laundry.2026-09-07"), "the open week ends Sunday the 6th; Monday it is a nudge")
+        XCTAssertTrue(
+            ids.contains("roost.overdue.laundry.2026-09-07"),
+            "the open week ends Sunday the 6th; Monday it is a nudge"
+        )
         XCTAssertTrue(ids.contains("roost.overdue.scoop-litter.2026-09-07"))
         XCTAssertEqual(center.badge, 4, "badge is today's count, not tomorrow's")
     }
@@ -247,7 +370,10 @@ final class NotificationSchedulerTests: XCTestCase {
         try pair(as: .wes)
         await scheduler().enableAfterPairing()
         XCTAssertEqual(center.authorizationRequests, [[.alert, .sound, .badge]])
-        XCTAssertEqual(Set(center.pending.map(\.identifier)), ["roost.digest.2026-09-06", "roost.overdue.garbage.2026-09-06"])
+        XCTAssertEqual(
+            Set(center.pending.map(\.identifier)),
+            ["roost.digest.2026-09-06", "roost.overdue.garbage.2026-09-06"]
+        )
         XCTAssertEqual(center.badge, 1)
     }
 

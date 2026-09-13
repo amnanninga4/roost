@@ -67,11 +67,17 @@ final class SnapshotWriter {
         let completions = try context.fetch(FetchDescriptor<CompletionRecord>(
             predicate: #Predicate { !$0.removed }
         )).compactMap { try? $0.toCompletion() }
+        // Handoffs too, or the Home Screen and the Tasks tab disagree about who owes a chore somebody
+        // took over — the widget's whole job is being right at a glance.
+        let handoffs = try context.fetch(FetchDescriptor<HandoffRecord>(
+            predicate: #Predicate { !$0.removed }, sortBy: [SortDescriptor(\.createdAt)]
+        )).compactMap { try? $0.toSnapshot() }
 
         let date = now()
         let plan = TodayPlanner.plan(
             chores: chores,
             completions: completions,
+            handoffs: handoffs,
             asOf: date,
             activeFrom: state?.activeFrom ?? calendar.startOfDay(date),
             calendar: calendar
