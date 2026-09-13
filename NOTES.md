@@ -4,6 +4,12 @@
 **Date:** 2026-09-13  
 **Repo state:** concept HTML only (`roost-app-mockup.html`, `chore-master-list.html`), single commit, no issues yet.
 
+## Org
+
+- **Orchestrator:** Anne-app / Aesop on Wes’s M3 (`mac-anne-app-003` on claude-peers)
+- **Worker:** Apple Dev 3.0 (this seat) — takes assigned slices; does not drive roost
+- Bridge: [issue #1](https://github.com/amnanninga4/roost/issues/1) + peers
+
 ## What this is
 
 Shared household app for Anne & Wes: recurring chores + cat care, light competition (streaks / bonus points), shopping, meal ideas, and multi-step projects. Still design-stage — mockup is static HTML (no JS data model).
