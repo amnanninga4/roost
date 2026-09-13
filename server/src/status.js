@@ -228,6 +228,7 @@ export function buildStatusBoard(db, opts = {}) {
     date: formatChicagoDateHeading(now),
     updated: formatChicagoUpdated(now),
     activeFrom: resolveActiveFromString(db, opts),
+    digestLastSent: getMeta(db, "digestLastSent"),
     people,
     bonus: sharedBonus,
     recent,
