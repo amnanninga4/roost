@@ -69,38 +69,48 @@ struct KitchenScreen: View {
         let model = KitchenModel(chores: choreRecords, completions: completionRecords,
                                  handoffs: handoffRecords,
                                  activeFrom: syncStates.first?.activeFrom, asOf: now, calendar: calendar)
-        return ScrollView {
-            VStack(alignment: .leading, spacing: RoostSpacing.xl) {
-                topBar(now: now)
-                if !model.alerts.isEmpty {
-                    AlertBanner(items: model.alerts)
+        // The pill is a row under the scroll view rather than something floating over it. An overlay —
+        // and a `safeAreaInset`, which content still scrolls *under* — covers the tail of the list at the
+        // initial scroll position, which is where a phone propped on the counter sits all day; no amount
+        // of bottom padding fixes that, because the padding only pays off once somebody scrolls to the
+        // end. Giving the pill its own row takes the height out of the scroll view instead, so nothing is
+        // ever drawn behind it.
+        return VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: RoostSpacing.xl) {
+                    topBar(now: now)
+                    if !model.alerts.isEmpty {
+                        AlertBanner(items: model.alerts)
+                    }
+                    columns(model)
+                    if model.isCaughtUp {
+                        Text(Strings.Kitchen.caughtUp)
+                            .roostType(.display)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, RoostSpacing.xxl)
+                            .accessibilityAddTraits(.isHeader)
+                    }
                 }
-                columns(model)
-                if model.isCaughtUp {
-                    Text(Strings.Kitchen.caughtUp)
-                        .roostType(.display)
-                        .foregroundStyle(RoostColor.Role.textSecondary.color)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, RoostSpacing.xxl)
-                        .accessibilityAddTraits(.isHeader)
-                }
-            }
-            .padding(.horizontal, RoostSpacing.screenMargin)
-            .padding(.top, RoostSpacing.sm)
-            // Room for the "Synced …" pill below the last card rather than over it.
-            .padding(.bottom, RoostSpacing.xxxl + RoostSpacing.xl)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .overlay(alignment: .bottom) {
-            Text(KitchenModel.syncedLine(lastSyncAt: sync.lastSyncAt, now: now))
-                .roostType(.monoTally)
-                .foregroundStyle(RoostColor.Role.textSecondary.color)
-                .padding(.horizontal, RoostSpacing.md)
-                .padding(.vertical, RoostSpacing.sm)
-                .background(RoostColor.Role.background.color, in: RoostRadius.pillShape)
+                .padding(.horizontal, RoostSpacing.screenMargin)
+                .padding(.top, RoostSpacing.sm)
                 .padding(.bottom, RoostSpacing.sm)
-                .allowsHitTesting(false)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            syncedPill(now: now)
         }
+    }
+
+    /// How long ago the last pass landed, under the columns. The look is the floating pill it used to be.
+    private func syncedPill(now: Date) -> some View {
+        Text(KitchenModel.syncedLine(lastSyncAt: sync.lastSyncAt, now: now))
+            .roostType(.monoTally)
+            .foregroundStyle(RoostColor.Role.textSecondary.color)
+            .padding(.horizontal, RoostSpacing.md)
+            .padding(.vertical, RoostSpacing.sm)
+            .background(RoostColor.Role.background.color, in: RoostRadius.pillShape)
+            .padding(.bottom, RoostSpacing.sm)
+            .allowsHitTesting(false)
     }
 
     // MARK: pieces
