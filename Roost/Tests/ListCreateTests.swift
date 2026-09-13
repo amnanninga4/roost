@@ -44,27 +44,77 @@ final class ListCreateTests: ListSyncTestCase {
 
     func testLocalMealAddCarriesTagAndIsPostedOnce() async throws {
         try await pairAsAnne()
-        let meal = try XCTUnwrap(try ListActions.addMeal("Tacos", tag: " Weeknight ", in: fresh(), now: listClock))
+        let ctx = fresh()
+        let meal = try XCTUnwrap(try ListActions.addMeal("Tacos", tag: " Weeknight ", in: ctx, now: listClock))
         let id = meal.id
         XCTAssertEqual(meal.tag, "Weeknight")
+        try ListActions.setNextUp(meal, true, in: ctx, now: listClock) // edited before it ever went out
 
         StubURLProtocol.reset { req in
-            if req
-                .httpMethod == "POST"
-            {
-                return (201, json(mealJSON(id: id, title: "Tacos", tag: "Weeknight", seq: 3)))
+            let row = mealJSON(id: id, title: "Tacos", tag: "Weeknight", nextUp: true, seq: 3)
+            if req.httpMethod == "POST" {
+                return (201, json(row))
             }
-            return (200, listsSyncJSON(cursor: 3, meals: [mealJSON(id: id, title: "Tacos", tag: "Weeknight", seq: 3)]))
+            return (200, listsSyncJSON(cursor: 3, meals: [row]))
         }
         let outcome = await client.syncNow()
         XCTAssertEqual(outcome, .synced(posted: 1, deleted: 0, received: 1))
         let post = try XCTUnwrap(StubURLProtocol.requests("POST").first)
         XCTAssertEqual(post.path, "/meals")
         XCTAssertEqual(post.body?["tag"] as? String, "Weeknight")
-        XCTAssertEqual(post.body?["nextUp"] as? Bool, false)
+        XCTAssertEqual(post.body?["nextUp"] as? Bool, true, "the create carries every field")
         XCTAssertTrue(post.body?["lastMadeAt"] is NSNull, "unset lastMadeAt is sent as null")
-        XCTAssertEqual(try mealRow(id)?.seq, 3)
-        XCTAssertNotNil(try mealRow(id)?.syncedAt)
+        XCTAssertEqual(StubURLProtocol.requests("PATCH").count, 0, "a 201 took it all; nothing is left to PATCH")
+        let synced = try XCTUnwrap(try mealRow(id))
+        XCTAssertEqual(synced.seq, 3)
+        XCTAssertNotNil(synced.syncedAt)
+        XCTAssertEqual(synced.pendingPatch, 0)
+    }
+
+    func testEditsMadeBeforeAReplayedCreateStillGoOut() async throws {
+        // The first POST was taken by the server but its 201 never arrived (a dropped connection). Before
+        // the next pass Anne marks the meal next up and made today. The re-POST comes back 200 with the
+        // server's old row: those edits must outlive it and go out as a PATCH.
+        try await pairAsAnne()
+        let ctx = fresh()
+        let meal = try XCTUnwrap(try ListActions.addMeal("Ramen", tag: "", in: ctx, now: listClock))
+        let id = meal.id
+        try ListActions.setNextUp(meal, true, in: ctx, now: listClock)
+        try ListActions.madeToday(meal, in: ctx, now: listClock)
+        XCTAssertEqual(meal.pendingFields, [.nextUp, .lastMadeAt])
+
+        StubURLProtocol.reset { req in
+            switch req.httpMethod {
+            case "POST":
+                (200, json(mealJSON(id: id, title: "Ramen", seq: 20))) // stale: not next up, never made
+            case "PATCH":
+                (
+                    200,
+                    json(mealJSON(
+                        id: id,
+                        title: "Ramen",
+                        lastMadeAt: "2027-01-15T08:00:00.000Z",
+                        nextUp: true,
+                        seq: 21
+                    ))
+                )
+            default:
+                (200, listsSyncJSON(cursor: 21))
+            }
+        }
+        let outcome = await client.syncNow()
+        XCTAssertEqual(outcome, .synced(posted: 2, deleted: 0, received: 0), "the create, then the edit")
+        XCTAssertEqual(StubURLProtocol.requests("POST").map(\.path), ["/meals"])
+        let patch = try XCTUnwrap(StubURLProtocol.requests("PATCH").first)
+        XCTAssertEqual(patch.path, "/meals/\(id)")
+        XCTAssertEqual(patch.body?["nextUp"] as? Bool, true)
+        XCTAssertEqual(patch.body?["lastMadeAt"] as? String, "2027-01-15T08:00:00.000Z")
+        XCTAssertNil(patch.body?["title"], "the replay said nothing about the title")
+        let synced = try XCTUnwrap(try mealRow(id))
+        XCTAssertTrue(synced.nextUp, "the local edit outlived the stale row")
+        XCTAssertEqual(synced.lastMadeAt, listClock)
+        XCTAssertEqual(synced.pendingPatch, 0)
+        XCTAssertEqual(synced.seq, 21)
     }
 
     func testLocalProjectWithStepsIsPostedInOneRequest() async throws {

@@ -11,6 +11,7 @@
 		055617C9ACFE6CBBDE275101 /* StubURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EABB822893431DD76826FD3E /* StubURLProtocol.swift */; };
 		0B2B919BB74D364214308BFB /* RoostDesign in Frameworks */ = {isa = PBXBuildFile; productRef = F4ECABF10A49EE066AC31CE3 /* RoostDesign */; };
 		0D3864D2C93A09F703225872 /* StreakHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D07271A0DB7B2161F47FEC0 /* StreakHeaderView.swift */; };
+		18485F39E0B4CDB1B02E6B81 /* ListFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */; };
 		2D43EE358CB53644986BA17A /* Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7168ED6D6C114A915763462 /* Records.swift */; };
 		2F5F84EFDC6F2F1C4826C688 /* StreakHeaderModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10E35F985A65EA17D991EC0 /* StreakHeaderModel.swift */; };
 		31978A5D325DC887E237D3B4 /* ListSyncTestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A766015E6769CD2060D80A49 /* ListSyncTestCase.swift */; };
@@ -106,6 +107,7 @@
 		AEDE70E38B5C767CEBF25D6B /* chores.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = chores.json; path = ../data/chores.json; sourceTree = "<group>"; };
 		BB7CD878D6E5D1D301380265 /* RoostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostApp.swift; sourceTree = "<group>"; };
 		C0B250C6201CB77F9FC9A682 /* TodayPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlannerTests.swift; sourceTree = "<group>"; };
+		C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListFailureTests.swift; sourceTree = "<group>"; };
 		C322C42624D2C3E5EF44F476 /* SyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAPI.swift; sourceTree = "<group>"; };
 		CE52B0C57CE02C2906E1DB63 /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		DC47AB8F7A08A46B66B44C8C /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
@@ -248,6 +250,7 @@
 				5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */,
 				A3A83AF60338C3D3E81A5795 /* ListCreateTests.swift */,
 				8E7ED3A3F187B7D465B0F1EB /* ListDeltaTests.swift */,
+				C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */,
 				F646A9ADB3D39E2B899084CA /* ListReplayTests.swift */,
 				A766015E6769CD2060D80A49 /* ListSyncTestCase.swift */,
 				E03CE0F01E84A59CEB8FA510 /* NotificationTests.swift */,
@@ -415,6 +418,7 @@
 				B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */,
 				F09F47F7201F64D4DDA19BF9 /* ListCreateTests.swift in Sources */,
 				91B2E1CAF4C7FFE8B09A7656 /* ListDeltaTests.swift in Sources */,
+				18485F39E0B4CDB1B02E6B81 /* ListFailureTests.swift in Sources */,
 				62C9AC685C4EDDBDF0026817 /* ListReplayTests.swift in Sources */,
 				31978A5D325DC887E237D3B4 /* ListSyncTestCase.swift in Sources */,
 				986D647BFF97684348BA8C55 /* NotificationTests.swift in Sources */,

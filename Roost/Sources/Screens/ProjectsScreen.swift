@@ -109,7 +109,16 @@ struct ProjectsScreen: View {
 
     private func start() {
         let lines = steps.split(whereSeparator: \.isNewline).map(String.init)
-        guard let project = try? ListActions.startProject(title, steps: lines, in: context) else { return }
+        let project: ProjectRecord
+        do {
+            guard let started = try ListActions.startProject(title, steps: lines, in: context) else {
+                title = "" // blank: let Return put the keyboard away; the steps wait for a title
+                return
+            }
+            project = started
+        } catch {
+            return // the store refused; the fields keep what was typed
+        }
         title = ""
         steps = ""
         titleFocused = false
@@ -125,9 +134,11 @@ struct ProjectsScreen: View {
         }
     }
 
-    private func add(_ text: String, to project: ProjectRecord) {
-        guard (try? ListActions.addSubtask(text, to: project, in: context)) != nil else { return }
+    /// True when the step went into the store; the add row clears itself and keeps the keyboard.
+    private func add(_ text: String, to project: ProjectRecord) -> Bool {
+        guard (try? ListActions.addSubtask(text, to: project, in: context)) != nil else { return false }
         sync.syncSoon()
+        return true
     }
 
     private func toggle(_ step: SubtaskRecord) {
@@ -180,8 +191,9 @@ private struct ProjectRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(project.title), \(done) of \(total) done")
-        .accessibilityHint(isOpen ? "Collapses the steps" : "Shows the steps")
+        .accessibilityLabel(project.title)
+        .accessibilityValue(Strings.Projects.stepsDone(done: done, total: total))
+        .accessibilityHint(isOpen ? Strings.Projects.hideSteps : Strings.Projects.showSteps)
     }
 }
 
@@ -218,12 +230,15 @@ private struct SubtaskRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(step.done ? "Undo \(step.title)" : "Mark \(step.title) done")
+        .accessibilityLabel(step.title)
+        .accessibilityValue(step.done ? Strings.Projects.stepDone : Strings.Projects.stepNotDone)
+        .accessibilityHint(step.done ? Strings.Projects.markNotDone : Strings.Projects.markDone)
     }
 }
 
 private struct SubtaskAddRow: View {
-    let onAdd: (String) -> Void
+    /// Returns whether the step was added.
+    let onAdd: (String) -> Bool
     @State private var draft = ""
     @FocusState private var focused: Bool
 
@@ -235,12 +250,18 @@ private struct SubtaskAddRow: View {
                 .foregroundStyle(RoostColor.ink)
                 .focused($focused)
                 .submitLabel(.done)
-                .onSubmit {
-                    onAdd(draft)
-                    draft = ""
-                    refocus($focused) // steps come in batches too
-                }
+                .onSubmit(submit)
         }
         .padding(.vertical, 2)
+    }
+
+    private func submit() {
+        guard ListActions.cleaned(draft) != nil else {
+            draft = "" // blank: let Return put the keyboard away, and take the stray spaces with it
+            return
+        }
+        guard onAdd(draft) else { return } // the store refused; the line stays in the field
+        draft = ""
+        refocus($focused) // keep the keyboard up: steps come in batches too
     }
 }

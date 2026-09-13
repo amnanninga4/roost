@@ -3,8 +3,11 @@
 //
 //   replayLists()     POST every pending create (a project carries its pending steps in one request),
 //                     PATCH every pending edit (only the flagged fields), DELETE every pending removal.
-//                     2xx marks the row synced; 400/404 marks it rejected and it is never retried; 401
-//                     and transport/5xx throw with everything done so far saved, so the queue survives.
+//                     2xx marks the row synced. 400, and 404 on a PATCH, mark it rejected: kept locally,
+//                     never retried; a DELETE the server refuses is acknowledged the same way, and a 404
+//                     there means already gone. 401 and a transport failure throw, with everything done so
+//                     far saved. Anything else (429, 5xx, an unreadable reply) is one row's problem for one
+//                     pass: logged, left queued, and the next row and the pull go ahead.
 //   applyListDelta()  upsert every row of the delta by id, honoring `deleted`. A row with a pending
 //                     DELETE keeps its local intent until the DELETE replays; a row with a pending edit
 //                     keeps its own flagged fields and takes the rest from the server.
@@ -31,9 +34,21 @@ extension SyncClient {
         return stats
     }
 
+    /// What one outbound request did to its row.
+    private enum Sent {
+        /// The server has it (for a DELETE: confirms it is gone).
+        case taken
+        /// The server will never take it: marked, kept locally, never retried.
+        case rejected
+        /// No answer this pass; it stays queued for the next one.
+        case deferred
+    }
+
     // MARK: creates
 
-    /// Projects go before their steps: a step's POST needs its project on the server.
+    /// Projects go before their steps: a step's POST needs its project on the server. A 201 means the
+    /// server built the row from the body, so the flags for the fields the body carried are cleared; a
+    /// 200 replay ignored the body, so every flag stays and the edit goes out as a PATCH next.
     private func replayCreates(api: SyncAPI, now: Date) async throws -> Int {
         var posted = 0
         posted += try await postShoppingItems(api: api, now: now)
@@ -50,12 +65,15 @@ extension SyncClient {
         )
         var posted = 0
         for item in items {
-            let taken = try await outbound(item) {
-                let dto = try await api.postShopping(id: item.id, title: item.title)
-                item.pendingFields.remove(.title) // the POST carried the title; a pending `bought` waits for the edits
-                item.apply(dto, now: now)
+            let sent = try await outbound(item) {
+                let reply = try await api.postShopping(id: item.id, title: item.title)
+                if reply.isNew {
+                    item.pendingFields
+                        .remove(.title) // a pending `bought` waits for the edits: the POST has no such field
+                }
+                item.apply(reply.row, now: now)
             }
-            if taken {
+            if sent == .taken {
                 posted += 1
             }
         }
@@ -69,14 +87,16 @@ extension SyncClient {
         )
         var posted = 0
         for meal in meals {
-            let taken = try await outbound(meal) {
-                let dto = try await api.postMeal(
+            let sent = try await outbound(meal) {
+                let reply = try await api.postMeal(
                     id: meal.id, title: meal.title, tag: meal.tag, lastMadeAt: meal.lastMadeAt, nextUp: meal.nextUp
                 )
-                meal.pendingPatch = 0 // the POST carries every field
-                meal.apply(dto, now: now)
+                if reply.isNew {
+                    meal.pendingPatch = 0 // the create carried every field
+                }
+                meal.apply(reply.row, now: now)
             }
-            if taken {
+            if sent == .taken {
                 posted += 1
             }
         }
@@ -95,19 +115,23 @@ extension SyncClient {
             let steps = try pendingSteps(of: project.id)
             let seeds = steps.map { SyncAPI.SubtaskSeed(id: $0.id, title: $0.title) }
             var stepsTaken = 0
-            let taken = try await outbound(project) {
-                let dto = try await api.postProject(id: project.id, title: project.title, subtasks: seeds)
-                project.pendingFields.remove(.title)
-                project.apply(dto, now: now)
-                let returned = Dictionary(uniqueKeysWithValues: (dto.subtasks ?? []).map { ($0.id, $0) })
+            let sent = try await outbound(project) {
+                let reply = try await api.postProject(id: project.id, title: project.title, subtasks: seeds)
+                if reply.isNew {
+                    project.pendingFields.remove(.title)
+                }
+                project.apply(reply.row, now: now)
+                let returned = Dictionary(uniqueKeysWithValues: (reply.row.subtasks ?? []).map { ($0.id, $0) })
                 for step in steps {
                     guard let serverStep = returned[step.id] else { continue }
-                    step.pendingFields.subtract([.title, .sortOrder])
+                    if reply.isNew {
+                        step.pendingFields.subtract([.title, .sortOrder])
+                    }
                     step.apply(serverStep, now: now)
                     stepsTaken += 1
                 }
             }
-            if taken {
+            if sent == .taken {
                 posted += 1 + stepsTaken
             }
         }
@@ -139,14 +163,16 @@ extension SyncClient {
                 continue
             }
             guard project.syncedAt != nil, !project.removed else { continue } // waits for the project, or goes with it
-            let taken = try await outbound(step) {
-                let dto = try await api.postSubtask(
+            let sent = try await outbound(step) {
+                let reply = try await api.postSubtask(
                     projectId: projectId, id: step.id, title: step.title, sortOrder: step.sortOrder
                 )
-                step.pendingFields.subtract([.title, .sortOrder])
-                step.apply(dto, now: now)
+                if reply.isNew {
+                    step.pendingFields.subtract([.title, .sortOrder])
+                }
+                step.apply(reply.row, now: now)
             }
-            if taken {
+            if sent == .taken {
                 posted += 1
             }
         }
@@ -193,13 +219,13 @@ extension SyncClient {
     ) async throws -> Int {
         var posted = 0
         for row in rows {
-            let sent = row.pendingFields
-            let taken = try await outbound(row) {
+            let flagged = row.pendingFields
+            let sent = try await outbound(row) {
                 let dto = try await send(row)
-                row.pendingFields.subtract(sent)
+                row.pendingFields.subtract(flagged)
                 apply(row, dto)
             }
-            if taken {
+            if sent == .taken {
                 posted += 1
             }
         }
@@ -241,46 +267,73 @@ extension SyncClient {
 
     /// DELETEs each row and returns how many are now gone on the server.
     private func remove<Row: ListRecord>(_ rows: [Row], _ send: (Row) async throws -> Void) async throws -> Int {
+        var deleted = 0
         for row in rows {
-            try await outboundDelete(row) { try await send(row) }
+            let sent = try await outboundDelete(row) { try await send(row) }
+            if sent == .taken {
+                deleted += 1
+            }
         }
-        return rows.count
+        return deleted
     }
 
     // MARK: one request
 
-    /// One outbound POST or PATCH under the completions rules. True when the server took it. 401 throws;
-    /// any other 4xx marks the row rejected (kept locally, never retried); transport/5xx saves what has
-    /// been done so far and throws, so the caller ends the pass with the queue intact.
-    private func outbound(_ record: some ListRecord, _ call: () async throws -> Void) async throws -> Bool {
+    /// One outbound POST or PATCH. 401 and a transport failure end the pass (saved up to here, queue
+    /// intact): the token is dead, or nothing else would get through either. Any other 4xx means the
+    /// server will never take this row: rejected, kept locally, never retried. Anything else (429, 5xx,
+    /// an unreadable reply) is this row's problem for this pass: logged, left queued, and the rest of the
+    /// pass, the pull included, goes ahead.
+    private func outbound(_ record: some ListRecord, _ call: () async throws -> Void) async throws -> Sent {
         do {
             try await call()
-            return true
-        } catch let failure as SyncAPIError where failure == .unauthorized {
-            throw failure
-        } catch let failure as SyncAPIError where !failure.isTransient {
-            record.rejected = true
-            record.pendingPatch = 0
-            return false
-        } catch let failure as SyncAPIError {
+            return .taken
+        } catch let failure as SyncAPIError where failure.endsThePass {
             try modelContext.save()
             throw failure
+        } catch let failure as SyncAPIError where failure.isTransient {
+            deferRow(record, failure)
+            return .deferred
+        } catch let failure as SyncAPIError {
+            print(
+                "Roost: \(Self.name(of: record)) \(record.id) was refused (\(failure)); keeping it here, not retrying"
+            )
+            record.rejected = true
+            record.pendingPatch = 0
+            return .rejected
         }
     }
 
-    /// One outbound DELETE. 200 and 404 both mean the row is gone on the server.
-    private func outboundDelete(_ record: some ListRecord, _ call: () async throws -> Void) async throws {
+    /// One outbound DELETE, under the same rules. 404 counts as done: the row never reached the server,
+    /// or is already gone there. A refusal (400) is acknowledged locally too: the row is already gone from
+    /// the phone, and asking again would get the same answer.
+    private func outboundDelete(_ record: some ListRecord, _ call: () async throws -> Void) async throws -> Sent {
         do {
             try await call()
         } catch let failure as SyncAPIError where failure == .notFound {
-            // never reached the server, or already deleted there
-        } catch let failure as SyncAPIError where failure == .unauthorized {
-            throw failure
-        } catch let failure as SyncAPIError {
+            // as good as deleted
+        } catch let failure as SyncAPIError where failure.endsThePass {
             try modelContext.save()
             throw failure
+        } catch let failure as SyncAPIError where failure.isTransient {
+            deferRow(record, failure)
+            return .deferred
+        } catch let failure as SyncAPIError {
+            print("Roost: DELETE of \(Self.name(of: record)) \(record.id) was refused (\(failure)); not retrying")
+            record.rejected = true
+            record.deleteSynced = true
+            return .rejected
         }
         record.deleteSynced = true
+        return .taken
+    }
+
+    private func deferRow(_ record: some ListRecord, _ failure: SyncAPIError) {
+        print("Roost: \(Self.name(of: record)) \(record.id) stays queued for the next pass (\(failure))")
+    }
+
+    private static func name(of record: some ListRecord) -> String {
+        String(describing: type(of: record))
     }
 
     // MARK: inbound

@@ -177,11 +177,47 @@ final class ListDeltaTests: ListSyncTestCase {
         try ctx.save()
         try ListActions.setBought(item, true, by: "anne", in: ctx, now: listClock)
 
-        // The PATCH fails on the way out; the pull that follows never runs, and if a later pass pulls
-        // first, the server's bought=false must not overwrite the tap that is still waiting to go out.
-        StubURLProtocol.reset { _ in (503, Data()) }
+        // The PATCH is rate limited, so the tap is still waiting to go out when the pull brings the
+        // server's copy of the same row with bought false. That copy must not overwrite the tap.
+        StubURLProtocol.reset { req in
+            if req.httpMethod == "PATCH" {
+                return (429, Data())
+            }
+            return (
+                200,
+                listsSyncJSON(
+                    cursor: 12,
+                    shopping: [shoppingJSON(id: "sh-5", title: "Dish soap", addedBy: "wes", seq: 12)]
+                )
+            )
+        }
+        let outcome = await client.syncNow()
+        XCTAssertEqual(outcome, .synced(posted: 0, deleted: 0, received: 1), "the pull ran despite the stuck row")
+        XCTAssertEqual(StubURLProtocol.requests("PATCH").count, 1)
+        let row = try XCTUnwrap(try shoppingRow("sh-5"))
+        XCTAssertTrue(row.bought, "the local tap wins over the older server copy")
+        XCTAssertEqual(row.boughtBy, "anne")
+        XCTAssertEqual(row.pendingFields, [.bought], "and is still queued")
+        XCTAssertEqual(row.seq, 12, "the rest of the row is taken")
+
+        // The next pass sends it.
+        StubURLProtocol.reset { req in
+            if req.httpMethod == "PATCH" {
+                let sent = shoppingJSON(
+                    id: "sh-5",
+                    title: "Dish soap",
+                    addedBy: "wes",
+                    bought: true,
+                    boughtBy: "anne",
+                    boughtAt: listStamp,
+                    seq: 13
+                )
+                return (200, json(sent))
+            }
+            return (200, listsSyncJSON(cursor: 13))
+        }
         _ = await client.syncNow()
-        XCTAssertEqual(try shoppingRow("sh-5")?.bought, true)
-        XCTAssertEqual(try shoppingRow("sh-5")?.pendingFields, [.bought])
+        XCTAssertEqual(StubURLProtocol.requests("PATCH").first?.body?["bought"] as? Bool, true)
+        XCTAssertEqual(try shoppingRow("sh-5")?.pendingPatch, 0)
     }
 }

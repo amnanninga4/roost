@@ -83,11 +83,19 @@ struct MealsScreen: View {
     // MARK: actions
 
     private func add() {
-        defer { refocus($titleFocused) }
-        guard (try? ListActions.addMeal(title, tag: tag, in: context)) != nil else { return }
+        do {
+            guard try ListActions.addMeal(title, tag: tag, in: context) != nil else {
+                title = "" // blank: let Return put the keyboard away, and take the stray spaces with it
+                tag = ""
+                return
+            }
+        } catch {
+            return // the store refused; the fields keep what was typed
+        }
         title = ""
         tag = ""
         sync.syncSoon()
+        refocus($titleFocused) // keep the keyboard up: ideas come in batches too
     }
 
     private func setNextUp(_ meal: MealRecord, _ isOn: Bool) {

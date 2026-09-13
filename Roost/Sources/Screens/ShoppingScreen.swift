@@ -64,10 +64,17 @@ struct ShoppingScreen: View {
     // MARK: actions
 
     private func add() {
-        defer { refocus($draftFocused) } // keep the keyboard up: groceries come in batches
-        guard (try? ListActions.addShoppingItem(draft, by: person, in: context)) != nil else { return }
+        do {
+            guard try ListActions.addShoppingItem(draft, by: person, in: context) != nil else {
+                draft = "" // blank: let Return put the keyboard away, and take the stray spaces with it
+                return
+            }
+        } catch {
+            return // the store refused; the line stays in the field
+        }
         draft = ""
         sync.syncSoon()
+        refocus($draftFocused) // keep the keyboard up: groceries come in batches
     }
 
     private func toggle(_ item: ShoppingItemRecord) {
@@ -103,6 +110,8 @@ private struct ShoppingRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(item.bought ? "Still need \(item.title)" : "Bought \(item.title)")
+        .accessibilityLabel(item.title)
+        .accessibilityValue(item.bought ? Strings.Shopping.bought : Strings.Shopping.stillNeeded)
+        .accessibilityHint(item.bought ? Strings.Shopping.markStillNeeded : Strings.Shopping.markBought)
     }
 }

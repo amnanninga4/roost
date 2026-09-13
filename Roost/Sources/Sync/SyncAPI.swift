@@ -21,12 +21,22 @@ enum SyncAPIError: Error, CustomStringConvertible, Equatable {
         }
     }
 
-    /// True for failures worth retrying later (offline, 5xx). False for 4xx, which will not change on retry.
+    /// True for failures worth retrying later: offline, 5xx, rate limiting (429), a gateway saying no for
+    /// now (403, 408), an unreadable reply. False for 400, 401, 404 and the rest of 4xx, which will not
+    /// change on retry.
     var isTransient: Bool {
         switch self {
         case .transport, .decoding: return true
-        case .http(let code): return code >= 500
+        case .http(let code): return code >= 500 || code == 403 || code == 408 || code == 429
         case .unauthorized, .badRequest, .notFound: return false
+        }
+    }
+
+    /// The whole pass stops on these: the token is dead (re-pair), or nothing is getting through at all.
+    var endsThePass: Bool {
+        switch self {
+        case .unauthorized, .transport: return true
+        case .badRequest, .notFound, .http, .decoding: return false
         }
     }
 }

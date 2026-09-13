@@ -48,7 +48,7 @@ enum ListActions {
                         now: Date = Date()) throws -> MealRecord?
     {
         guard let title = cleaned(title) else { return nil }
-        let meal = MealRecord(id: newId(), title: title, tag: cleaned(tag) ?? "", createdAt: now)
+        let meal = MealRecord(id: newId(), title: title, tag: cleaned(tag, limit: tagLimit) ?? "", createdAt: now)
         context.insert(meal)
         try context.save()
         return meal
@@ -83,7 +83,8 @@ enum ListActions {
 
     // MARK: projects
 
-    /// `steps` become the first subtasks, in order, with `sortOrder` 0..n. Blank lines are skipped.
+    /// `steps` become the first subtasks, in order, with `sortOrder` 0..n. Blank lines are skipped, and
+    /// only as many as the server takes on a create are kept.
     @discardableResult
     static func startProject(_ title: String, steps: [String] = [], in context: ModelContext,
                              now: Date = Date()) throws -> ProjectRecord?
@@ -91,7 +92,7 @@ enum ListActions {
         guard let title = cleaned(title) else { return nil }
         let project = ProjectRecord(id: newId(), title: title, createdAt: now)
         context.insert(project)
-        for (index, step) in steps.compactMap(cleaned).enumerated() {
+        for (_, _) in steps.compactMap { cleaned($0) }.prefix(firstStepsLimit).enumerated() {
             context.insert(SubtaskRecord(
                 id: newId(),
                 projectId: project.id,
@@ -158,14 +159,20 @@ enum ListActions {
 
     // MARK: helpers
 
+    /// The server's limits (server/src/app.js): a title is 1–200 characters, a tag at most 40, and a
+    /// create takes at most 100 steps. Text is cut here rather than rejected there.
+    static let titleLimit = 200
+    static let tagLimit = 40
+    static let firstStepsLimit = 100
+
     static func newId() -> String {
         UUID().uuidString
     }
 
-    /// Trimmed, nil when blank. Titles over the server's limit are cut rather than rejected later.
-    static func cleaned(_ text: String) -> String? {
+    /// Trimmed, nil when blank, cut to `limit` characters.
+    static func cleaned(_ text: String, limit: Int = titleLimit) -> String? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        return String(trimmed.prefix(200))
+        return String(trimmed.prefix(limit))
     }
 }

@@ -85,11 +85,19 @@ extension SyncAPI {
         let subtasks: [SubtaskSeed]
     }
 
+    /// A create's reply. `isNew` is a 201: the server built the row from this body, so `row` mirrors what
+    /// was sent. A 200 is a replay of a POST the phone never heard back from: the body was ignored and
+    /// `row` is whatever the server already had, which may be older than the phone's copy.
+    struct Posted<Row: Decodable & Sendable>: Sendable {
+        let row: Row
+        let isNew: Bool
+    }
+
     // MARK: shopping
 
     /// 201 new, 200 replay. `addedBy` comes back stamped from the token.
-    func postShopping(id: String, title: String) async throws -> ShoppingDTO {
-        try await call("POST", "shopping", body: ["id": .string(id), "title": .string(title)] as Fields)
+    func postShopping(id: String, title: String) async throws -> Posted<ShoppingDTO> {
+        try await post("shopping", body: ["id": .string(id), "title": .string(title)] as Fields)
     }
 
     func patchShopping(id: String, _ fields: Fields) async throws -> ShoppingDTO {
@@ -102,13 +110,16 @@ extension SyncAPI {
 
     // MARK: meals
 
-    func postMeal(id: String, title: String, tag: String, lastMadeAt: Date?, nextUp: Bool) async throws -> MealDTO {
+    /// 201 new, 200 replay. Every field rides the create, so a 201 reply is the phone's own values.
+    func postMeal(
+        id: String, title: String, tag: String, lastMadeAt: Date?, nextUp: Bool
+    ) async throws -> Posted<MealDTO> {
         let body: Fields = [
             "id": .string(id), "title": .string(title), "tag": .string(tag),
             "lastMadeAt": lastMadeAt.map { .string(Self.iso.string(from: $0)) } ?? .null,
             "nextUp": .bool(nextUp),
         ]
-        return try await call("POST", "meals", body: body)
+        return try await post("meals", body: body)
     }
 
     func patchMeal(id: String, _ fields: Fields) async throws -> MealDTO {
@@ -123,8 +134,8 @@ extension SyncAPI {
 
     /// `subtasks` are created in order with `sortOrder` 0..n. On a 200 replay the server ignores them and
     /// returns what it already has, so callers reconcile against `subtasks` in the response.
-    func postProject(id: String, title: String, subtasks: [SubtaskSeed]) async throws -> ProjectDTO {
-        try await call("POST", "projects", body: ProjectBody(id: id, title: title, subtasks: subtasks))
+    func postProject(id: String, title: String, subtasks: [SubtaskSeed]) async throws -> Posted<ProjectDTO> {
+        try await post("projects", body: ProjectBody(id: id, title: title, subtasks: subtasks))
     }
 
     func patchProject(id: String, _ fields: Fields) async throws -> ProjectDTO {
@@ -137,9 +148,9 @@ extension SyncAPI {
     }
 
     /// 400 when the project is unknown or deleted on the server.
-    func postSubtask(projectId: String, id: String, title: String, sortOrder: Int) async throws -> SubtaskDTO {
+    func postSubtask(projectId: String, id: String, title: String, sortOrder: Int) async throws -> Posted<SubtaskDTO> {
         let body: Fields = ["id": .string(id), "title": .string(title), "sortOrder": .int(sortOrder)]
-        return try await call("POST", "projects/\(projectId)/subtasks", body: body)
+        return try await post("projects/\(projectId)/subtasks", body: body)
     }
 
     func patchSubtask(id: String, _ fields: Fields) async throws -> SubtaskDTO {
@@ -152,19 +163,28 @@ extension SyncAPI {
 
     // MARK: plumbing
 
+    /// A create: the reply says whether the server built the row (201) or already had it (200).
+    private func post<T: Decodable & Sendable>(_ path: String, body: some Encodable) async throws -> Posted<T> {
+        let (response, status) = try await send(method: "POST", url: baseURL.appending(path: path), body: encode(body))
+        try Self.check(status, response)
+        return try Posted(row: Self.decode(T.self, response), isNew: status == 201)
+    }
+
     private func call<T: Decodable>(_ method: String, _ path: String, body: some Encodable) async throws -> T {
-        let data: Data
-        do {
-            data = try JSONEncoder().encode(body)
-        } catch {
-            throw SyncAPIError.decoding("could not encode the request: \(error.localizedDescription)")
-        }
-        return try await call(method, path, data: data)
+        try await call(method, path, data: encode(body))
     }
 
     private func call<T: Decodable>(_ method: String, _ path: String, data: Data? = nil) async throws -> T {
         let (response, status) = try await send(method: method, url: baseURL.appending(path: path), body: data)
         try Self.check(status, response)
         return try Self.decode(T.self, response)
+    }
+
+    private func encode(_ body: some Encodable) throws -> Data {
+        do {
+            return try JSONEncoder().encode(body)
+        } catch {
+            throw SyncAPIError.decoding("could not encode the request: \(error.localizedDescription)")
+        }
     }
 }

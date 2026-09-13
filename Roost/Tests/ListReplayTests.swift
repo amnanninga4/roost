@@ -1,6 +1,6 @@
-// The edits, removals, and failure modes of the list sync replayed against the stub server (a 400
-// is final, a 503 keeps the queue). Fixtures and the shared setup live in ListSyncTestCase.swift;
-// the creates are in ListCreateTests.swift.
+// The edits and removals of the list sync replayed against the stub server. Fixtures and the shared
+// setup live in ListSyncTestCase.swift; the creates are in ListCreateTests.swift and the failure modes
+// in ListFailureTests.swift.
 @testable import Roost
 import SwiftData
 import XCTest
@@ -226,53 +226,5 @@ final class ListReplayTests: ListSyncTestCase {
         XCTAssertEqual(try subtaskRow("st-a")?.seq, 50, "the cascade's seqs come back on the response")
         XCTAssertEqual(try ListActions.liveSubtasks(of: "p-3", in: fresh()).count, 0)
         XCTAssertEqual(try state().cursor, 52)
-    }
-
-    // MARK: failure modes
-
-    func testRejectedCreateIsKeptLocallyAndNeverRetried() async throws {
-        try await pairAsAnne()
-        let meal = try XCTUnwrap(try ListActions.addMeal("x", tag: "", in: fresh(), now: listClock))
-        let id = meal.id
-        StubURLProtocol.reset { req in
-            if req.httpMethod == "POST" {
-                return (400, json(["error": "title required: 1-200 chars"]))
-            }
-            return (200, listsSyncJSON(cursor: 7))
-        }
-        _ = await client.syncNow()
-        XCTAssertEqual(StubURLProtocol.requests("POST").count, 1)
-        let rejected = try XCTUnwrap(try mealRow(id))
-        XCTAssertTrue(rejected.rejected)
-        XCTAssertNil(rejected.syncedAt)
-        XCTAssertFalse(rejected.removed, "still on the phone")
-
-        StubURLProtocol.reset { _ in (200, listsSyncJSON(cursor: 7)) }
-        _ = await client.syncNow()
-        XCTAssertEqual(StubURLProtocol.requests("POST").count, 0, "rejected rows are never retried")
-    }
-
-    func testOfflineKeepsTheListQueue() async throws {
-        try await pairAsAnne()
-        let item = try XCTUnwrap(try ListActions.addShoppingItem("Coffee", by: "anne", in: fresh(), now: listClock))
-        let id = item.id
-        StubURLProtocol.reset { _ in (503, Data()) }
-        let outcome = await client.syncNow()
-        if case .failed = outcome {} else {
-            XCTFail("expected .failed, got \(outcome)")
-        }
-        let queued = try XCTUnwrap(try shoppingRow(id))
-        XCTAssertNil(queued.syncedAt)
-        XCTAssertFalse(queued.rejected)
-
-        StubURLProtocol.reset { req in
-            if req.httpMethod == "POST" {
-                return (201, json(shoppingJSON(id: id, title: "Coffee", seq: 9)))
-            }
-            return (200, listsSyncJSON(cursor: 9))
-        }
-        let retried = await client.syncNow()
-        XCTAssertEqual(retried, .synced(posted: 1, deleted: 0, received: 0))
-        XCTAssertNotNil(try shoppingRow(id)?.syncedAt)
     }
 }

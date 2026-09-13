@@ -1,10 +1,10 @@
 // Pieces the three list tabs share: the header block, the dashed "Add…" row, the check circle, the
 // initial avatar, the small mono badge, and the list chrome. Colors and type come from RoostDesign.
-/// Title in the display face over one meta line, like the mockup's panel head.
 import RoostCore
 import RoostDesign
 import SwiftUI
 
+/// Title in the display face over one meta line, like the mockup's panel head.
 struct ListScreenHeader: View {
     let title: String
     let line: String
@@ -79,7 +79,8 @@ struct PlusBadge: View {
     }
 }
 
-/// The check-off circle used by every row that can be ticked.
+/// The check-off circle used by every row that can be ticked. The row around it is the button; the
+/// trait is here so the circle reads as one wherever it stands on its own.
 struct CheckCircle: View {
     let isOn: Bool
 
@@ -87,6 +88,7 @@ struct CheckCircle: View {
         Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
             .font(.system(size: 22, weight: .regular))
             .foregroundStyle(isOn ? RoostColor.accent : RoostColor.line)
+            .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -100,7 +102,7 @@ struct PersonAvatar: View {
             .foregroundStyle(RoostColor.assign)
             .frame(width: 22, height: 22)
             .background(RoostColor.assignSoft, in: Circle())
-            .accessibilityLabel("Added by \(person.displayName)")
+            .accessibilityLabel(Strings.Lists.addedBy(person.displayName))
     }
 }
 
@@ -146,14 +148,14 @@ func refocus(_ focus: FocusState<Bool>.Binding) {
 }
 
 extension View {
-    /// The chrome every list tab shares: inset cards on the page color, "Roost" in the bar.
+    /// The chrome every list tab shares: inset cards on the page color, the app title in the bar.
     func listTabChrome() -> some View {
         listStyle(.insetGrouped)
             .listSectionSpacing(12)
             .scrollContentBackground(.hidden)
             .background(RoostColor.bg)
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle("Roost")
+            .navigationTitle(Strings.appTitle)
             .toolbarTitleDisplayMode(.inline)
     }
 
