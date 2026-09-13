@@ -1,6 +1,7 @@
 // Bearer device tokens. No accounts, no signup.
 // Tokens file: { "<token>": { "person": "anne" | "wes", "device": "Anne iPhone" } }
 // The file is read at startup and re-read when its mtime changes, so rotating a token is: edit file, done.
+// POST /pair (pairing.js) appends to the same file and calls refresh(), so a just-minted token works at once.
 // A file that fails to parse after an edit is logged (once per mtime) and reported in /health; the last
 // good set stays active until the file is fixed, so a broken edit cannot lock every device out.
 import { readFileSync, statSync } from "node:fs";
@@ -66,6 +67,11 @@ export function createTokenStore(path, { log = console.error } = {}) {
     },
     size() {
       return byHash.size;
+    },
+    /** Re-read now, ignoring the mtime cache: /pair writes the file and needs its token live on the next request. */
+    refresh() {
+      mtimeMs = -1;
+      reload();
     },
     /** Null when the current file parsed cleanly; otherwise the logged message. */
     error() {

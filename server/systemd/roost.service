@@ -20,6 +20,8 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/roost
+# POST /pair appends a device token to the tokens file, so /etc/roost is writable too
+ReadWritePaths=/etc/roost
 PrivateTmp=true
 
 [Install]

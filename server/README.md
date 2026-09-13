@@ -14,6 +14,7 @@ Runs on theoldone, bound to `127.0.0.1:8790`. Public path is a Cloudflare Tunnel
 - **subtasks** — `{ id, projectId, title, sortOrder, done, doneBy, doneAt, createdAt, updatedAt, deleted, seq }`. `done: true` stamps `doneBy` (token) and `doneAt` on the transition; `done: false` clears both. `sortOrder` is a non-negative integer, defaulting to one past the project's highest live subtask.
 - **bonus** — `{ id, title, points, claimBy, claimedBy, claimedAt, assignedTo, completedAt, createdBy, createdAt, updatedAt, deleted, seq }`. A one-off "first to claim" task. `points` is an integer 1-10, `claimBy` an ISO UTC deadline (stored normalised to milliseconds), `createdBy` comes from the token. The first person to claim it holds it (`claimedBy`, `claimedAt`); the other person's claim is `409`. Left unclaimed past `claimBy`, it is auto-assigned (`assignedTo`) to the person with fewer bonus points earned in the current Chicago week; a tie goes to the person who did not create it. Auto-assign runs at the start of every `/sync` (and `GET /bonus`), so it needs no timer, and each assignment takes its own `seq` so it reaches both phones. Only `claimedBy` or `assignedTo` may complete it (`403` for anyone else); its points then count for that person in the week of `completedAt`. Deleted tasks earn nothing. Code in `src/bonus.js`.
 - **devices** — hash of each token that has been seen, with person, label, lastSeen.
+- **pairing codes** — `{ code, person, deviceLabel, createdAt, expiresAt, consumedAt, tokenHash }`. A 6-digit code minted by `src/mkcode.js` that a phone trades for a bearer token at `POST /pair`. Live 15 minutes by default, usable once, unique among the live ones (a consumed or expired number can be drawn again). A consumed row keeps the SHA-256 of the token it produced, so a device traces back to the code that paired it. Codes never reach the phones through `/sync`, so they have no `seq`. Code in `src/pairing.js`.
 
 Every list row follows the completions rules: client-generated `id` validated by the same pattern, a POST replay for an existing id returns `200` with the stored row untouched (deleted rows included — no resurrection), deletes are soft and idempotent, and PATCH/DELETE on an unknown id is `404`. Titles are 1-200 chars. All six tables share the ONE `seq` counter, so a single `/sync` call carries every delta in order. No seed data: lists start empty.
 
@@ -25,24 +26,50 @@ Bearer device tokens, no accounts. `/etc/roost/tokens.json`:
 
 ```json
 {
-  "<token>": { "person": "anne", "device": "Anne iPhone" },
-  "<token>": { "person": "wes",  "device": "Wes iPhone" }
+  "<token>": { "person": "anne", "device": "Anne iPhone · Anne iPhone 15" },
+  "<token>": { "person": "wes",  "device": "Wes iPhone · 16 Pro" }
 }
 ```
 
-The file is re-read when it changes. To revoke a device, delete its line. A file that fails to parse is logged once, shown as `tokensFileError` in `/health`, and the last good set stays active until it is fixed. To add one:
+The file is re-read when it changes. To revoke a device, delete its line — or let the phone call `DELETE /pair/self`. A file that fails to parse is logged once, shown as `tokensFileError` in `/health`, and the last good set stays active until it is fixed.
+
+### Pairing a phone
+
+Nobody types a 43-character token into a phone. Mint a short-lived code on the host instead:
+
+```bash
+sudo ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/mkcode.js anne "Anne iPhone" [--minutes 15]
+# pairing code for anne / Anne iPhone: 048213
+# expires 2026-09-13T22:15:00.000Z (15 min); it works once
+```
+
+The phone posts that code with its own device name and gets a real token back:
+
+```bash
+curl -sS https://roost.hinescreative.xyz/pair -H 'content-type: application/json' \
+  -d '{"code":"048213","deviceName":"Anne iPhone 15"}'
+# { "token": "…", "person": "anne" }
+```
+
+The token is appended to the tokens file as `<mkcode label> · <deviceName>`, and the store is reloaded on the spot so it authenticates on the very next request. The code is then spent: using it again is `404 invalid or expired code`, the same answer an unknown or expired code gets, so a guesser learns nothing from it. Guessing is also rate limited to 10 `/pair` attempts a minute per source address (`CF-Connecting-IP` behind the tunnel, then `X-Forwarded-For`, then the socket), `429` beyond that. `/health` reports `pendingCodes`, the codes still waiting.
+
+Because the API writes this file itself now, `install.sh` leaves it `root:roost 0660` and the unit adds `ReadWritePaths=/etc/roost`.
+
+Fallback: `src/mktoken.js` still mints a token and appends it directly, for a device that cannot use the pairing screen, or to get back in when the API is not answering:
 
 ```bash
 sudo ROOST_TOKENS=/etc/roost/tokens.json node /opt/roost/server/src/mktoken.js anne "Anne iPhone"
 ```
 
-The token prints once. The server stores only its SHA-256.
+Either way the token prints once. The server stores only its SHA-256.
 
 ## Endpoints
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, tokensFileError }` |
+| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, pendingCodes, tokensFileError }` |
+| POST | `/pair` | no | body `{ code, deviceName }` → `{ token, person }`; one `404 invalid or expired code` for unknown, already used and expired alike; `400` unless `code` is 6 digits and `deviceName` is 1-60 chars; `429` over 10 attempts a minute from one address |
+| DELETE | `/pair/self` | yes | unpairs the calling device: its token leaves the tokens file, its `devices` row is dropped, and the next request with it is `401` |
 | GET | `/chores` | yes | full list + version |
 | GET | `/completions?cursor=<n>` | yes | rows with `seq > cursor`, deleted rows included with `deleted: true` |
 | POST | `/completions` | yes | body `{ id, choreId, completedAt }`; person comes from the token; `201` new, `200` replay |
@@ -75,6 +102,7 @@ Client loop: start with `cursor=0`, store the `cursor` from each `/sync`, pass i
 ```bash
 cd server
 ROOST_DB=/tmp/roost.db ROOST_TOKENS=/tmp/tokens.json npm start
+ROOST_DB=/tmp/roost.db npm run mkcode -- anne "Anne iPhone"
 npm test
 ```
 

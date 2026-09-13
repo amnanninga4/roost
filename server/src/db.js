@@ -8,6 +8,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { BONUS_SCHEMA } from "./bonus.js";
+import { PAIRING_SCHEMA } from "./pairing.js";
 
 /** The household. Single source for the Node side; the CHECK constraints below are built from it. */
 export const PEOPLE = Object.freeze(["anne", "wes"]);
@@ -97,6 +98,7 @@ export function openDb(path) {
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   db.exec(SCHEMA);
   db.exec(BONUS_SCHEMA);
+  db.exec(PAIRING_SCHEMA);
   return db;
 }
 
