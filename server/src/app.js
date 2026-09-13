@@ -68,6 +68,7 @@ import { bonusRoutes, bonusSync } from "./bonus.js";
 import { createPairing, pendingCodes } from "./pairing.js";
 import { createPush, pushRoutes } from "./push.js";
 import { handoffRoutes, handoffSync } from "./handoffs.js";
+import { readVerifyStatus } from "./verifystatus.js";
 
 const MAX_BODY = 64 * 1024;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
@@ -261,13 +262,14 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         rev: readDeployedRev(),
         activeFrom: getMeta(db, "activeFrom") ?? chicagoDateString(DEFAULT_ACTIVE_FROM),
         digestLastSent: getMeta(db, "digestLastSent"),
+        backup: readVerifyStatus({ log }),
       });
     }
 
     if (req.method === "GET" && path === "/favicon.ico") return faviconHandler(req, res);
 
     if (req.method === "GET" && path === "/status") return statusHandler(db, req, res, { now });
-    if (req.method === "GET" && path === "/status.json") return statusJsonHandler(db, req, res, { now });
+    if (req.method === "GET" && path === "/status.json") return statusJsonHandler(db, req, res, { now, log });
     if (req.method === "GET" && path.startsWith("/fonts/")) return fontsHandler(req, res, path);
 
     if (await pairing.routes(req, res, path)) return; // POST /pair has no bearer yet; /pair/self checks its own

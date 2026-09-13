@@ -87,7 +87,7 @@ sudo -u roost ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/device
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, pendingCodes, tokensFileError, push, rev, activeFrom, digestLastSent }` |
+| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, pendingCodes, tokensFileError, push, rev, activeFrom, digestLastSent, backup }` — `backup` is `{ at, ok, seq }` from the nightly verify status file, or `null` if absent/unparseable |
 | POST | `/pair` | no | body `{ code, deviceName }` → `{ token, person }`; one `404 invalid or expired code` for unknown, already used and expired alike; `400` unless `code` is 6 digits and `deviceName` is 1-60 chars; `429` over 10 answered attempts a minute from one address or 30 across all of them |
 | DELETE | `/pair/self` | yes | unpairs the calling device: its `paired_tokens` row is marked revoked, its `devices` row is dropped, and the next request with it is `401`; `403` for a hand-minted token, which only the tokens file can revoke |
 | GET | `/chores` | yes | full list + version |
@@ -146,7 +146,7 @@ The script creates the `roost` system user, `/opt/roost` (code), `/var/lib/roost
 
 - **Backup** — `roost-backup.timer` runs `backup.sh` at 03:30 host-local (theoldone is America/Chicago) via SQLite's online backup, keeping 30 files in `/var/backups/roost`.
 - **Offsite** — `roost-offsite.timer` runs `offsite-backup.sh` at 04:00 host-local and copies the newest file to the grater at `/mnt/storage-sdd/backups/roost/` over the tailnet, also keeping 30.
-- **Verify** — `roost-verify.timer` runs `verify-backup.sh` at 04:30 host-local as `User=roost`. It picks the newest `/var/backups/roost/roost-*.db`, runs `src/backupcheck.js` (PRAGMA integrity_check + `meta.seq` cursor + expected tables), and fails closed if none exist or the check fails. Manual: `sudo -u roost /opt/roost/server/verify-backup.sh`.
+- **Verify** — `roost-verify.timer` runs `verify-backup.sh` at 04:30 host-local as `User=roost`. It picks the newest `/var/backups/roost/roost-*.db`, runs `src/backupcheck.js` (PRAGMA integrity_check + `meta.seq` cursor + expected tables), and fails closed if none exist or the check fails. Every run (ok or fail) writes `/var/lib/roost/verify-status.json` (`ROOST_VERIFY_STATUS`; atomic temp+mv, `roost:roost`). `GET /health` and `GET /status.json` expose `backup: { at, ok, seq }` from that file, or `null` if absent/unparseable (never throws). Manual: `sudo -u roost /opt/roost/server/verify-backup.sh`.
 - **Restore drill** — `restore.sh` verifies a backup then copies it to a non-live path under `/tmp/roost-restore-drill` by default. It refuses to overwrite `/var/lib/roost/roost.db` unless you pass `--live` (and still only prints stop/start reminders — it does not manage the service for you):
 
 ```bash
@@ -160,7 +160,7 @@ sudo -u roost /opt/roost/server/restore.sh /var/backups/roost/roost-YYYY-MM-DD.d
 sudo systemctl start roost.service
 ```
 
-Logs: `journalctl -u roost -f`. Verify runs: `journalctl -u roost-verify -f`.
+Logs: `journalctl -u roost -f`. Verify runs: `journalctl -u roost-verify -f`. Last verify result is also in `/var/lib/roost/verify-status.json` and on `/health` + `/status.json` as `backup`.
 
 ## Push (APNs)
 

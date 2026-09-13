@@ -7,4 +7,7 @@ Wants=roost-backup.service
 Type=oneshot
 User=roost
 Group=roost
+Environment=ROOST_BACKUP_DIR=/var/backups/roost
+Environment=ROOST_VERIFY_STATUS=/var/lib/roost/verify-status.json
+# Status file lands under /var/lib/roost (owned roost:roost via install.sh).
 ExecStart=/opt/roost/server/verify-backup.sh

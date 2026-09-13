@@ -13,6 +13,7 @@ Environment=ROOST_PORT=8790
 Environment=ROOST_DB=/var/lib/roost/roost.db
 Environment=ROOST_CHORES=/opt/roost/data/chores.json
 Environment=ROOST_TOKENS=/etc/roost/tokens.json
+Environment=ROOST_VERIFY_STATUS=/var/lib/roost/verify-status.json
 ExecStart=@NODE@ --no-warnings=ExperimentalWarning /opt/roost/server/src/server.js
 Restart=always
 RestartSec=3

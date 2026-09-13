@@ -3,7 +3,7 @@
 #   sudo server/install.sh
 # Layout:
 #   /opt/roost            code (server/, data/chores.json, the status board fonts), owned by root, read by roost
-#   /var/lib/roost        SQLite database, owned by roost
+#   /var/lib/roost        SQLite database + verify-status.json, owned by roost
 #   /etc/roost/tokens.json hand-minted device tokens, root:roost 0640, read-only to the API
 #   /var/backups/roost    nightly DB copies, 30 kept
 #   offsite (grater)      roost-offsite.timer ~04:00 host-local → /mnt/storage-sdd/backups/roost, 30 kept
@@ -31,6 +31,7 @@ fi
 
 install -d -o root -g root -m 755 /opt/roost /opt/roost/server /opt/roost/data
 install -d -o roost -g roost -m 750 /var/lib/roost
+# verify-backup.sh writes verify-status.json here (ROOST_VERIFY_STATUS); roost user must own the dir
 install -d -o root -g roost -m 750 /etc/roost
 install -d -o roost -g roost -m 750 /var/backups/roost
 
