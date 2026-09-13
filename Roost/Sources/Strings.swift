@@ -374,16 +374,23 @@ enum Strings {
         static let title = "Settings"
         static let close = "Close"
 
-        static let phoneHeader = "This phone"
+        /// Section headers are set in the mono eyebrow rung, the same as the onboarding screens, so they are
+        /// written in caps here rather than uppercased at the view.
+        static let phoneHeader = "THIS PHONE"
         static let pairedAs = "Paired as"
         static let device = "Device"
         static let notPaired = "Not paired"
+        /// The date this phone traded a code for its token, from `GET /me`.
+        static let pairedSince = "Paired since"
+        /// A device from the tokens file has no pairing date, because nothing paired it.
+        static let pairedHandMinted = "Set up by hand"
 
-        static let serverHeader = "Server"
+        static let serverHeader = "SERVER"
+        static let serverField = "Address"
         /// Debug builds only: the field is editable and the launch argument overrides everything.
         static let serverFooter = "Debug builds only. Launch with -roostServer http://127.0.0.1:8790, or change it here and pair again."
 
-        static let syncHeader = "Sync"
+        static let syncHeader = "SYNC"
         static let lastSync = "Last sync"
         static let status = "Status"
         static let neverSynced = "Not synced yet"

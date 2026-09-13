@@ -95,6 +95,19 @@ struct SyncAPI: Sendable {
         let label: String?
     }
 
+    /// `GET /me` — the server's own view of the calling device.
+    ///
+    /// `label` is the line `devices.js list` prints: for a paired phone, the pairing code's label and the
+    /// name the phone sent itself, joined ("Anne test · iPhone 17 Pro"). `source` is `paired` or `file`;
+    /// `createdAt` is null for a `file` token, because the tokens file has no pairing date.
+    struct MeResponse: Codable, Sendable, Equatable {
+        let person: String
+        let label: String?
+        let source: String
+        let createdAt: String?
+        let lastSeen: String?
+    }
+
     struct ErrorBody: Codable { let error: String }
 
     static let iso: ISO8601DateFormatter = {
@@ -140,6 +153,14 @@ struct SyncAPI: Sendable {
         let (data, status) = try await send(method: "DELETE", url: baseURL.appending(path: "pair/self"), body: nil)
         try Self.check(status, data)
         return try Self.decode(UnpairResponse.self, data)
+    }
+
+    /// Who the server thinks this device is. The one way the app can read the label the household actually
+    /// sees in `devices.js list`: pairing hands back a person and a token, never the label.
+    func me() async throws -> MeResponse {
+        let (data, status) = try await send(method: "GET", url: baseURL.appending(path: "me"), body: nil)
+        try Self.check(status, data)
+        return try Self.decode(MeResponse.self, data)
     }
 
     func sync(cursor: Int, choresVersion: Int?) async throws -> SyncResponse {
