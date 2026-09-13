@@ -69,8 +69,10 @@ extension DeviceIdentity {
 
 @ModelActor
 actor SyncClient {
-    private var tokenStore: TokenStore = KeychainTokenStore()
-    private var session: URLSession = .shared
+    // Readable across the module, writable only through `configure` below, so `SyncClient+Push.swift` can
+    // build a SyncAPI with the same bearer and session a sync pass uses.
+    private(set) var tokenStore: TokenStore = KeychainTokenStore()
+    private(set) var session: URLSession = .shared
     private var now: @Sendable () -> Date = { Date() }
     private var inFlight = false
     private var rerunRequested = false

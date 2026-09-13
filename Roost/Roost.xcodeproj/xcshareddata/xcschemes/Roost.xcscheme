@@ -35,6 +35,20 @@
                ReferencedContainer = "container:Roost.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "25C317265ED30F3BFD7C16E7"
+               BuildableName = "RoostWidget.appex"
+               BlueprintName = "RoostWidget"
+               ReferencedContainer = "container:Roost.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
