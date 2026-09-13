@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -131,4 +131,25 @@ test("backupcheck: CLI exits non-zero on missing file", () => {
   assert.notEqual(run.status, 0);
   const parsed = JSON.parse(run.stdout);
   assert.equal(parsed.ok, false);
+});
+
+test("backupcheck: checkBackup leaves no -wal/-shm sidecars", () => {
+  const dir = mkdtempSync(join(tmpdir(), "roost-bc-nowal-"));
+  try {
+    const path = makeValidDb(dir, 3);
+    // Seed stale sidecars as if a prior RW open left them; check must not recreate after cleanup+open.
+    writeFileSync(path + "-wal", "stale");
+    writeFileSync(path + "-shm", "stale");
+    // Remove them to mimic a clean backup dir; the assertion is that checkBackup itself creates none.
+    rmSync(path + "-wal", { force: true });
+    rmSync(path + "-shm", { force: true });
+    const result = checkBackup(path);
+    assert.equal(result.ok, true, result.error);
+    assert.equal(existsSync(path + "-wal"), false, "unexpected -wal sidecar");
+    assert.equal(existsSync(path + "-shm"), false, "unexpected -shm sidecar");
+    const leftovers = readdirSync(dir).filter((n) => n.endsWith("-wal") || n.endsWith("-shm"));
+    assert.deepEqual(leftovers, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

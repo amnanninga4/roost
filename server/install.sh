@@ -7,7 +7,7 @@
 #   /etc/roost/tokens.json hand-minted device tokens, root:roost 0640, read-only to the API
 #   /var/backups/roost    nightly DB copies, 30 kept
 #   offsite (grater)      roost-offsite.timer ~04:00 host-local → /mnt/storage-sdd/backups/roost, 30 kept
-  verify                roost-verify.timer ~04:30 host-local → verify-backup.sh on newest local copy
+#   verify                roost-verify.timer ~04:30 host-local → verify-backup.sh on newest local copy
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then echo "run with sudo" >&2; exit 1; fi
