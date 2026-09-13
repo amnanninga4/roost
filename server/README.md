@@ -6,8 +6,8 @@ Runs on theoldone, bound to `127.0.0.1:8790`. Public path is a Cloudflare Tunnel
 
 ## Model
 
-- **chores** — mirror of `data/chores.json`, seeded on every start (idempotent upsert). `choresVersion` comes from the JSON `version` field; bump it when the list changes so clients refetch.
-- **completions** — `{ id, choreId, person, completedAt, createdAt, updatedAt, deleted }`. `id` is client-generated so an offline queue can replay a POST safely. Deletes are soft so they propagate through sync deltas.
+- **chores** — mirror of `data/chores.json`, seeded on every start (idempotent upsert; ids missing from the file are marked retired, hidden from clients, kept for history). `choresVersion` comes from the JSON `version` field; bump it when the list changes so clients refetch.
+- **completions** — `{ id, choreId, person, completedAt, createdAt, updatedAt, deleted, seq }`. `id` is client-generated (1-64 chars of `A-Z a-z 0-9 . _ ~ : @ + -`) so an offline queue can replay a POST safely. Deletes are soft so they propagate through sync deltas. `seq` is a monotonic counter bumped on every insert and delete; it is the sync cursor.
 - **devices** — hash of each token that has been seen, with person, label, lastSeen.
 
 All stored times are ISO-8601 UTC. Chicago-time rules (due today, streaks, escalation) belong to the app and RoostCore, not the server.
@@ -23,7 +23,7 @@ Bearer device tokens, no accounts. `/etc/roost/tokens.json`:
 }
 ```
 
-The file is re-read when it changes. To revoke a device, delete its line. To add one:
+The file is re-read when it changes. To revoke a device, delete its line. A file that fails to parse is logged once, shown as `tokensFileError` in `/health`, and the last good set stays active until it is fixed. To add one:
 
 ```bash
 sudo ROOST_TOKENS=/etc/roost/tokens.json node /opt/roost/server/src/mktoken.js anne "Anne iPhone"
@@ -35,14 +35,14 @@ The token prints once. The server stores only its SHA-256.
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded }` |
+| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, tokensFileError }` |
 | GET | `/chores` | yes | full list + version |
-| GET | `/completions?since=<iso>` | yes | changed after `since` (exclusive), deleted rows included with `deleted: true` |
+| GET | `/completions?cursor=<n>` | yes | rows with `seq > cursor`, deleted rows included with `deleted: true` |
 | POST | `/completions` | yes | body `{ id, choreId, completedAt }`; person comes from the token; `201` new, `200` replay |
 | DELETE | `/completions/:id` | yes | soft delete, idempotent, `404` if unknown |
-| GET | `/sync?since=<iso>&choresVersion=<n>` | yes | one call: `serverTime`, `person`, `choresVersion`, `completions` delta, and `chores` only when the client's version differs |
+| GET | `/sync?cursor=<n>&choresVersion=<v>` | yes | one call: `serverTime`, `person`, `choresVersion`, `cursor`, `completions` with `seq > cursor`, and `chores` only when the client's version differs |
 
-Client loop: store `serverTime` from each `/sync`, pass it back as `since` next time. Replay queued POSTs first, then sync.
+Client loop: start with `cursor=0`, store the `cursor` from each `/sync`, pass it back next time. Replay queued POSTs first, then sync. The cursor is a counter, not a time, so same-millisecond writes and clock changes cannot drop rows.
 
 ## Run locally
 

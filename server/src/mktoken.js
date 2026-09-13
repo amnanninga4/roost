@@ -3,12 +3,13 @@
 // Prints the token once. It is not stored anywhere else; the server only ever sees its hash in the DB.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { randomBytes } from "node:crypto";
+import { PEOPLE } from "./db.js";
 
 const [person, label, pathArg] = process.argv.slice(2);
 const tokensPath = pathArg || process.env.ROOST_TOKENS || "/etc/roost/tokens.json";
 
-if (!["anne", "wes"].includes(person) || !label) {
-  console.error('usage: mktoken <anne|wes> "<device label>" [tokensPath]');
+if (!PEOPLE.includes(person) || !label) {
+  console.error(`usage: mktoken <${PEOPLE.join("|")}> "<device label>" [tokensPath]`);
   process.exit(2);
 }
 
