@@ -82,6 +82,10 @@ struct ChoreListScreen: View {
 private struct ChoreListRow: View {
     let record: ChoreRecord
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// Grows with the text: at 40-pt type a fixed 8-pt gap makes two rows read as one wrapped sentence.
+    @ScaledMetric(relativeTo: .body) private var rowPadding = RoostSpacing.sm
+
     private var category: RoostCategory {
         record.category == ChoreCategory.catCare.rawValue ? .catCare : .home
     }
@@ -91,18 +95,29 @@ private struct ChoreListRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: RoostSpacing.sm) {
-            Image(systemName: category.symbol)
-                .roostType(.caption)
-                .foregroundStyle(category.color)
-                .padding(RoostSpacing.xs)
-                .background(category.softColor, in: RoostRadius.shape(RoostRadius.sm))
-                .accessibilityHidden(true)
+        // One line normally. At accessibility sizes the badge and the pinned chip each take a fixed
+        // 40-odd points off a column that is only 300 wide, which breaks "dishwasher" mid-word, so the
+        // title gets the whole width and the chip goes under it.
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: RoostSpacing.sm))
+        return layout {
+            // The cat/house badge is a tint, not information — it is the first thing to go.
+            if !typeSize.isAccessibilitySize {
+                Image(systemName: category.symbol)
+                    .roostType(.caption)
+                    .foregroundStyle(category.color)
+                    .padding(RoostSpacing.xs)
+                    .background(category.softColor, in: RoostRadius.shape(RoostRadius.sm))
+                    .accessibilityHidden(true)
+            }
             Text(record.title)
                 .roostType(.rowTitle)
                 .foregroundStyle(RoostColor.Role.textPrimary.color)
                 .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: RoostSpacing.sm)
+            if !typeSize.isAccessibilitySize {
+                Spacer(minLength: RoostSpacing.sm)
+            }
             if let person = pinnedTo {
                 Text(person.displayName.uppercased())
                     .roostType(.monoLabel)
@@ -113,8 +128,9 @@ private struct ChoreListRow: View {
                     .fixedSize()
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, RoostSpacing.sm)
-        .padding(.vertical, RoostSpacing.sm)
+        .padding(.vertical, rowPadding)
         .frame(minHeight: RoostSpacing.minTapTarget)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(record.title)

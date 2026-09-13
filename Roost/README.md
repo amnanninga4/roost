@@ -214,6 +214,8 @@ The three list tabs share one shape (`ListParts.swift`): the tab title in the di
 
 **Dynamic Type.** The screen is built for `accessibility5`, not merely survivable at it. `AnyLayout` swaps four rows into stacks at accessibility sizes: the streak cards, the person header (name / YOU / count), the week tally, and a row's meta line. The "CURRENTLY AHEAD" pill is laid out invisibly at normal sizes so taking the lead does not shove the cards, and dropped entirely when stacked, where an invisible pill would be a blank line of 40 pt type. The category badge — decoration, already `accessibilityHidden` — drops out at accessibility sizes rather than costing the title a third of its column. No title truncates at any size.
 
+**All chores** (gear → All chores) got the same treatment: it no longer carries its own `NavigationStack` (it is pushed onto the Tasks tab's), the cadence groups are inset cards on the page colour with a mono count each, and a chore pinned to one person wears their name. At accessibility sizes its rows drop the category badge, move the pinned chip under the title, and take a `@ScaledMetric` vertical padding, because a fixed 8-pt gap between two 40-pt rows reads as one wrapped sentence.
+
 **VoiceOver.** A row is one element: label = the chore's title, value = its state ("Done", "Due today", "3 days late", plus "Always Anne" when pinned), hint = what the tap will do. Each person's header is one element with the `.isHeader` trait, as is "Today". The streak cards read as "Anne, 9 day streak, currently ahead"; the week bar reads its tally line.
 
 ### Kitchen mode
