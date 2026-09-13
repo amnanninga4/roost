@@ -6,7 +6,7 @@ SwiftUI + SwiftData, iOS 18+, offline-first. The phone keeps its own store and s
 | --- | --- | --- |
 | ![Tasks tab](docs/tasks-r10.png) | ![Shopping placeholder](docs/shopping-r10.png) | ![Kitchen mode](docs/kitchen-r17.png) |
 
-All three screenshots are a fresh, unpaired simulator install: the streaks are tied at 0 so nobody is tagged as ahead, and nothing is overdue yet, so no row has a subtitle and Kitchen mode shows its calm state.
+The R-10 screenshots are a fresh, unpaired simulator install: the streaks are tied at 0 so nobody is tagged as ahead, and nothing is overdue yet so no row has a subtitle. The Kitchen mode screenshot is the same unpaired simulator later that day with three of Anne's chores already checked off (12 + 16 = 28 of 31 still due) and still nothing overdue, so it shows the calm state.
 
 ## Layout
 
@@ -41,7 +41,7 @@ Roost/
   Tests/                      in-memory ModelContainer + URLProtocol stub; no network
   docs/tasks-r10.png          simulator screenshot, Tasks tab (fresh unpaired install: tied streaks, nothing overdue)
   docs/shopping-r10.png       simulator screenshot, Shopping placeholder
-  docs/kitchen-r17.png        simulator screenshot, Kitchen mode (fresh install: everything due today, nothing overdue, "All caught up.")
+  docs/kitchen-r17.png        simulator screenshot, Kitchen mode (unpaired, three chores checked off, nothing overdue: "All caught up.")
   docs/today-r8.png           the R-8 screenshot, kept for history
 ```
 
