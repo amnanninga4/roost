@@ -12,6 +12,7 @@ const config = {
   dbPath: env.ROOST_DB || "/var/lib/roost/roost.db",
   choresPath: env.ROOST_CHORES || resolve(here, "../../data/chores.json"),
   tokensPath: env.ROOST_TOKENS || "/etc/roost/tokens.json",
+  apnsPath: env.ROOST_APNS || "/etc/roost/apns.json",
 };
 
 const { server, tokens, seeded } = createApp(config);

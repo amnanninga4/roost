@@ -1,0 +1,350 @@
+// APNs push: device token registry, HTTP/2 sender, completion + red-alert triggers.
+//
+// Everything push lives here so app.js only imports, creates the service, dispatches
+// pushRoutes, and adds one /health field (same shape as pairing/bonus).
+//
+// Config (host file, never in the repo): /etc/roost/apns.json
+//   { "keyPath", "keyId", "teamId", "bundleId": "xyz.hinescreative.roost", "env": "sandbox"|"production" }
+// When the file or .p8 is missing, push is DISABLED cleanly: /health reports push:"no key",
+// sends are no-ops that log once, nothing throws.
+import { readFileSync, existsSync } from "node:fs";
+import { createPrivateKey, sign } from "node:crypto";
+import http2 from "node:http2";
+import { PEOPLE } from "./db.js";
+import { dueItems } from "./rules.js";
+
+export const DEFAULT_APNS_PATH = "/etc/roost/apns.json";
+export const DEFAULT_BUNDLE_ID = "xyz.hinescreative.roost";
+export const RED_ALERT_MS = 15 * 60 * 1000;
+
+/** dueToday=0, nudge=1, pointed=2, alert=3 — red-alert is stage >= 3. */
+export const STAGE_RANK = Object.freeze({ dueToday: 0, nudge: 1, pointed: 2, alert: 3 });
+
+export const PUSH_SCHEMA = `
+CREATE TABLE IF NOT EXISTS push_tokens (
+  token     TEXT PRIMARY KEY,
+  person    TEXT NOT NULL CHECK (person IN ('anne','wes')),
+  platform  TEXT NOT NULL,
+  updatedAt TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS push_tokens_person ON push_tokens(person);
+`;
+
+const PLATFORMS = new Set(["ios"]);
+const TOKEN_RE = /^[0-9a-fA-F]{64}$/;
+const NAME = { anne: "Anne", wes: "Wes" };
+
+export function partnerOf(person) {
+  return person === "anne" ? "wes" : "anne";
+}
+
+export function upsertPushToken(db, { token, person, platform }, now) {
+  db.prepare(
+    `INSERT INTO push_tokens (token, person, platform, updatedAt) VALUES (?, ?, ?, ?)
+     ON CONFLICT(token) DO UPDATE SET person = excluded.person, platform = excluded.platform, updatedAt = excluded.updatedAt`
+  ).run(token, person, platform, now);
+  return db.prepare("SELECT token, person, platform, updatedAt FROM push_tokens WHERE token = ?").get(token);
+}
+
+export function deletePushToken(db, { token, person }) {
+  const row = db.prepare("SELECT token, person, platform, updatedAt FROM push_tokens WHERE token = ?").get(token);
+  if (!row) return null;
+  if (row.person !== person) return null;
+  db.prepare("DELETE FROM push_tokens WHERE token = ?").run(token);
+  return row;
+}
+
+export function tokensForPerson(db, person) {
+  return db.prepare("SELECT token, person, platform, updatedAt FROM push_tokens WHERE person = ?").all(person);
+}
+
+function b64url(data) {
+  return Buffer.from(data).toString("base64url");
+}
+
+/** ES256 JWT for APNs (iss=teamId, iat=now, kid=keyId). Built-in crypto only. */
+export function makeApnsJwt({ keyPem, keyId, teamId, nowSec }) {
+  const header = b64url(JSON.stringify({ alg: "ES256", kid: keyId }));
+  const claims = b64url(JSON.stringify({ iss: teamId, iat: nowSec }));
+  const key = createPrivateKey(keyPem);
+  const sig = sign("SHA256", Buffer.from(`${header}.${claims}`), { key, dsaEncoding: "ieee-p1363" });
+  return `${header}.${claims}.${sig.toString("base64url")}`;
+}
+
+/**
+ * Read apns.json. Returns null when missing/invalid so callers disable cleanly.
+ * Does not throw for a missing file.
+ */
+export function loadApnsConfig(apnsPath, { log = console.error } = {}) {
+  if (!apnsPath || !existsSync(apnsPath)) return null;
+  let raw;
+  try {
+    raw = JSON.parse(readFileSync(apnsPath, "utf8"));
+  } catch (err) {
+    log(`apns config ${apnsPath} not applied: ${err.message}`);
+    return null;
+  }
+  const { keyPath, keyId, teamId, bundleId, env } = raw ?? {};
+  if (!keyPath || !keyId || !teamId || !bundleId || (env !== "sandbox" && env !== "production")) {
+    log(`apns config ${apnsPath} incomplete (need keyPath, keyId, teamId, bundleId, env)`);
+    return null;
+  }
+  if (!existsSync(keyPath)) {
+    log(`apns key file missing: ${keyPath}`);
+    return null;
+  }
+  let keyPem;
+  try {
+    keyPem = readFileSync(keyPath, "utf8");
+  } catch (err) {
+    log(`apns key unreadable: ${err.message}`);
+    return null;
+  }
+  return { keyPath, keyId, teamId, bundleId, env, keyPem };
+}
+
+function apnsHost(env) {
+  return env === "production" ? "api.push.apple.com" : "api.sandbox.push.apple.com";
+}
+
+/**
+ * Real HTTP/2 APNs sender. Injectable `connect` for tests that still want the request shape
+ * without talking to Apple; production uses node:http2.connect.
+ */
+export function createHttp2Sender(config, { connect = http2.connect, now = () => new Date(), log = console.error } = {}) {
+  let jwt = null;
+  let jwtExp = 0;
+
+  function bearer() {
+    const sec = Math.floor(now().getTime() / 1000);
+    // APNs JWTs are valid up to 1h; refresh a minute early.
+    if (!jwt || sec >= jwtExp - 60) {
+      jwt = makeApnsJwt({ keyPem: config.keyPem, keyId: config.keyId, teamId: config.teamId, nowSec: sec });
+      jwtExp = sec + 3500;
+    }
+    return jwt;
+  }
+
+  return async function sendApns({ deviceToken, headers, body }) {
+    const host = apnsHost(config.env);
+    const client = connect(`https://${host}`);
+    await new Promise((resolve, reject) => {
+      client.on("error", reject);
+      const req = client.request({
+        ":method": "POST",
+        ":path": `/3/device/${deviceToken}`,
+        authorization: `bearer ${bearer()}`,
+        "apns-topic": headers["apns-topic"] ?? config.bundleId,
+        "apns-push-type": headers["apns-push-type"] ?? "alert",
+        "apns-priority": headers["apns-priority"] ?? "10",
+        "content-type": "application/json",
+      });
+      let status = 0;
+      let resp = "";
+      req.on("response", (h) => {
+        status = Number(h[":status"] ?? 0);
+      });
+      req.setEncoding("utf8");
+      req.on("data", (c) => (resp += c));
+      req.on("end", () => {
+        client.close();
+        if (status >= 400) log(`apns ${status} for …${deviceToken.slice(-8)}: ${resp || "(empty)"}`);
+        resolve();
+      });
+      req.on("error", (err) => {
+        client.close();
+        reject(err);
+      });
+      req.end(JSON.stringify(body));
+    });
+  };
+}
+
+/** No-op sender when the key is absent. Logs once, never throws. */
+export function createDisabledSender({ log = console.error } = {}) {
+  let logged = false;
+  return async function sendDisabled() {
+    if (!logged) {
+      logged = true;
+      log("push disabled: no apns key (sends are no-ops)");
+    }
+  };
+}
+
+/**
+ * Build the low-level sender from config. Prefer injecting `sender` in tests.
+ * Returns { sender, health } where health is "no key" | "sandbox" | "production".
+ */
+export function buildSender(apnsPath, { sender, connect, now, log } = {}) {
+  if (sender) {
+    const cfg = loadApnsConfig(apnsPath, { log });
+    return { sender, health: cfg ? cfg.env : "ready", config: cfg };
+  }
+  const config = loadApnsConfig(apnsPath, { log });
+  if (!config) return { sender: createDisabledSender({ log }), health: "no key", config: null };
+  return { sender: createHttp2Sender(config, { connect, now, log }), health: config.env, config };
+}
+
+function alertBody(title, body) {
+  return {
+    aps: {
+      alert: { title, body },
+      sound: "default",
+    },
+  };
+}
+
+/**
+ * Push service: token routes helpers, notify helpers, red-alert sweep.
+ * `sender` is injectable so tests assert payload + apns-topic with no network.
+ */
+export function createPush({
+  db,
+  apnsPath = DEFAULT_APNS_PATH,
+  sender: injectedSender,
+  now = () => new Date(),
+  log = console.error,
+  sweepIntervalMs = RED_ALERT_MS,
+  connect,
+} = {}) {
+  const built = buildSender(apnsPath, { sender: injectedSender, connect, now, log });
+  let health = built.health;
+  let sender = built.sender;
+  let config = built.config;
+  const bundleId = () => config?.bundleId ?? DEFAULT_BUNDLE_ID;
+
+  async function deliver(person, { title, body }) {
+    const rows = tokensForPerson(db, person);
+    if (rows.length === 0) return;
+    const payload = alertBody(title, body);
+    const headers = {
+      "apns-topic": bundleId(),
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+    };
+    for (const row of rows) {
+      try {
+        await sender({ deviceToken: row.token, headers, body: payload });
+      } catch (err) {
+        log(`push send failed for ${person}: ${err.message}`);
+      }
+    }
+  }
+
+  async function notifyCompletion(row) {
+    if (!row || row.deletedAt) return;
+    const chore = db.prepare("SELECT title FROM chores WHERE id = ?").get(row.choreId);
+    const title = chore?.title ?? row.choreId;
+    const who = NAME[row.person] ?? row.person;
+    const other = partnerOf(row.person);
+    await deliver(other, { title: "Roost", body: `${who} did ${title}` });
+  }
+
+  /**
+   * Red-alert: stage >= 3 ("alert", daysOverdue >= 5). Notify the assignee's partner.
+   * Idempotent within a process for the same chore+period until the period changes.
+   */
+  const alerted = new Set();
+  async function runRedAlertSweep(asOf = now()) {
+    const chores = db
+      .prepare("SELECT id, title, cadence, fixedAssignee, category FROM chores WHERE retired = 0 ORDER BY sortOrder")
+      .all();
+    const completions = db
+      .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
+      .all();
+    const due = dueItems({ chores, completions, asOf });
+    for (const person of PEOPLE) {
+      for (const item of due[person] ?? []) {
+        if ((STAGE_RANK[item.stage] ?? -1) < 3) continue;
+        const key = `${item.chore.id}:${item.periodIndex}`;
+        if (alerted.has(key)) continue;
+        alerted.add(key);
+        const other = partnerOf(item.person);
+        const who = NAME[item.person] ?? item.person;
+        await deliver(other, {
+          title: "Roost red alert",
+          body: `${who}'s chore is overdue: ${item.chore.title}`,
+        });
+      }
+    }
+  }
+
+  let timer = null;
+  function startSweep() {
+    if (timer || sweepIntervalMs <= 0) return;
+    timer = setInterval(() => {
+      runRedAlertSweep().catch((err) => log(`red-alert sweep: ${err.message}`));
+    }, sweepIntervalMs);
+    timer.unref?.();
+  }
+
+  function stopSweep() {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+  }
+
+  startSweep();
+
+  return {
+    health: () => health,
+    notifyCompletion,
+    runRedAlertSweep,
+    deliver,
+    startSweep,
+    stopSweep,
+    /** Test helper: swap sender without rebuilding the app. */
+    _setSender(s, h = "ready", cfg = null) {
+      sender = s;
+      health = h;
+      config = cfg;
+    },
+  };
+}
+
+// ---- Routes -------------------------------------------------------------------------------------
+
+/**
+ *   POST   /push/token   { token, platform } -> 200 upsert; person from bearer
+ *   DELETE /push/token   { token }           -> 200 unregister (own tokens only), 404 unknown
+ * Returns true when answered.
+ */
+export async function pushRoutes({ req, res, path, db, device, send, readJson, iso }) {
+  if (path !== "/push/token") return false;
+
+  if (req.method === "POST") {
+    const body = await readJson(req);
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+    const platform = typeof body.platform === "string" ? body.platform.trim().toLowerCase() : "";
+    if (!TOKEN_RE.test(token)) {
+      send(res, 400, { error: "token must be a 64-char hex APNs device token" });
+      return true;
+    }
+    if (!PLATFORMS.has(platform)) {
+      send(res, 400, { error: "platform must be ios" });
+      return true;
+    }
+    const row = upsertPushToken(db, { token, person: device.person, platform }, iso());
+    send(res, 200, { token: row.token, person: row.person, platform: row.platform, updatedAt: row.updatedAt });
+    return true;
+  }
+
+  if (req.method === "DELETE") {
+    const body = await readJson(req);
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+    if (!TOKEN_RE.test(token)) {
+      send(res, 400, { error: "token must be a 64-char hex APNs device token" });
+      return true;
+    }
+    const row = deletePushToken(db, { token, person: device.person });
+    if (!row) {
+      send(res, 404, { error: "not found" });
+      return true;
+    }
+    send(res, 200, { token: row.token, person: row.person, platform: row.platform, updatedAt: row.updatedAt, deleted: true });
+    return true;
+  }
+
+  return false;
+}
