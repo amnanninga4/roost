@@ -70,15 +70,16 @@ export function hasExpired(handoff, date) {
   return calendarPeriodIndex(handoff.cadence, date) > handoff.periodIndex;
 }
 
-/** Stored state, or expired once the period has ended for an open handoff. */
+/** Stored state, or expired once the period has ended for a *pending* offer.
+ * Accepted handoffs never expire (R-21): they remain a permanent fact about their period. */
 export function effectiveState(handoff, date) {
-  if (OPEN.has(handoff.state) && hasExpired(handoff, date)) return "expired";
+  if (handoff.state === "pending" && hasExpired(handoff, date)) return "expired";
   return handoff.state;
 }
 
 /**
  * Accepted handoff that decides who owes choreId for periodIndex, or null.
- * Pending/declined do not override; an accepted one stops being one when its period ends.
+ * Pending/declined do not override. Accepted rows keep matching after the period ends (R-21).
  */
 export function acceptedOverride(choreId, periodIdx, handoffs, date) {
   const matches = handoffs
@@ -192,8 +193,10 @@ export function resolveHandoff(db, id, decision, person, now) {
 
   const asOf = new Date(now);
   if (hasExpired(row, asOf)) {
+    // R-21: accepted is permanent — never flip to expired; report unchanged.
+    if (row.state === "accepted") return { status: "ok", row, changed: false };
     if (row.state === "expired") return { status: "expired", row };
-    if (OPEN.has(row.state)) return { status: "expired", row: update(db, id, { state: "expired" }, now) };
+    if (row.state === "pending") return { status: "expired", row: update(db, id, { state: "expired" }, now) };
     return { status: "expired", row };
   }
 
@@ -208,14 +211,15 @@ export function resolveHandoff(db, id, decision, person, now) {
 }
 
 /**
- * Mark every open handoff whose period has ended as expired. Declined stays declined.
+ * Mark every *pending* handoff whose period has ended as expired (R-21).
+ * Accepted stays accepted forever; declined stays declined.
  * Each expiry takes a new seq. Runs at the start of /sync. Returns the rows it expired.
  */
 export function expireOpenHandoffs(db, now) {
   const nowIso = now.toISOString();
   const asOf = now;
   const open = db
-    .prepare("SELECT * FROM handoffs WHERE deletedAt IS NULL AND state IN ('pending','accepted') ORDER BY seq")
+    .prepare("SELECT * FROM handoffs WHERE deletedAt IS NULL AND state = 'pending' ORDER BY seq")
     .all();
   const out = [];
   for (const row of open) {
@@ -226,7 +230,7 @@ export function expireOpenHandoffs(db, now) {
 }
 
 /**
- * Fold handoffs into a /sync response: expire open past-period rows first, add `handoffs`
+ * Fold handoffs into a /sync response: expire pending past-period rows first, add `handoffs`
  * (seq > cursor), and move out.cursor past the newest handoff seq.
  */
 export function handoffSync(db, out, cursor, now) {

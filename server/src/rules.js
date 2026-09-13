@@ -200,23 +200,16 @@ export function rotationAssignee(choreId, periodIdx) {
 
 /**
  * Who owes `chore` for `periodIdx`. An accepted handoff for that exact chore+period
- * wins over fixedAssignee and rotation. Pending/declined do nothing; once the period
- * ends the handoff no longer overrides (caller should expire rows, but we also ignore
- * accepted rows whose cadence period is already past `asOf`).
+ * wins over fixedAssignee and rotation. Pending/declined do nothing.
+ * R-21: accepted handoffs remain permanent for their periodIndex (no asOf expiry filter).
  *
  * `handoffs` rows may use SQL names (fromPerson/toPerson) or JSON names (from/to).
  */
 export function assigneeFor(chore, periodIdx, handoffs = [], asOf = new Date()) {
-  const asOfD = asDate(asOf);
   const override = (handoffs ?? [])
     .filter((h) => !h.deletedAt)
     .filter((h) => h.choreId === chore.id && h.periodIndex === periodIdx)
-    .filter((h) => {
-      const state = h.state;
-      if (state !== "accepted") return false;
-      // Treat as expired once we are past the handed-off period.
-      return periodIndex(h.cadence, asOfD) <= h.periodIndex;
-    })
+    .filter((h) => h.state === "accepted")
     .sort((a, b) => {
       const at = asDate(a.createdAt).getTime() - asDate(b.createdAt).getTime();
       if (at !== 0) return at;
@@ -425,15 +418,10 @@ function dueItemId(item) {
  * Mirrors HandoffRules.acceptedOverride — used only for isReassignable / balance.
  */
 function acceptedHandoffOverride(choreId, periodIdx, handoffs, asOf) {
-  const asOfD = asDate(asOf);
   const matches = (handoffs ?? []).filter((h) => {
     if (h.choreId !== choreId || h.periodIndex !== periodIdx) return false;
-    const state = h.state;
-    const open = state === "pending" || state === "accepted";
-    const cadence = h.cadence;
-    const expired = cadence != null && periodIndex(cadence, asOfD) > periodIdx;
-    const effective = open && expired ? "expired" : state;
-    return effective === "accepted";
+    // R-21: accepted is permanent for its period; pending never overrides.
+    return h.state === "accepted";
   });
   if (matches.length === 0) return null;
   matches.sort((a, b) => {
