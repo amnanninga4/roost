@@ -13,13 +13,14 @@ Runs on theoldone, bound to `127.0.0.1:8790`. Public path is a Cloudflare Tunnel
 - **projects** — `{ id, title, createdAt, updatedAt, deleted, seq }`. Deleting a project soft-deletes every live subtask under it, each with its own `seq`; the project takes the last one, so a cursor at the project's `seq` covers the whole cascade.
 - **subtasks** — `{ id, projectId, title, sortOrder, done, doneBy, doneAt, createdAt, updatedAt, deleted, seq }`. `done: true` stamps `doneBy` (token) and `doneAt` on the transition; `done: false` clears both. `sortOrder` is a non-negative integer, defaulting to one past the project's highest live subtask.
 - **bonus** — `{ id, title, points, claimBy, claimedBy, claimedAt, assignedTo, completedAt, createdBy, createdAt, updatedAt, deleted, seq }`. A one-off "first to claim" task. `points` is an integer 1-10, `claimBy` an ISO UTC deadline (stored normalised to milliseconds), `createdBy` comes from the token. The first person to claim it holds it (`claimedBy`, `claimedAt`); the other person's claim is `409`. Left unclaimed past `claimBy`, it is auto-assigned (`assignedTo`) to the person with fewer bonus points earned in the current Chicago week; a tie goes to the person who did not create it. Auto-assign runs at the start of every `/sync` (and `GET /bonus`), so it needs no timer, and each assignment takes its own `seq` so it reaches both phones. Only `claimedBy` or `assignedTo` may complete it (`403` for anyone else); its points then count for that person in the week of `completedAt`. Deleted tasks earn nothing. Code in `src/bonus.js`.
+- **handoffs** — `{ id, choreId, fromPerson, toPerson, periodIndex, cadence, state, createdAt, updatedAt, deletedAt, seq }`. Offer a chore turn to the other person for one period. `state` is `pending` | `accepted` | `declined` | `expired`. `fromPerson` comes from the token; `periodIndex` and `cadence` may be omitted (server fills from the chore + now) but must not invent a different cadence or a future period. Past-period open offers expire at the start of `/sync` (and on the status board), each taking its own `seq`. Soft-deleted like the other lists. Code in `src/handoffs.js`.
 - **devices** — hash of each token that has been seen, with person, label, lastSeen.
 - **pairing codes** — `{ code, person, deviceLabel, createdAt, expiresAt, consumedAt, tokenHash }`. A 6-digit code minted by `src/mkcode.js` that a phone trades for a bearer token at `POST /pair`. Live 15 minutes by default, usable once, unique among the live ones (a consumed or expired number can be drawn again). A consumed row keeps the SHA-256 of the token it produced, so a device traces back to the code that paired it.
 - **paired tokens** — `{ tokenHash, person, label, createdAt, revokedAt }`. The SHA-256 of every token minted by `POST /pair`, which is where paired credentials live: the API never writes the tokens file. Read live on every request, so pairing and revoking both take effect on the next one. Revoked rows are kept, not deleted.
 
 Neither table is synced, so neither has a `seq`. Both live in `src/pairing.js`.
 
-Every list row follows the completions rules: client-generated `id` validated by the same pattern, a POST replay for an existing id returns `200` with the stored row untouched (deleted rows included — no resurrection), deletes are soft and idempotent, and PATCH/DELETE on an unknown id is `404`. Titles are 1-200 chars. All six tables share the ONE `seq` counter, so a single `/sync` call carries every delta in order. No seed data: lists start empty.
+Every list row follows the completions rules: client-generated `id` validated by the same pattern, a POST replay for an existing id returns `200` with the stored row untouched (deleted rows included — no resurrection), deletes are soft and idempotent, and PATCH/DELETE on an unknown id is `404`. Titles are 1-200 chars. All seven sync tables (completions, shopping, meals, projects, subtasks, bonus, handoffs) share the ONE `seq` counter, so a single `/sync` call carries every delta in order. No seed data: lists start empty.
 
 All stored times are ISO-8601 UTC. Chicago-time rules (due today, streaks, escalation) belong to the app and RoostCore, not the server. The one exception is the bonus auto-assign tally, which needs the current week on the server: Monday 00:00 to the next Monday 00:00 in America/Chicago, the same bounds as `RoostCore.HouseholdCalendar.weekBounds`.
 
@@ -83,11 +84,28 @@ sudo -u roost ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/device
 
 `revoke` takes a hash prefix (4+ hex characters, unambiguous) and works on paired tokens only; a `file` device is refused with a pointer to the tokens file. A revoked token's next request is `401`. A phone can do the same for itself with `DELETE /pair/self`, which is `403` for a hand-minted token.
 
+### Household start date
+
+`meta.activeFrom` is the Chicago calendar day the household started (streaks and overdue floor). Every `/sync` carries it. Print or set it with `src/household.js` (run as `roost`, never as root):
+
+```bash
+sudo -u roost ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/household.js active-from
+# activeFrom: 2026-09-07 (default)   # or (meta) when set
+sudo -u roost ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/household.js active-from 2026-09-07
+# activeFrom set to 2026-09-07
+```
+
+Unset meta falls back to the code default (`2026-09-07`). The first successful `POST /pair` or `mktoken` stamps today's Chicago date if unset; later ones leave it alone. Setting it by hand changes what both phones treat as overdue.
+
 ## Endpoints
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, pendingCodes, tokensFileError, push, rev, activeFrom, digestLastSent, backup }` — `backup` is `{ at, ok, seq }` from the nightly verify status file, or `null` if absent/unparseable |
+| GET | `/health` | no | `{ ok, serverTime, choresVersion, choresSeeded, cursor, devices, pendingCodes, tokensFileError, push, rev, activeFrom, digestLastSent, backup }` — `devices` is file tokens + unrevoked paired tokens; `backup` is `{ at, ok, seq }` from the nightly verify status file, or `null` if absent/unparseable |
+| GET | `/status` | no | kitchen status board HTML (names/titles only); refreshes itself |
+| GET | `/status.json` | no | same board as JSON — see field list below |
+| GET | `/favicon.ico` | no | tiny SVG icon |
+| GET | `/fonts/<file>` | no | allowlisted RoostDesign `.ttf` only; `404` on anything else; immutable cache on 200 |
 | POST | `/pair` | no | body `{ code, deviceName }` → `{ token, person }`; one `404 invalid or expired code` for unknown, already used and expired alike; `400` unless `code` is 6 digits and `deviceName` is 1-60 chars; `429` over 10 answered attempts a minute from one address or 30 across all of them |
 | DELETE | `/pair/self` | yes | unpairs the calling device: its `paired_tokens` row is marked revoked, its `devices` row is dropped, and the next request with it is `401`; `403` for a hand-minted token, which only the tokens file can revoke |
 | GET | `/chores` | yes | full list + version |
@@ -115,11 +133,50 @@ sudo -u roost ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/device
 | POST | `/handoffs` | yes | body `{ id, choreId, to, periodIndex?, cadence? }`; `from` from the token; `201` new pending, `200` replay; on create, push notifies `to` |
 | POST | `/handoffs/:id/accept` | yes | `to` person only; `200`; on a real pending→accepted transition, push notifies `from` |
 | POST | `/handoffs/:id/decline` | yes | `to` person only; `200`; on a real pending→declined transition, push notifies `from` |
-| GET | `/sync?cursor=<n>&choresVersion=<v>` | yes | one call: `serverTime`, `person`, `choresVersion`, `cursor`, then `completions`, `shopping`, `meals`, `projects`, `subtasks`, `bonus`, `handoffs` (every row with `seq > cursor`, deleted rows with `deleted: true`), and `chores` only when the client's version differs. Expired bonus tasks are auto-assigned and past-period open handoffs are expired before the response is built, so those updates ride this same delta |
+| GET | `/sync?cursor=<n>&choresVersion=<v>` | yes | one call: `serverTime`, `person`, `choresVersion`, `activeFrom`, `cursor`, then `completions`, `shopping`, `meals`, `projects`, `subtasks`, `bonus`, `handoffs` (every row with `seq > cursor`, deleted rows with `deleted: true`), and `chores` only when the client's version differs. Expired bonus tasks are auto-assigned and past-period open handoffs are expired before the response is built, so those updates ride this same delta |
+| POST | `/push/token` | yes | body `{ token, platform: "ios" }` — register APNs device token (64-hex); see Push |
+| DELETE | `/push/token` | yes | body `{ token }` — unregister (own tokens only); see Push |
 
 Validation is `400` with an `error` message: ids outside the pattern, missing or empty titles, titles over 200 chars, tags over 40, non-ISO dates, non-boolean flags, non-integer `sortOrder`, bonus `points` that are not an integer 1-10, an empty PATCH body, an unknown `projectId`, or a subtask id that already exists. Bad ids in a path simply do not route (`404`). A bonus `claimBy` already in the past is accepted (an offline POST replayed late) and assigned on the next sync.
 
-Client loop: start with `cursor=0`, store the `cursor` from each `/sync`, pass it back next time. Replay queued POSTs first, then sync. The cursor is a counter, not a time, so same-millisecond writes and clock changes cannot drop rows. The returned `cursor` is the highest `seq` in the response across all six arrays, and holds at the client's value when nothing changed.
+Client loop: start with `cursor=0`, store the `cursor` from each `/sync`, pass it back next time. Replay queued POSTs first, then sync. The cursor is a counter, not a time, so same-millisecond writes and clock changes cannot drop rows. The returned `cursor` is the highest `seq` in the response across all seven sync arrays, and holds at the client's value when nothing changed.
+
+### `GET /status.json` fields
+
+No auth. Names and titles only (no token hashes). Shape:
+
+```json
+{
+  "date": "Sunday, September 13, 2026",
+  "updated": "11:30",
+  "activeFrom": "2026-09-07",
+  "digestLastSent": "2026-09-13",
+  "people": [
+    {
+      "id": "anne",
+      "name": "Anne",
+      "streak": 0,
+      "week": 0,
+      "today": [{ "title": "…" }],
+      "due": [{ "title": "…", "stage": "alert", "viaHandoff": false, "person": "anne" }],
+      "bonus": [{ "title": "…", "points": 3 }]
+    }
+  ],
+  "bonus": [{ "title": "…", "points": 3 }],
+  "recent": [{ "person": "Anne", "title": "…", "time": "11:30" }],
+  "backup": { "at": "…Z", "ok": true, "seq": 0 }
+}
+```
+
+- `date` / `updated` — Chicago display strings for the board clock.
+- `activeFrom` — YYYY-MM-DD Chicago calendar day (meta or code default).
+- `digestLastSent` — YYYY-MM-DD or `null` (same meta as `/health`).
+- `people[]` — one entry per household person; `today` is completions with a Chicago date of today; `due` is overdue plus due-today rows that arrived via handoff; `bonus` is open tasks claimed by or assigned to that person.
+- `bonus` (top-level) — open bonus tasks still unclaimed and unassigned.
+- `recent` — up to 10 latest completions (display name + title + Chicago time).
+- `backup` — `{ at, ok, seq }` from the verify status file, or `null` if absent/unparseable (ops-only; not shown on the HTML board).
+
+`GET /status` renders the same board as HTML (no `backup` blob).
 
 ## Run locally
 
@@ -128,6 +185,7 @@ cd server
 ROOST_DB=/tmp/roost.db ROOST_TOKENS=/tmp/tokens.json npm start
 ROOST_DB=/tmp/roost.db npm run mkcode -- anne "Anne iPhone"
 ROOST_DB=/tmp/roost.db ROOST_TOKENS=/tmp/tokens.json npm run devices -- list
+ROOST_DB=/tmp/roost.db npm run household -- active-from
 npm test
 ```
 
@@ -144,10 +202,10 @@ The script creates the `roost` system user, `/opt/roost` (code), `/var/lib/roost
 
 ### Ops: backup, verify, restore drill
 
-- **Backup** — `roost-backup.timer` runs `backup.sh` at 03:30 host-local (theoldone is America/Chicago) via SQLite's online backup, keeping 30 files in `/var/backups/roost`.
-- **Offsite** — `roost-offsite.timer` runs `offsite-backup.sh` at 04:00 host-local and copies the newest file to the grater at `/mnt/storage-sdd/backups/roost/` over the tailnet, also keeping 30.
-- **Verify** — `roost-verify.timer` runs `verify-backup.sh` at 04:30 host-local as `User=roost`. It picks the newest `/var/backups/roost/roost-*.db`, runs `src/backupcheck.js` (PRAGMA integrity_check + `meta.seq` cursor + expected tables), and fails closed if none exist or the check fails. Every run (ok or fail) writes `/var/lib/roost/verify-status.json` (`ROOST_VERIFY_STATUS`; atomic temp+mv, `roost:roost`). `GET /health` and `GET /status.json` expose `backup: { at, ok, seq }` from that file, or `null` if absent/unparseable (never throws). Manual: `sudo -u roost /opt/roost/server/verify-backup.sh`.
-- **Restore drill** — `restore.sh` verifies a backup then copies it to a non-live path under `/tmp/roost-restore-drill` by default. It refuses to overwrite `/var/lib/roost/roost.db` unless you pass `--live` (and still only prints stop/start reminders — it does not manage the service for you):
+- **Backup** — `roost-backup.timer` runs `backup.sh` ~03:30 host-local (theoldone is America/Chicago; `RandomizedDelaySec=10min`) via SQLite's online backup, keeping 30 files in `/var/backups/roost`.
+- **Offsite** — `roost-offsite.timer` runs `offsite-backup.sh` ~04:00 host-local and copies the newest file to the grater at `/mnt/storage-sdd/backups/roost/` over the tailnet, also keeping 30.
+- **Verify** — `roost-verify.timer` runs `verify-backup.sh` ~04:30 host-local as `User=roost` on the service. It picks the newest `/var/backups/roost/roost-*.db`, runs `src/backupcheck.js` (PRAGMA integrity_check + `meta.seq` cursor + expected tables), and fails closed if none exist or the check fails. Every run (ok or fail) writes `/var/lib/roost/verify-status.json` (`ROOST_VERIFY_STATUS`; atomic temp+mv, `roost:roost`). `GET /health` and `GET /status.json` expose `backup: { at, ok, seq }` from that file, or `null` if absent/unparseable (never throws). Manual: `sudo -u roost /opt/roost/server/verify-backup.sh`.
+- **Restore drill** — `restore.sh` verifies a backup then copies it to a non-live path under `/tmp/roost-restore-drill` by default. It refuses to overwrite `/var/lib/roost/roost.db` without `--live`. A live restore also refuses unless `roost.service` is exactly `inactive`, parks the previous DB (+ wal/shm) under `/var/backups/roost/replaced-*.db`, then prints the start command — it does not stop/start the service for you:
 
 ```bash
 # safe drill (default destination under /tmp/roost-restore-drill)

@@ -48,4 +48,4 @@ scripts/release.sh
 
 ## Status
 
-Early working build. The app runs in the simulator, pairs with the server by six-digit code, and syncs chore completions between two devices. Shopping, meals, and projects are being wired up. The release mechanism exists (`docs/RELEASE.md`); nothing has been uploaded yet.
+Early working build. The app runs in the simulator, pairs with the server by six-digit code, and syncs chores, shopping, meals, projects, bonus, and handoffs. The release mechanism exists (`docs/RELEASE.md`); nothing has been uploaded to TestFlight yet.
