@@ -1,6 +1,8 @@
 // Read-only household status board for a kitchen screen.
 // No auth (behind the tunnel). First names + chore titles only.
-import { PEOPLE } from "./db.js";
+// Rendering only — streaks / tallies / overdue come from rules.js.
+import { PEOPLE, listChores, getMeta } from "./db.js";
+import { boardStats, DEFAULT_ACTIVE_FROM } from "./rules.js";
 
 const TZ = "America/Chicago";
 
@@ -58,6 +60,21 @@ function displayName(person) {
   return person.charAt(0).toUpperCase() + person.slice(1);
 }
 
+function stageLabel(stage) {
+  switch (stage) {
+    case "dueToday":
+      return "due today";
+    case "nudge":
+      return "nudge";
+    case "pointed":
+      return "pointed";
+    case "alert":
+      return "alert";
+    default:
+      return stage;
+  }
+}
+
 function loadCompletions(db) {
   return db
     .prepare(
@@ -70,17 +87,35 @@ function loadCompletions(db) {
     .all();
 }
 
+function resolveActiveFrom(db, opts) {
+  if (opts.activeFrom) return new Date(opts.activeFrom);
+  const meta = getMeta(db, "activeFrom");
+  if (meta) return new Date(meta);
+  return DEFAULT_ACTIVE_FROM;
+}
+
 /**
  * GET /status — self-contained HTML status board.
  * @param {import("node:sqlite").DatabaseSync} db
  * @param {import("node:http").IncomingMessage} _req
  * @param {import("node:http").ServerResponse} res
- * @param {{ now?: () => Date }} [opts]
+ * @param {{ now?: () => Date, activeFrom?: Date|string }} [opts]
  */
 export function statusHandler(db, _req, res, opts = {}) {
   const now = (opts.now ?? (() => new Date()))();
   const todayKey = chicagoDateKey(now);
   const rows = loadCompletions(db);
+  const chores = listChores(db);
+  const activeFrom = resolveActiveFrom(db, opts);
+
+  const completions = rows.map((r) => ({
+    id: r.id,
+    choreId: r.choreId,
+    person: r.person,
+    completedAt: r.completedAt,
+  }));
+
+  const stats = boardStats({ chores, completions, asOf: now, activeFrom });
 
   const byPerson = Object.fromEntries(PEOPLE.map((p) => [p, []]));
   for (const row of rows) {
@@ -93,13 +128,29 @@ export function statusHandler(db, _req, res, opts = {}) {
 
   const personSections = PEOPLE.map((person) => {
     const list = byPerson[person] ?? [];
+    const s = stats[person] ?? { streak: 0, week: 0, overdue: [] };
     const items =
       list.length === 0
         ? `<li class="empty">Nothing yet</li>`
         : list.map((r) => `<li>${escapeHtml(r.title)}</li>`).join("");
+
+    const overdueBlock =
+      s.overdue.length === 0
+        ? `<p class="meta-empty">None</p>`
+        : `<ul class="overdue">${s.overdue
+            .map(
+              (i) =>
+                `<li>${escapeHtml(i.chore.title)} <span class="stage">(${escapeHtml(stageLabel(i.stage))})</span></li>`
+            )
+            .join("")}</ul>`;
+
     return `
       <section class="card">
         <h2>${escapeHtml(displayName(person))} <span class="count">${list.length}</span></h2>
+        <p class="stats">Streak ${s.streak} · Week ${s.week}</p>
+        <h3 class="subhead">Overdue</h3>
+        ${overdueBlock}
+        <h3 class="subhead">Today</h3>
         <ul>${items}</ul>
       </section>`;
   }).join("");
@@ -171,11 +222,25 @@ export function statusHandler(db, _req, res, opts = {}) {
       box-shadow: 0 1px 2px var(--shadow);
     }
     h2 {
-      margin: 0 0 0.75rem;
+      margin: 0 0 0.35rem;
       font-size: 1.15rem;
       display: flex;
       align-items: baseline;
       gap: 0.5rem;
+    }
+    .stats {
+      margin: 0 0 0.75rem;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .subhead {
+      margin: 0.75rem 0 0.35rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--ink-soft);
+      font-weight: 700;
     }
     .count {
       background: var(--accent-soft);
@@ -195,7 +260,9 @@ export function statusHandler(db, _req, res, opts = {}) {
       border-top: 1px solid var(--line);
     }
     li:first-child { border-top: 0; }
-    li.empty { color: var(--ink-soft); font-style: italic; }
+    li.empty, .meta-empty { color: var(--ink-soft); font-style: italic; margin: 0; }
+    .stage { color: var(--gold); font-size: 0.9em; }
+    .overdue li { border-top-color: var(--gold-soft); }
     .recent li {
       display: grid;
       grid-template-columns: 4.5rem 1fr auto;

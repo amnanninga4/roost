@@ -1,0 +1,348 @@
+// Node port of Packages/RoostCore scheduling / tallies / escalation / rotation.
+// All day/week/month arithmetic is America/Chicago; weeks Monday–Sunday.
+// Rendering stays in status.js — this module is pure logic only.
+
+export const TZ = "America/Chicago";
+export const PEOPLE = Object.freeze(["anne", "wes"]);
+
+/** Monday 2026-01-05 00:00 Chicago — period 0 for every cadence. */
+export const ANCHOR = chicagoLocal(2026, 1, 5, 0, 0, 0);
+
+/** Default household start: Sep 7 2026 Chicago midnight (= 2026-09-07T05:00:00.000Z CDT). */
+export const DEFAULT_ACTIVE_FROM = new Date("2026-09-07T05:00:00.000Z");
+
+const STAGE_BY_DAYS = [
+  [1, "dueToday"],
+  [3, "nudge"],
+  [5, "pointed"],
+];
+
+// ---------------------------------------------------------------------------
+// Chicago calendar helpers
+// ---------------------------------------------------------------------------
+
+function chicagoParts(date) {
+  const f = new Intl.DateTimeFormat("en-US", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  return Object.fromEntries(
+    f.formatToParts(date).filter((p) => p.type !== "literal").map((p) => [p.type, p.value])
+  );
+}
+
+/** Instant for a wall-clock time in America/Chicago. */
+export function chicagoLocal(year, month, day, hour = 0, minute = 0, second = 0) {
+  // Guess UTC (Chicago is UTC-5 or UTC-6), then correct using formatted parts.
+  let guess = Date.UTC(year, month - 1, day, hour + 6, minute, second);
+  for (let i = 0; i < 4; i++) {
+    const p = chicagoParts(new Date(guess));
+    const want = Date.UTC(year, month - 1, day, hour, minute, second);
+    const got = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+    const diff = want - got;
+    if (diff === 0) return new Date(guess);
+    guess += diff;
+  }
+  return new Date(guess);
+}
+
+function ymd(date) {
+  const p = chicagoParts(asDate(date));
+  return { year: +p.year, month: +p.month, day: +p.day };
+}
+
+/** Gregorian → Julian day number (civil date, noon-independent). */
+function julianDay(year, month, day) {
+  const a = Math.floor((14 - month) / 12);
+  const y = year + 4800 - a;
+  const m = month + 12 * a - 3;
+  return (
+    day +
+    Math.floor((153 * m + 2) / 5) +
+    365 * y +
+    Math.floor(y / 4) -
+    Math.floor(y / 100) +
+    Math.floor(y / 400) -
+    32045
+  );
+}
+
+function fromJulianDay(jd) {
+  // Inverse of julianDay for Gregorian calendar.
+  let a = jd + 32044;
+  let b = Math.floor((4 * a + 3) / 146097);
+  let c = a - Math.floor((146097 * b) / 4);
+  let d = Math.floor((4 * c + 3) / 1461);
+  let e = c - Math.floor((1461 * d) / 4);
+  let m = Math.floor((5 * e + 2) / 153);
+  const day = e - Math.floor((153 * m + 2) / 5) + 1;
+  const month = m + 3 - 12 * Math.floor(m / 10);
+  const year = 100 * b + d - 4800 + Math.floor(m / 10);
+  return chicagoLocal(year, month, day, 0, 0, 0);
+}
+
+function asDate(v) {
+  if (v instanceof Date) return v;
+  return new Date(v);
+}
+
+function floorDiv(a, b) {
+  const q = (a / b) | 0; // trunc toward zero (JS |0 / Swift /)
+  const r = a % b;
+  return r !== 0 && (a < 0) !== (b < 0) ? q - 1 : q;
+}
+
+function mod(a, b) {
+  const r = a % b;
+  return r < 0 ? r + b : r;
+}
+
+// ---------------------------------------------------------------------------
+// Public calendar API
+// ---------------------------------------------------------------------------
+
+export function startOfDay(date) {
+  const { year, month, day } = ymd(date);
+  return chicagoLocal(year, month, day, 0, 0, 0);
+}
+
+/** Whole Chicago days from the anchor Monday to the day containing `date`. */
+export function dayIndex(date) {
+  const a = ymd(ANCHOR);
+  const b = ymd(date);
+  return julianDay(b.year, b.month, b.day) - julianDay(a.year, a.month, a.day);
+}
+
+/** Start of the Chicago day `index` days after the anchor. */
+export function dayAt(index) {
+  const a = ymd(ANCHOR);
+  return fromJulianDay(julianDay(a.year, a.month, a.day) + index);
+}
+
+export function periodIndex(cadence, date) {
+  switch (cadence) {
+    case "daily":
+      return dayIndex(date);
+    case "weekly":
+      return floorDiv(dayIndex(date), 7);
+    case "biweekly":
+      return floorDiv(dayIndex(date), 14);
+    case "monthly": {
+      const { year, month } = ymd(date);
+      return (year - 2026) * 12 + (month - 1);
+    }
+    default:
+      throw new Error(`unknown cadence: ${cadence}`);
+  }
+}
+
+/** Start of first day and start of last day of a period. */
+export function periodBounds(cadence, index) {
+  switch (cadence) {
+    case "daily": {
+      const d = dayAt(index);
+      return { firstDay: d, lastDay: d };
+    }
+    case "weekly":
+      return { firstDay: dayAt(index * 7), lastDay: dayAt(index * 7 + 6) };
+    case "biweekly":
+      return { firstDay: dayAt(index * 14), lastDay: dayAt(index * 14 + 13) };
+    case "monthly": {
+      const year = 2026 + floorDiv(index, 12);
+      const month = mod(index, 12) + 1;
+      const first = chicagoLocal(year, month, 1, 0, 0, 0);
+      const nextMonth = month === 12 ? 1 : month + 1;
+      const nextYear = month === 12 ? year + 1 : year;
+      const nextFirst = chicagoLocal(nextYear, nextMonth, 1, 0, 0, 0);
+      // last day = day before nextFirst
+      const last = fromJulianDay(julianDay(nextYear, nextMonth, 1) - 1);
+      return { firstDay: first, lastDay: last };
+    }
+    default:
+      throw new Error(`unknown cadence: ${cadence}`);
+  }
+}
+
+/** Monday 00:00 of the week containing `date`, and the following Monday 00:00 (exclusive). */
+export function weekBounds(date) {
+  const index = periodIndex("weekly", date);
+  return { start: dayAt(index * 7), end: dayAt(index * 7 + 7) };
+}
+
+// ---------------------------------------------------------------------------
+// Rotation / escalation
+// ---------------------------------------------------------------------------
+
+/** FNV-1a 64-bit. Returns a BigInt. */
+export function fnv1a(s) {
+  let hash = 0xcbf29ce484222325n;
+  const prime = 0x100000001b3n;
+  const bytes = typeof Buffer !== "undefined" ? Buffer.from(s, "utf8") : new TextEncoder().encode(s);
+  for (const byte of bytes) {
+    hash ^= BigInt(byte);
+    hash = (hash * prime) & 0xffffffffffffffffn;
+  }
+  return hash;
+}
+
+/** Round-robin assignee for an unpinned chore in a period. Pinned chores never call this. */
+export function rotationAssignee(choreId, periodIdx) {
+  const start = Number(fnv1a(choreId) & 1n);
+  const slot = (start + periodIdx) & 1;
+  return slot === 0 ? "anne" : "wes";
+}
+
+export function assigneeFor(chore, periodIdx) {
+  if (chore.fixedAssignee) return chore.fixedAssignee;
+  return rotationAssignee(chore.id, periodIdx);
+}
+
+export function escalationStage(daysOverdue) {
+  if (daysOverdue < 1) return "dueToday";
+  if (daysOverdue < 3) return "nudge";
+  if (daysOverdue < 5) return "pointed";
+  return "alert";
+}
+
+// ---------------------------------------------------------------------------
+// Scheduler / tallies
+// ---------------------------------------------------------------------------
+
+/**
+ * Oldest incomplete period for `chore` as of `asOf`, or null if done for the current period.
+ * Completing in a later period clears older missed ones (one nag, not a backlog).
+ */
+export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+  const asOfD = asDate(asOf);
+  const active = asDate(activeFrom);
+  const current = periodIndex(chore.cadence, asOfD);
+  const floor = periodIndex(chore.cadence, active);
+  const mine = completions.filter((c) => c.choreId === chore.id);
+  let lastDone = null;
+  for (const c of mine) {
+    const pi = periodIndex(chore.cadence, asDate(c.completedAt));
+    if (lastDone === null || pi > lastDone) lastDone = pi;
+  }
+  const oldestIncomplete = Math.max(lastDone === null ? floor : lastDone + 1, floor);
+  if (oldestIncomplete > current) return null;
+
+  const bounds = periodBounds(chore.cadence, oldestIncomplete);
+  const daysOverdue = Math.max(0, dayIndex(asOfD) - dayIndex(bounds.lastDay));
+  return {
+    chore,
+    person: assigneeFor(chore, oldestIncomplete),
+    periodIndex: oldestIncomplete,
+    periodStart: bounds.firstDay,
+    periodLastDay: bounds.lastDay,
+    daysOverdue,
+    stage: escalationStage(daysOverdue),
+  };
+}
+
+/**
+ * Everything due on `asOf`, keyed by person. Most overdue first, then by chore list order.
+ */
+export function dueItems({ chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+  const byChore = new Map();
+  for (const c of completions) {
+    if (!byChore.has(c.choreId)) byChore.set(c.choreId, []);
+    byChore.get(c.choreId).push(c);
+  }
+  const result = Object.fromEntries(PEOPLE.map((p) => [p, []]));
+  for (const chore of chores) {
+    const item = dueItemFor(chore, {
+      completions: byChore.get(chore.id) ?? [],
+      asOf,
+      activeFrom,
+    });
+    if (!item) continue;
+    result[item.person].push(item);
+  }
+  for (const person of PEOPLE) {
+    result[person].sort((a, b) => {
+      if (a.daysOverdue !== b.daysOverdue) return b.daysOverdue - a.daysOverdue;
+      const ai = chores.indexOf(a.chore);
+      const bi = chores.indexOf(b.chore);
+      return (ai < 0 ? 0 : ai) - (bi < 0 ? 0 : bi);
+    });
+  }
+  return result;
+}
+
+/** Completions per person in the Monday–Sunday Chicago week containing `asOf`. */
+export function doneThisWeek({ completions, asOf }) {
+  const week = weekBounds(asOf);
+  const counts = Object.fromEntries(PEOPLE.map((p) => [p, 0]));
+  for (const c of completions) {
+    const t = asDate(c.completedAt).getTime();
+    if (t >= week.start.getTime() && t < week.end.getTime()) {
+      if (counts[c.person] !== undefined) counts[c.person] += 1;
+    }
+  }
+  return counts;
+}
+
+function isDayComplete(person, dayIdx, dailies, completions, /* for assignee */) {
+  const start = dayAt(dayIdx);
+  const end = dayAt(dayIdx + 1);
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const mine = dailies.filter((ch) => assigneeFor(ch, dayIdx) === person);
+  for (const chore of mine) {
+    const done = completions.some((c) => {
+      if (c.choreId !== chore.id) return false;
+      const t = asDate(c.completedAt).getTime();
+      return t >= startMs && t < endMs;
+    });
+    if (!done) return false;
+  }
+  return true;
+}
+
+/**
+ * Consecutive days ending today or yesterday on which `person` finished every daily assigned to them.
+ * Unfinished today does not break (count from yesterday). Days before activeFrom never count.
+ * A day with no dailies assigned counts as complete.
+ */
+export function streak({ person, chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+  const dailies = chores.filter((c) => c.cadence === "daily");
+  const firstDay = dayIndex(activeFrom);
+  const today = dayIndex(asOf);
+  let day = today;
+  let n = 0;
+  if (!isDayComplete(person, today, dailies, completions)) {
+    day = today - 1;
+  }
+  while (day >= firstDay) {
+    if (!isDayComplete(person, day, dailies, completions)) break;
+    n += 1;
+    day -= 1;
+  }
+  return n;
+}
+
+/**
+ * Aggregator for the status board: streak, week tally, overdue (+ optional due-today) per person.
+ */
+export function boardStats({ chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+  const due = dueItems({ chores, completions, asOf, activeFrom });
+  const week = doneThisWeek({ completions, asOf });
+  const out = {};
+  for (const person of PEOPLE) {
+    const items = due[person] ?? [];
+    out[person] = {
+      streak: streak({ person, chores, completions, asOf, activeFrom }),
+      week: week[person] ?? 0,
+      overdue: items.filter((i) => i.daysOverdue >= 1),
+      dueToday: items.filter((i) => i.daysOverdue === 0),
+      due: items,
+    };
+  }
+  return out;
+}

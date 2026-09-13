@@ -60,4 +60,14 @@ test("GET /status returns 200 text/html with a completion title after POST", asy
   const html = await res.text();
   assert.match(html, /Scoop litter/);
   assert.match(html, /http-equiv="refresh"/i);
+  assert.match(html, /Streak \d+ · Week \d+/);
+  assert.match(html, /Overdue/);
+});
+
+test("GET /status shows overdue stage labels when chores are past due", async () => {
+  // clock is Mon Sep 14 afternoon CT; activeFrom Sep 7 → weekly of Sep 7 ended Sun Sep 13 → 1 day overdue
+  const res = await fetch(base + "/status");
+  const html = await res.text();
+  assert.match(html, /\(nudge\)|\(pointed\)|\(alert\)/);
+  assert.match(html, /Streak/);
 });
