@@ -226,13 +226,12 @@ final class TodayBoardTests: XCTestCase {
         let now = Date()
         let never = TodayBoard.notice(isPaired: true, outcome: .failed("timed out"), lastSyncAt: nil,
                                       statusLine: coordinatorLine, now: now)
-        XCTAssertEqual(never, TodayBoard.Notice(tone: .notice, text: "Offline · last synced never"))
+        XCTAssertEqual(never, TodayBoard.Notice(tone: .notice, text: "Not synced yet · offline, will retry"))
 
         let earlier = TodayBoard.notice(isPaired: true, outcome: .failed("timed out"),
                                         lastSyncAt: now.addingTimeInterval(-300),
                                         statusLine: coordinatorLine, now: now)
-        XCTAssertEqual(earlier.tone, .notice)
-        XCTAssertTrue(earlier.text.hasPrefix("Offline · last synced "), earlier.text)
+        XCTAssertEqual(earlier, TodayBoard.Notice(tone: .notice, text: "Synced 5 min. ago · offline, will retry"))
         XCTAssertNotEqual(earlier.text, coordinatorLine,
                           "a failed pass is the one state that does not take the coordinator's wording")
     }
@@ -248,20 +247,20 @@ final class TodayBoardTests: XCTestCase {
         }
     }
 
-    /// The offline line is the one place the Tasks tab formats a time itself, so it has to be formatted
-    /// the way `SyncCoordinator.statusLine` formats its own: `RelativeDateTimeFormatter`, `.short`.
-    func testLastSyncedIsWordedLikeTheCoordinator() {
+    /// The offline line words "when" with `SyncStatusCopy`, the same helper the coordinator's own line
+    /// uses, rather than reaching for a formatter of its own.
+    func testTheOfflineLineWordsWhenLikeTheRestOfTheApp() {
         let now = Date()
-        XCTAssertEqual(TodayBoard.lastSynced(nil, now: now), "never")
-
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        for seconds in [5.0, 59.0, 300.0, 3600.0, 86400.0] {
+        for seconds in [0.0, 4.0, 30.0, 300.0, 7200.0] {
             let then = now.addingTimeInterval(-seconds)
-            XCTAssertEqual(TodayBoard.lastSynced(then, now: now),
-                           formatter.localizedString(for: then, relativeTo: now),
-                           "\(seconds)s")
+            let notice = TodayBoard.notice(isPaired: true, outcome: .failed("timed out"), lastSyncAt: then,
+                                           statusLine: coordinatorLine, now: now)
+            XCTAssertTrue(notice.text.hasPrefix(SyncStatusCopy.synced(at: then, now: now)), notice.text)
         }
+
+        let never = TodayBoard.notice(isPaired: true, outcome: .failed("timed out"), lastSyncAt: nil,
+                                      statusLine: coordinatorLine, now: now)
+        XCTAssertTrue(never.text.hasPrefix(Strings.Sync.neverSynced), never.text)
     }
 
     // MARK: - The overdue badge

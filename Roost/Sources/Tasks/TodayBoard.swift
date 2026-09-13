@@ -106,17 +106,11 @@ enum TodayBoard {
             return Notice(tone: .notice, text: Strings.Tasks.notPaired)
         }
         if case .failed = outcome {
-            return Notice(tone: .notice, text: Strings.Tasks.offline(lastSynced(lastSyncAt, now: now)))
+            // The leading clause is `SyncStatusCopy`'s own phrase, so the wording of "when" is the app's
+            // one wording; this line only adds what the coordinator's "will retry" leaves out.
+            let synced = lastSyncAt.map { SyncStatusCopy.synced(at: $0, now: now) } ?? Strings.Sync.neverSynced
+            return Notice(tone: .notice, text: Strings.Tasks.offline(synced))
         }
         return Notice(tone: .quiet, text: statusLine)
-    }
-
-    /// "never", else the system's relative wording. `.short` because that is what
-    /// `SyncCoordinator.statusLine` uses, and the offline line sits on the same screen as lines it built.
-    static func lastSynced(_ date: Date?, now: Date = Date()) -> String {
-        guard let date else { return Strings.Tasks.never }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: now)
     }
 }

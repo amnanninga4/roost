@@ -101,22 +101,20 @@ final class SyncCoordinator {
         needsOnboarding = true
     }
 
+    /// The line under every tab header. The wording is in `Strings.Sync`; how long ago a successful
+    /// pass reads as is `SyncStatusCopy`.
     var statusLine: String {
         if isSyncing {
-            return "Syncing…"
+            return Strings.Sync.syncing
         }
         switch lastOutcome {
-        case .none: return "Not synced yet"
-        case .unpaired: return "Not paired · tap the gear"
-        case .coalesced: return "Syncing…"
-        case let .failed(m): return "Offline · will retry (\(m))"
+        case .none: return Strings.Sync.neverSynced
+        case .unpaired: return Strings.Sync.notPaired
+        case .coalesced: return Strings.Sync.syncing
+        case let .failed(message): return Strings.Sync.offline(message)
         case .synced:
-            if let t = lastSyncAt {
-                let f = RelativeDateTimeFormatter()
-                f.unitsStyle = .short
-                return "Synced \(f.localizedString(for: t, relativeTo: Date()))"
-            }
-            return "Synced"
+            guard let lastSyncAt else { return Strings.Sync.synced }
+            return SyncStatusCopy.synced(at: lastSyncAt)
         }
     }
 }

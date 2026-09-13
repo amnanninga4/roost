@@ -179,19 +179,12 @@ enum Strings {
         /// Not paired: one line under the header pointing at the gear menu's Settings item, where
         /// "Paired as" lives. A phone with a token but no person yet sees this.
         static let notPaired = "Not paired yet · gear menu → Settings"
-        /// The last sync failed, or the server could not be reached. Never a modal: offline is normal here.
-        static func offline(_ lastSynced: String) -> String {
-            "Offline · last synced \(lastSynced)"
+        /// The last sync failed, or the server could not be reached. Never a modal: offline is normal
+        /// here. `synced` is `SyncStatusCopy`'s own phrase — "Synced just now", "Synced 5 min. ago" —
+        /// so this screen never words "when" differently from the rest of the app.
+        static func offline(_ synced: String) -> String {
+            "\(synced) · offline, will retry"
         }
-
-        static func synced(_ lastSynced: String) -> String {
-            "Synced \(lastSynced)"
-        }
-
-        /// Only for the offline line above, when the phone has never had a good pass. "Syncing…",
-        /// "Synced <when>" and "Not synced yet" come from `SyncCoordinator.statusLine`, which the list
-        /// tabs print too.
-        static let never = "never"
 
         /// VoiceOver value for a row: what state it is in.
         static let stateDone = "Done"
@@ -289,6 +282,35 @@ enum Strings {
 
         static let syncedJustNow = "Synced just now"
         static let neverSynced = "Not synced yet"
+    }
+
+    /// The one-line sync status under every tab header. `SyncStatusCopy` picks which of the
+    /// "Synced …" forms to use; the wording lives here.
+    enum Sync {
+        static let syncing = "Syncing…"
+        static let neverSynced = "Not synced yet"
+        static let notPaired = "Not paired · tap the gear"
+        /// The reason comes from the failure itself, so it is the server's or the system's words.
+        static func offline(_ reason: String) -> String {
+            "Offline · will retry (\(reason))"
+        }
+
+        /// Synced, but the phone did not keep when.
+        static let synced = "Synced"
+        /// A pass that has only just landed: a moment, not a measurement.
+        static let syncedJustNow = "Synced just now"
+        static func syncedSecondsAgo(_ seconds: Int) -> String {
+            "Synced \(seconds) sec. ago"
+        }
+
+        static func syncedMinutesAgo(_ minutes: Int) -> String {
+            "Synced \(minutes) min. ago"
+        }
+
+        /// An hour or more later a count stops helping and the clock time takes over.
+        static func syncedAt(_ time: String) -> String {
+            "Synced at \(time)"
+        }
     }
 
     /// First run: what this is, the pairing code, who the server says you are, notifications.
