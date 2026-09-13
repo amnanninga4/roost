@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# One run per ref. A new push supersedes the one in flight so macOS minutes are
+# not spent on a commit nobody is looking at any more.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: server (node 22)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # server/ has no dependencies and uses the built-in node:sqlite, which
+      # needs >= 22.13 (server/package.json engines). No npm cache: there is no
+      # lockfile and nothing to install.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Node version
+        run: node --version
+
+      - name: npm test
+        working-directory: server
+        run: npm test
+
+  app:
+    name: app (Xcode 26, iPhone 17 Pro)
+    # macos-26 is the arm64 macOS 26 Tahoe image and the current macos-latest.
+    # Standard GitHub-hosted runners are free on public repos; the -xlarge and
+    # -large labels are not, so do not "upgrade" this label.
+    # https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      # fetch-depth: 0 so the SwiftLint step below can diff against the base commit.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The macos-26 image ships Xcode 26.6 (default), 26.5, 26.4.1, 26.3, 26.2,
+      # 26.1.1 and 26.0.1 under /Applications/Xcode_<version>.app. 26.6 is pinned
+      # rather than left to /Applications/Xcode.app so an image default bump is a
+      # deliberate edit here. (26.3 is what the Mac builds with today, if we ever
+      # need CI and local to be byte-identical toolchains.)
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
+          swift --version
+
+      # No SwiftPM cache: RoostCore and RoostDesign are local path packages with
+      # no remote dependencies, so resolution fetches nothing over the network.
+      - name: Install XcodeGen, SwiftFormat, SwiftLint
+        run: |
+          brew install xcodegen swiftformat swiftlint
+          xcodegen --version
+          swiftformat --version
+          swiftlint version
+
+      # Roost.xcodeproj is generated from Roost/project.yml and committed.
+      # Regenerating must be a no-op; a diff means someone hand-edited the
+      # pbxproj or forgot to run xcodegen after editing project.yml.
+      - name: Regenerate the Xcode project
+        working-directory: Roost
+        run: xcodegen generate
+
+      - name: Committed pbxproj matches project.yml
+        run: git diff --exit-code Roost/Roost.xcodeproj/project.pbxproj
+
+      # Non-fatal for now: the tree predates the format gate and 47 of 50 Swift
+      # files need reformatting. Landing that sweep (and flipping this step to
+      # fatal) is a pending follow-up — it would touch nearly every file, so it
+      # does not belong in the CI change.
+      - name: swiftformat --lint
+        continue-on-error: true
+        run: swiftformat --lint .
+
+      # SwiftLint errors are fatal; warnings are not (no --strict). Scoped to the
+      # Swift files the change touches, because the committed tree already carries
+      # ~105 error-severity violations (93 identifier_name, 10 force_try,
+      # 2 large_tuple) — all .swiftlint.yml opinion rather than defects, so a
+      # whole-tree gate would fail every PR on day one. Clearing that baseline, by
+      # relaxing the config or renaming, is the same pending follow-up as the
+      # format sweep; when it is clean this collapses to `swiftlint lint --quiet .`.
+      # The full-tree count is printed first so the baseline stays visible.
+      - name: swiftlint
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          echo "Whole-tree baseline (not gated):"
+          echo "  error-severity violations:   $(swiftlint lint --quiet . 2>/dev/null | grep -c ': error:' || true)"
+          echo "  warning-severity violations: $(swiftlint lint --quiet . 2>/dev/null | grep -c ': warning:' || true)"
+          echo
+          if [ -z "${BASE_SHA:-}" ] || ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "No usable base commit (${BASE_SHA:-none}); nothing to gate."
+            exit 0
+          fi
+          changed=$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" HEAD -- '*.swift')
+          if [ -z "$changed" ]; then
+            echo "No Swift files changed against $BASE_SHA; nothing to gate."
+            exit 0
+          fi
+          echo "Linting changed Swift files (errors are fatal):"
+          echo "$changed" | sed 's/^/  /'
+          printf '%s\n' "$changed" | tr '\n' '\0' | xargs -0 swiftlint lint --quiet
+
+      # iPhone 17 Pro is on every iOS runtime the image ships (26.2, 26.4, 26.5),
+      # so the destination resolves without pinning an OS; it is also the device
+      # CLAUDE.md names for the local run. The app's deployment target is iOS 18,
+      # well under any of them. -skipPackagePluginValidation keeps the local path
+      # packages from prompting about plugin trust on a fresh machine.
+      - name: xcodebuild test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Roost/Roost.xcodeproj \
+            -scheme Roost \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            -skipPackagePluginValidation \
+            test
