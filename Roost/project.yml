@@ -1,0 +1,72 @@
+name: Roost
+options:
+  bundleIdPrefix: xyz.hinescreative
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "26.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+packages:
+  RoostCore:
+    path: ../Packages/RoostCore
+  RoostDesign:
+    path: ../Packages/RoostDesign
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  Roost:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: ../data/chores.json
+        buildPhase: resources
+        group: Resources
+    dependencies:
+      - package: RoostCore
+      - package: RoostDesign
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: Roost
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.hinescreative.roost
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_PREVIEWS: YES
+
+  RoostTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Roost
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: xyz.hinescreative.roost.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Roost:
+    build:
+      targets:
+        Roost: all
+        RoostTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - RoostTests
