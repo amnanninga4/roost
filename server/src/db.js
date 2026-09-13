@@ -11,6 +11,7 @@ import { BONUS_SCHEMA } from "./bonus.js";
 import { PAIRING_SCHEMA } from "./pairing.js";
 import { PUSH_SCHEMA } from "./push.js";
 import { HANDOFFS_SCHEMA } from "./handoffs.js";
+import { chicagoDateString } from "./rules.js";
 
 /** The household. Single source for the Node side; the CHECK constraints below are built from it. */
 export const PEOPLE = Object.freeze(["anne", "wes"]);
@@ -160,6 +161,25 @@ export function seedChores(db, choresJsonPath) {
 export function getMeta(db, key) {
   const row = db.prepare("SELECT value FROM meta WHERE key = ?").get(key);
   return row ? row.value : null;
+}
+
+export function setMeta(db, key, value) {
+  db.prepare(
+    "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+  ).run(key, String(value));
+}
+
+/**
+ * Set meta.activeFrom to today (Chicago YYYY-MM-DD) on first pair/mint only.
+ * Second call leaves the existing value alone. Returns the effective date string.
+ */
+export function ensureActiveFrom(db, now = new Date()) {
+  const existing = getMeta(db, "activeFrom");
+  if (existing) return existing;
+  const date = chicagoDateString(now);
+  // INSERT OR IGNORE: concurrent first-pairs cannot clobber each other
+  db.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)").run("activeFrom", date);
+  return getMeta(db, "activeFrom") ?? date;
 }
 
 export function listChores(db) {
