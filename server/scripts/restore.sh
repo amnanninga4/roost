@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Roost restore drill — safe by default. Verifies a backup, then copies it to a
 # non-live destination. Refuses to overwrite the production DB unless --live is
-# passed explicitly (and still prints stop/start reminders).
+# passed explicitly. Live restore refuses unless roost.service is inactive,
+# parks the previous DB (+ wal/shm) under ROOST_BACKUP_DIR as replaced-*, and
+# prints the start command + backupcheck result when done.
 #
 # Usage:
 #   restore.sh <backup.db> [--to <dest.db>]
 #   restore.sh <backup.db> --to /var/lib/roost/roost.db --live
 #
 # Defaults:
+#   ROOST_DB=/var/lib/roost/roost.db
 #   ROOST_RESTORE_DIR=/tmp/roost-restore-drill
+#   ROOST_BACKUP_DIR=/var/backups/roost
 #   destination = $ROOST_RESTORE_DIR/roost-restored-YYYYMMDD-HHMMSS.db
 #
 # Does NOT stop/start roost.service for you. For a live restore you must:
@@ -20,6 +24,7 @@ set -euo pipefail
 
 LIVE_DB="${ROOST_DB:-/var/lib/roost/roost.db}"
 RESTORE_DIR="${ROOST_RESTORE_DIR:-/tmp/roost-restore-drill}"
+BACKUP_DIR="${ROOST_BACKUP_DIR:-/var/backups/roost}"
 NODE="${NODE:-$(command -v node)}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,7 +40,7 @@ else
 fi
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -81,17 +86,26 @@ abs_of() {
 }
 dest_abs="$(abs_of "$DEST")"
 live_abs="$(abs_of "$LIVE_DB")"
+is_live_overwrite=0
+if [[ "$dest_abs" == "$live_abs" && "$LIVE" -eq 1 ]]; then
+  is_live_overwrite=1
+fi
 
 if [[ "$dest_abs" == "$live_abs" && "$LIVE" -ne 1 ]]; then
   echo "restore: refusing to overwrite live DB $LIVE_DB without --live" >&2
   echo "restore: for a drill, omit --to or point --to under $RESTORE_DIR" >&2
   exit 1
 fi
-if [[ "$dest_abs" == "$live_abs" && "$LIVE" -eq 1 ]]; then
-  echo "restore: LIVE restore requested → $LIVE_DB" >&2
-  echo "restore: ensure roost.service is STOPPED before continuing:" >&2
-  echo "restore:   sudo systemctl stop roost.service" >&2
-  echo "restore: after restore: sudo systemctl start roost.service" >&2
+
+if [[ "$is_live_overwrite" -eq 1 ]]; then
+  # Anything other than exact "inactive" refuses (active, failed, unknown, empty…).
+  svc_state="$(systemctl is-active roost 2>/dev/null || true)"
+  if [[ "$svc_state" != "inactive" ]]; then
+    echo "restore: refusing live restore — roost.service is '${svc_state:-unknown}' (need inactive)" >&2
+    echo "restore:   sudo systemctl stop roost.service" >&2
+    exit 1
+  fi
+  echo "restore: LIVE restore requested → $LIVE_DB (roost.service inactive)" >&2
 fi
 
 echo "restore: verifying source $BACKUP"
@@ -104,6 +118,27 @@ fi
 seq="$(printf '%s' "$out" | "$NODE" -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const j=JSON.parse(s); process.stdout.write(String(j.seq));})')"
 
 mkdir -p "$(dirname "$DEST")"
+
+# Before overwriting live DB: park previous file + wal/shm as the undo copy.
+# A stale WAL left next to a restored file corrupts it on first open.
+if [[ "$is_live_overwrite" -eq 1 ]]; then
+  mkdir -p "$BACKUP_DIR"
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  replaced="$BACKUP_DIR/replaced-${stamp}.db"
+  if [[ -e "$DEST" ]]; then
+    mv -f "$DEST" "$replaced"
+    echo "restore: moved previous DB → $replaced" >&2
+  fi
+  if [[ -e "${DEST}-wal" ]]; then
+    mv -f "${DEST}-wal" "${replaced}-wal"
+    echo "restore: moved previous WAL → ${replaced}-wal" >&2
+  fi
+  if [[ -e "${DEST}-shm" ]]; then
+    mv -f "${DEST}-shm" "${replaced}-shm"
+    echo "restore: moved previous SHM → ${replaced}-shm" >&2
+  fi
+fi
+
 # Prefer sqlite online backup into the destination (consistent copy); fall back to cp.
 if command -v sqlite3 >/dev/null 2>&1; then
   tmp="$DEST.tmp.$$"
@@ -111,6 +146,14 @@ if command -v sqlite3 >/dev/null 2>&1; then
   mv -f "$tmp" "$DEST"
 else
   cp -f "$BACKUP" "$DEST"
+fi
+
+# Stale sidecars beside the new file would corrupt on open — drop any leftovers.
+rm -f "${DEST}-wal" "${DEST}-shm"
+
+if [[ "$is_live_overwrite" -eq 1 ]] && [[ "$(id -u)" -eq 0 ]]; then
+  chown roost:roost "$DEST"
+  chmod 0640 "$DEST"
 fi
 
 # Re-check the restored file.
@@ -122,3 +165,7 @@ if [[ "$ok2" != "1" ]]; then
 fi
 
 echo "restore: wrote $DEST (seq=$seq); source verified"
+if [[ "$is_live_overwrite" -eq 1 ]]; then
+  echo "sudo systemctl start roost.service"
+  echo "restore: backupcheck: $out2"
+fi
