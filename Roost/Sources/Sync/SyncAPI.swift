@@ -21,12 +21,22 @@ enum SyncAPIError: Error, CustomStringConvertible, Equatable {
         }
     }
 
-    /// True for failures worth retrying later (offline, 5xx). False for 4xx, which will not change on retry.
+    /// True for failures worth retrying later: offline, 5xx, rate limiting (429), a gateway saying no for
+    /// now (403, 408), an unreadable reply. False for 400, 401, 404 and the rest of 4xx, which will not
+    /// change on retry.
     var isTransient: Bool {
         switch self {
         case .transport, .decoding: return true
-        case .http(let code): return code >= 500
+        case .http(let code): return code >= 500 || code == 403 || code == 408 || code == 429
         case .unauthorized, .badRequest, .notFound: return false
+        }
+    }
+
+    /// The whole pass stops on these: the token is dead (re-pair), or nothing is getting through at all.
+    var endsThePass: Bool {
+        switch self {
+        case .unauthorized, .transport: return true
+        case .badRequest, .notFound, .http, .decoding: return false
         }
     }
 }
@@ -58,6 +68,11 @@ struct SyncAPI: Sendable {
         let cursor: Int
         let completions: [CompletionDTO]
         let chores: [ChoreDTO]?
+        // The list deltas (SyncAPI+Lists.swift). Optional so a pre-R-9 server, or a test stub, still decodes.
+        let shopping: [ShoppingDTO]?
+        let meals: [MealDTO]?
+        let projects: [ProjectDTO]?
+        let subtasks: [SubtaskDTO]?
     }
 
     struct ErrorBody: Codable { let error: String }
@@ -110,7 +125,8 @@ struct SyncAPI: Sendable {
         return try Self.decode(CompletionDTO.self, data)
     }
 
-    private func send(method: String, url: URL, body: Data?) async throws -> (Data, Int) {
+    // send / check / decode are shared with the list endpoints in SyncAPI+Lists.swift.
+    func send(method: String, url: URL, body: Data?) async throws -> (Data, Int) {
         var req = URLRequest(url: url)
         req.httpMethod = method
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -131,7 +147,7 @@ struct SyncAPI: Sendable {
         }
     }
 
-    private static func check(_ status: Int, _ data: Data) throws {
+    static func check(_ status: Int, _ data: Data) throws {
         switch status {
         case 200...299: return
         case 401: throw SyncAPIError.unauthorized
@@ -143,7 +159,7 @@ struct SyncAPI: Sendable {
         }
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, _ data: Data) throws -> T {
+    static func decode<T: Decodable>(_ type: T.Type, _ data: Data) throws -> T {
         do { return try JSONDecoder().decode(type, from: data) } catch { throw SyncAPIError.decoding(error.localizedDescription) }
     }
 }

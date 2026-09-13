@@ -2,12 +2,13 @@
 //
 // syncNow():  1. POST every completion that needs it (idempotent on id; 400 → rejected, never retried)
 //             2. DELETE every soft-deleted completion the server has not acknowledged (404 counts as done)
-//             3. GET /sync?cursor=&choresVersion= and apply the delta; store the new cursor
+//             3. replay the list queues the same way (ListSync.swift: POST creates, PATCH edits, DELETE removals)
+//             4. GET /sync?cursor=&choresVersion= and apply the delta; store the new cursor
 // Offline or 5xx is not an error: the queue stays and the next call retries. An in-flight guard makes
 // overlapping callers coalesce into one extra pass, so "sync after every tap" never stampedes.
 import Foundation
-import SwiftData
 import RoostCore
+import SwiftData
 
 enum SyncOutcome: Equatable, Sendable {
     case synced(posted: Int, deleted: Int, received: Int)
@@ -86,14 +87,19 @@ actor SyncClient {
             var posted = 0
             for record in try pendingPosts() {
                 do {
-                    let dto = try await api.post(id: record.id, choreId: record.choreId, completedAt: record.completedAt)
+                    let dto = try await api.post(
+                        id: record.id,
+                        choreId: record.choreId,
+                        completedAt: record.completedAt
+                    )
                     record.syncedAt = now()
                     record.seq = dto.seq
                     posted += 1
                 } catch let e as SyncAPIError where e == .unauthorized {
                     throw e
                 } catch let e as SyncAPIError where !e.isTransient {
-                    record.rejected = true // 400/404: the server will never take this row; keep it locally, stop retrying
+                    record
+                        .rejected = true // 400/404: the server will never take this row; keep it locally, stop retrying
                 } catch let e as SyncAPIError {
                     try modelContext.save()
                     return .failed(e.description) // transient: leave the rest queued
@@ -118,6 +124,12 @@ actor SyncClient {
             }
             try modelContext.save()
 
+            // Throws on 401 or a transport failure, queue intact; a row the server refuses or cannot take
+            // right now does not stop the pass, so the pull below still runs.
+            let lists = try await replayLists(api: api, now: now())
+            posted += lists.posted
+            deleted += lists.deleted
+
             let response = try await api.sync(cursor: state.cursor, choresVersion: state.choresVersion)
             let received = try apply(response, to: state)
             state.lastSyncAt = now()
@@ -132,13 +144,20 @@ actor SyncClient {
 
     // MARK: applying a /sync response
 
-    /// Returns the number of completion rows applied.
+    /// Returns the number of rows applied (completions plus the list deltas).
     @discardableResult
     private func apply(_ response: SyncAPI.SyncResponse, to state: SyncState) throws -> Int {
         if let chores = response.chores {
             let list = ChoreList(version: response.choresVersion, chores: chores.compactMap { dto in
-                guard let cadence = Cadence(rawValue: dto.cadence), let category = ChoreCategory(rawValue: dto.category) else { return nil }
-                return Chore(id: dto.id, title: dto.title, cadence: cadence, fixedAssignee: dto.fixedAssignee.flatMap(Person.init(rawValue:)), category: category)
+                guard let cadence = Cadence(rawValue: dto.cadence),
+                      let category = ChoreCategory(rawValue: dto.category) else { return nil }
+                return Chore(
+                    id: dto.id,
+                    title: dto.title,
+                    cadence: cadence,
+                    fixedAssignee: dto.fixedAssignee.flatMap(Person.init(rawValue:)),
+                    category: category
+                )
             })
             try ChoreSeeder.seed(list, into: modelContext)
         }
@@ -147,7 +166,8 @@ actor SyncClient {
         for dto in response.completions {
             guard let completedAt = SyncAPI.parseDate(dto.completedAt) else { continue }
             let id = dto.id
-            let existing = try modelContext.fetch(FetchDescriptor<CompletionRecord>(predicate: #Predicate { $0.id == id })).first
+            let existing = try modelContext
+                .fetch(FetchDescriptor<CompletionRecord>(predicate: #Predicate { $0.id == id })).first
             if let existing {
                 if existing.needsDelete {
                     // Our delete is still pending; local intent wins until the DELETE replays.
@@ -166,13 +186,21 @@ actor SyncClient {
                     existing.deleteSynced = true
                 }
             } else {
-                let record = CompletionRecord(id: dto.id, choreId: dto.choreId, person: dto.person, completedAt: completedAt, syncedAt: now(), removed: dto.deleted)
+                let record = CompletionRecord(
+                    id: dto.id,
+                    choreId: dto.choreId,
+                    person: dto.person,
+                    completedAt: completedAt,
+                    syncedAt: now(),
+                    removed: dto.deleted
+                )
                 record.deleteSynced = dto.deleted
                 record.seq = dto.seq
                 modelContext.insert(record)
             }
             applied += 1
         }
+        applied += try applyListDelta(response, now: now())
         state.cursor = max(state.cursor, response.cursor)
         state.choresVersion = response.choresVersion
         return applied

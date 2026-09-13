@@ -9,10 +9,13 @@ final class RootTabsTests: XCTestCase {
         XCTAssertEqual(RootTab.allCases.map(\.symbol), ["checklist", "cart", "fork.knife", "hammer"])
     }
 
-    func testOnlyTasksHasARealScreen() {
-        XCTAssertNil(RootTab.tasks.placeholderLine)
-        for tab in RootTab.allCases where tab != .tasks {
-            XCTAssertEqual(tab.placeholderLine, "Nothing here yet.", "\(tab)")
-        }
+    func testListHeadersReadLikeTheMockup() {
+        XCTAssertEqual(Strings.Shopping.header(items: 10, bought: 2), "10 items · 2 already bought")
+        XCTAssertEqual(Strings.Shopping.header(items: 1, bought: 0), "1 item · 0 already bought")
+        XCTAssertEqual(Strings.Meals.header(count: 8), "8 saved ideas")
+        XCTAssertEqual(Strings.Meals.header(count: 1), "1 saved idea")
+        XCTAssertEqual(Strings.Projects.header(count: 3), "3 active projects")
+        XCTAssertEqual(Strings.Projects.header(count: 1), "1 active project")
+        XCTAssertEqual(Strings.Projects.progress(done: 1, total: 5), "1/5")
     }
 }
