@@ -99,42 +99,14 @@ struct TodayScreen: View {
             Text("Today")
                 .font(RoostFont.display(size: RoostFont.Size.title, weight: .bold))
                 .foregroundStyle(RoostColor.ink)
-            HStack(spacing: 14) {
-                ForEach(Person.allCases, id: \.self) { person in
-                    tallyChip(person)
-                }
-            }
-            .padding(.top, 4)
+            StreakHeaderView(model: StreakHeaderModel(plan: plan))
+                .padding(.top, 6)
             Text(sync.statusLine)
                 .font(RoostFont.body(size: RoostFont.Size.caption))
                 .foregroundStyle(RoostColor.inkSoft)
                 .padding(.top, 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func tallyChip(_ person: Person) -> some View {
-        let plan = self.plan
-        return HStack(spacing: 6) {
-            Text(person.displayName)
-                .font(RoostFont.body(size: RoostFont.Size.meta, weight: .bold))
-                .foregroundStyle(person == me ? RoostColor.accent : RoostColor.ink)
-            Text("\(plan.doneThisWeek[person] ?? 0)")
-                .font(RoostFont.mono(size: RoostFont.Size.meta, weight: .semibold))
-                .foregroundStyle(RoostColor.ink)
-            Text("THIS WK")
-                .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .semibold))
-                .kerning(0.5)
-                .foregroundStyle(RoostColor.inkSoft)
-            if let s = plan.streak[person], s > 0 {
-                Text("🔥\(s)")
-                    .font(RoostFont.mono(size: RoostFont.Size.badge, weight: .semibold))
-                    .foregroundStyle(RoostColor.gold)
-            }
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(RoostColor.surface, in: Capsule())
     }
 
     private func personHeader(_ person: Person, plan: TodayPlan) -> some View {
@@ -222,11 +194,18 @@ private struct TodayRowView: View {
                     .frame(width: 26, height: 26)
                     .background(isCatCare ? RoostColor.teaseSoft : RoostColor.accentSoft, in: RoundedRectangle(cornerRadius: 8))
 
-                Text(row.chore.title)
-                    .font(RoostFont.body(size: RoostFont.Size.body, weight: .semibold))
-                    .foregroundStyle(row.isDone ? RoostColor.inkSoft : stageColor)
-                    .strikethrough(row.isDone, color: RoostColor.inkSoft)
-                    .multilineTextAlignment(.leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.chore.title)
+                        .font(RoostFont.body(size: RoostFont.Size.body, weight: .semibold))
+                        .foregroundStyle(row.isDone ? RoostColor.inkSoft : stageColor)
+                        .strikethrough(row.isDone, color: RoostColor.inkSoft)
+                    if let subtitle = EscalationCopy.subtitle(for: row) {
+                        Text(subtitle)
+                            .font(RoostFont.body(size: RoostFont.Size.caption))
+                            .foregroundStyle(stageColor)
+                    }
+                }
+                .multilineTextAlignment(.leading)
 
                 Spacer(minLength: 8)
 
