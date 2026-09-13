@@ -37,8 +37,10 @@ colour only gets calmer going down the card. Wes's own column, its rows, and the
 instead of sitting side by side; further down, the person header stacks name / YOU / count and the week tally
 goes one line per person.
 
-Kitchen mode is a fresh, unpaired install with three of Anne's chores checked off (12 + 16 = 28 of 31 still due)
-and nothing overdue, so it shows the calm state.
+Kitchen mode is the `paired` UI-test fixture (`-roostUITestState paired`), so it is the one screenshot here
+anybody can reproduce with a single command: both alert-stage chores in the shared banner, then each person's
+column with the stage as the card's fill and border and the words in ink. D-6 replaced the old one, which
+predated the restyle and showed the calm "All caught up." state instead.
 
 The three list screens are paired as Anne against a local server, each in light and dark. Shopping has four rows still to buy over a Bought section with "Clear bought", and the header line reads "Synced just now" because the pass had only landed a moment before. Meals has one idea marked NEXT UP and three with a tag and a "last made" line, one of them a weekday and one a date. Projects has a finished card open (DONE chip, full bar, Archive) over a second card at 2/4.
 
@@ -150,7 +152,7 @@ Roost/
   docs/shopping.png           simulator screenshot, Shopping tab; docs/shopping-dark.png is the same screen in dark mode
   docs/meals.png              simulator screenshot, Meals tab; docs/meals-dark.png in dark mode
   docs/projects.png           simulator screenshot, Projects tab; docs/projects-dark.png in dark mode
-  docs/kitchen.png            simulator screenshot, Kitchen mode (unpaired, three chores checked off, nothing overdue: "All caught up.")
+  docs/kitchen.png            simulator screenshot, Kitchen mode, from the `paired` UI-test fixture
   docs/widget-small.png       the small family, rendered in the simulator by WidgetRenderTests
   docs/widget-medium.png      the medium family, the same way
 ```
