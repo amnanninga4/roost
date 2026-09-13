@@ -41,6 +41,49 @@ enum ListActions {
         try context.save()
     }
 
+    /// Everything already ticked, removed in one go. Returns the rows so the undo bar can put them back.
+    @discardableResult
+    static func clearBought(in context: ModelContext, now: Date = Date()) throws -> [ShoppingItemRecord] {
+        let ticked = try context.fetch(FetchDescriptor<ShoppingItemRecord>(
+            predicate: #Predicate { $0.bought && !$0.removed }
+        ))
+        for item in ticked {
+            item.markRemoved(at: now)
+        }
+        try context.save()
+        return ticked
+    }
+
+    /// Undo of `removeShoppingItem`. Returns the row that is now on the list: the same one when the
+    /// DELETE never left the phone, a fresh copy when the server has already been told.
+    @discardableResult
+    static func restoreShoppingItem(
+        _ item: ShoppingItemRecord, in context: ModelContext, now: Date = Date()
+    ) throws -> ShoppingItemRecord {
+        guard item.deleteReachedServer else {
+            item.unremove(at: now)
+            try context.save()
+            return item
+        }
+        let copy = ShoppingItemRecord(
+            id: newId(),
+            title: item.title,
+            addedBy: item.addedBy,
+            bought: item.bought,
+            boughtBy: item.boughtBy,
+            boughtAt: item.boughtAt,
+            createdAt: item.createdAt,
+            updatedAt: now
+        )
+        // The create carries only id and title, so a ticked row needs `bought` sent after it.
+        if copy.bought {
+            copy.pendingFields = .bought
+        }
+        context.insert(copy)
+        try context.save()
+        return copy
+    }
+
     // MARK: meals
 
     @discardableResult
@@ -79,6 +122,28 @@ enum ListActions {
     static func removeMeal(_ meal: MealRecord, in context: ModelContext, now: Date = Date()) throws {
         meal.markRemoved(at: now)
         try context.save()
+    }
+
+    /// Undo of `removeMeal`. A meal's create carries every field, so the copy needs nothing flagged.
+    @discardableResult
+    static func restoreMeal(_ meal: MealRecord, in context: ModelContext, now: Date = Date()) throws -> MealRecord {
+        guard meal.deleteReachedServer else {
+            meal.unremove(at: now)
+            try context.save()
+            return meal
+        }
+        let copy = MealRecord(
+            id: newId(),
+            title: meal.title,
+            tag: meal.tag,
+            lastMadeAt: meal.lastMadeAt,
+            nextUp: meal.nextUp,
+            createdAt: meal.createdAt,
+            updatedAt: now
+        )
+        context.insert(copy)
+        try context.save()
+        return copy
     }
 
     // MARK: projects
@@ -139,16 +204,117 @@ enum ListActions {
         try context.save()
     }
 
+    /// Undo of `removeSubtask`. The copy keeps its place in the project; `done` is not part of a
+    /// create, so a step that was ticked has it flagged for the PATCH that follows.
+    @discardableResult
+    static func restoreSubtask(
+        _ subtask: SubtaskRecord, in context: ModelContext, now: Date = Date()
+    ) throws -> SubtaskRecord {
+        guard subtask.deleteReachedServer else {
+            subtask.unremove(at: now)
+            try context.save()
+            return subtask
+        }
+        let copy = SubtaskRecord(
+            id: newId(),
+            projectId: subtask.projectId,
+            title: subtask.title,
+            sortOrder: subtask.sortOrder,
+            done: subtask.done,
+            doneBy: subtask.doneBy,
+            doneAt: subtask.doneAt,
+            createdAt: subtask.createdAt,
+            updatedAt: now
+        )
+        if copy.done {
+            copy.pendingFields = .done
+        }
+        context.insert(copy)
+        try context.save()
+        return copy
+    }
+
+    /// Applies a drag: `SubtaskOrder` decides the new `sortOrder` values and this writes them,
+    /// flagging only the rows that actually moved. Returns how many rows will be PATCHed.
+    @discardableResult
+    static func reorderSubtasks(
+        of project: ProjectRecord,
+        move source: IndexSet,
+        to destination: Int,
+        in context: ModelContext,
+        now: Date = Date()
+    ) throws -> Int {
+        let steps = try liveSubtasks(of: project.id, in: context)
+        let rows = steps.map { (id: $0.id, sortOrder: $0.sortOrder) }
+        let changes = SubtaskOrder.plan(rows: rows, move: source, to: destination)
+        guard !changes.isEmpty else { return 0 }
+        let byId = Dictionary(uniqueKeysWithValues: steps.map { ($0.id, $0) })
+        for change in changes {
+            guard let step = byId[change.id] else { continue }
+            step.sortOrder = change.sortOrder
+            step.markEdited(.sortOrder, at: now)
+        }
+        try context.save()
+        return changes.count
+    }
+
     /// Removes the project and every live step under it. One DELETE (the project's) covers the steps:
     /// the server cascades, so the steps are acknowledged here and never sent on their own.
-    static func removeProject(_ project: ProjectRecord, in context: ModelContext, now: Date = Date()) throws {
-        for subtask in try liveSubtasks(of: project.id, in: context) {
+    ///
+    /// Returns the steps it cascaded, so an undo puts back exactly those and not a step that had
+    /// already been deleted on its own.
+    @discardableResult
+    static func removeProject(
+        _ project: ProjectRecord, in context: ModelContext, now: Date = Date()
+    ) throws -> [SubtaskRecord] {
+        let cascaded = try liveSubtasks(of: project.id, in: context)
+        for subtask in cascaded {
             subtask.removed = true
             subtask.deleteSynced = true
             subtask.updatedAt = now
         }
         project.markRemoved(at: now)
         try context.save()
+        return cascaded
+    }
+
+    /// Undo of `removeProject`, with the steps that call cascaded. When the DELETE never left the
+    /// phone the project and those steps simply come back; when it did, the server cascaded for good,
+    /// so a fresh project and a fresh copy of each step go out as new creates.
+    @discardableResult
+    static func restoreProject(
+        _ project: ProjectRecord, steps: [SubtaskRecord], in context: ModelContext, now: Date = Date()
+    ) throws -> ProjectRecord {
+        guard project.deleteReachedServer else {
+            project.unremove(at: now)
+            for step in steps {
+                step.unremove(at: now)
+            }
+            try context.save()
+            return project
+        }
+        let copy = ProjectRecord(id: newId(), title: project.title, createdAt: project.createdAt, updatedAt: now)
+        context.insert(copy)
+        for step in steps.sorted(by: { $0.sortOrder < $1.sortOrder }) {
+            let stepCopy = SubtaskRecord(
+                id: newId(),
+                projectId: copy.id,
+                title: step.title,
+                sortOrder: step.sortOrder,
+                done: step.done,
+                doneBy: step.doneBy,
+                doneAt: step.doneAt,
+                createdAt: step.createdAt,
+                updatedAt: now
+            )
+            // A create carries the step's title and its place, but not whether it is ticked.
+            if stepCopy.done {
+                stepCopy.pendingFields = .done
+            }
+            context.insert(stepCopy)
+        }
+        try context.save()
+        return copy
     }
 
     static func liveSubtasks(of projectId: String, in context: ModelContext) throws -> [SubtaskRecord] {

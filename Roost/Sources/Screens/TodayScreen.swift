@@ -125,9 +125,10 @@ struct TodayScreen: View {
     private func notice(asOf now: Date) -> TodayBoard.Notice {
         TodayBoard.notice(
             isPaired: state?.isPaired ?? false,
-            isSyncing: sync.isSyncing,
             outcome: sync.lastOutcome,
             lastSyncAt: sync.lastSyncAt,
+            // The same line the list tabs print, so the two never disagree about the last pass.
+            statusLine: sync.statusLine,
             now: now
         )
     }

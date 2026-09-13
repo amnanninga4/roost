@@ -90,32 +90,33 @@ enum TodayBoard {
         let text: String
     }
 
-    static func notice(isPaired: Bool, isSyncing: Bool, outcome: SyncOutcome?, lastSyncAt: Date?,
+    /// `statusLine` is `SyncCoordinator.statusLine`, the same string the three list tabs print in their own
+    /// header, and it is passed through untouched for every ordinary state — syncing, synced, never synced.
+    /// One source, so two tabs of the same app can never disagree about when the last pass landed.
+    ///
+    /// The Tasks tab overrides it in exactly two states, on purpose:
+    ///
+    /// - **unpaired** — the line has to say where to go, and since D-4 that is the gear menu's Settings item.
+    /// - **offline** — a failed pass is the one moment the time of the last good one matters, so this line
+    ///   carries it rather than "will retry".
+    static func notice(isPaired: Bool, outcome: SyncOutcome?, lastSyncAt: Date?, statusLine: String,
                        now: Date = Date()) -> Notice
     {
-        if isSyncing || outcome == .coalesced {
-            return Notice(tone: .quiet, text: Strings.Tasks.syncing)
-        }
         if !isPaired || outcome == .unpaired {
             return Notice(tone: .notice, text: Strings.Tasks.notPaired)
         }
         if case .failed = outcome {
             return Notice(tone: .notice, text: Strings.Tasks.offline(lastSynced(lastSyncAt, now: now)))
         }
-        guard lastSyncAt != nil else {
-            return Notice(tone: .quiet, text: Strings.Tasks.neverSynced)
-        }
-        return Notice(tone: .quiet, text: Strings.Tasks.synced(lastSynced(lastSyncAt, now: now)))
+        return Notice(tone: .quiet, text: statusLine)
     }
 
-    /// "never", "just now" inside a minute, else the system's relative wording ("5 minutes ago").
+    /// "never", else the system's relative wording. `.short` because that is what
+    /// `SyncCoordinator.statusLine` uses, and the offline line sits on the same screen as lines it built.
     static func lastSynced(_ date: Date?, now: Date = Date()) -> String {
         guard let date else { return Strings.Tasks.never }
-        if now.timeIntervalSince(date) < 60 {
-            return Strings.Tasks.justNow
-        }
         let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
+        formatter.unitsStyle = .short
         return formatter.localizedString(for: date, relativeTo: now)
     }
 }

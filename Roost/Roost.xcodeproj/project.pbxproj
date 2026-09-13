@@ -29,6 +29,7 @@
 		4798048D31F0170904D22EFE /* NotificationCenterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942C42CA2EA09654B4A81C62 /* NotificationCenterClient.swift */; };
 		482F3F523C9CB57C640A68FA /* MealsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A097437EB479AA01D6F9E7E8 /* MealsScreen.swift */; };
 		4C25971AEC9CDF6ACC9626E7 /* PersonColumnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48A55826328A91D661A3B83 /* PersonColumnView.swift */; };
+		52B72B23F1E34310AB575E93 /* ListCraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA7C1B8D87C1351A417B2668 /* ListCraftTests.swift */; };
 		5B25ACFB4582FE9B45713720 /* ServerEndpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = A71B879CE7DB2DB09F27382D /* ServerEndpoint.swift */; };
 		5C3E33554F496E34DB9C74FF /* ChoreListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774412789D61C406A8D98E53 /* ChoreListScreen.swift */; };
 		5C48CC0675271C9AB0A796C0 /* KitchenScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF0A17F51BBAD90D575556D /* KitchenScreen.swift */; };
@@ -65,6 +66,7 @@
 		CAECD7BEBC9EAB3C0F829554 /* EscalationCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */; };
 		CBD97B628EFA73DC8E450A8B /* SyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97C8735ABEAA4E3E01A86404 /* SyncTests.swift */; };
 		CCCF645732C916D4F6D9580E /* TaskStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84347A76B73F4360AC90C950 /* TaskStyle.swift */; };
+		DC04BB3F6E4538144F8E1AE0 /* ListPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7450DA745986794A3E6746CA /* ListPresentation.swift */; };
 		E15A69E61CD7A0FD44EFC0D7 /* ListSync+Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8892EAFB22A5A81918BEFED /* ListSync+Records.swift */; };
 		E274B04EE2C27DEE16ECB458 /* Strings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9775AC21FAD79898ED7EB5F1 /* Strings.swift */; };
 		E2C0B1662B4A0FED10454A6B /* ConfirmStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F4D668C1CD34C526A61A855 /* ConfirmStep.swift */; };
@@ -110,6 +112,7 @@
 		6A9D18E18A848E75999983A1 /* RoostDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoostDesign; path = ../Packages/RoostDesign; sourceTree = SOURCE_ROOT; };
 		70EEA3303FF22CD208D77A66 /* KitchenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModel.swift; sourceTree = "<group>"; };
 		714F89110CAB1289D39246BC /* ListActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListActions.swift; sourceTree = "<group>"; };
+		7450DA745986794A3E6746CA /* ListPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListPresentation.swift; sourceTree = "<group>"; };
 		76764903F0C41339B67FE451 /* Roost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Roost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		76AF01D4B0027DC9BFEA9C94 /* ChoreSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreSeeder.swift; sourceTree = "<group>"; };
 		774412789D61C406A8D98E53 /* ChoreListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreListScreen.swift; sourceTree = "<group>"; };
@@ -159,6 +162,7 @@
 		F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationCopyTests.swift; sourceTree = "<group>"; };
 		F646A9ADB3D39E2B899084CA /* ListReplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListReplayTests.swift; sourceTree = "<group>"; };
 		F8892EAFB22A5A81918BEFED /* ListSync+Records.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ListSync+Records.swift"; sourceTree = "<group>"; };
+		FA7C1B8D87C1351A417B2668 /* ListCraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListCraftTests.swift; sourceTree = "<group>"; };
 		FAABFF10436145260720977A /* EscalationCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationCopy.swift; sourceTree = "<group>"; };
 		FB7E2D2040607F9F3DD01B58 /* RoostTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RoostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FBF0A17F51BBAD90D575556D /* KitchenScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenScreen.swift; sourceTree = "<group>"; };
@@ -279,6 +283,7 @@
 				FAABFF10436145260720977A /* EscalationCopy.swift */,
 				70EEA3303FF22CD208D77A66 /* KitchenModel.swift */,
 				714F89110CAB1289D39246BC /* ListActions.swift */,
+				7450DA745986794A3E6746CA /* ListPresentation.swift */,
 				E343A40CD3BE9DD30C5E0C8C /* ListRecords.swift */,
 				A7168ED6D6C114A915763462 /* Records.swift */,
 				A10E35F985A65EA17D991EC0 /* StreakHeaderModel.swift */,
@@ -292,6 +297,7 @@
 			children = (
 				F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */,
 				5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */,
+				FA7C1B8D87C1351A417B2668 /* ListCraftTests.swift */,
 				A3A83AF60338C3D3E81A5795 /* ListCreateTests.swift */,
 				8E7ED3A3F187B7D465B0F1EB /* ListDeltaTests.swift */,
 				C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */,
@@ -468,6 +474,7 @@
 				5C48CC0675271C9AB0A796C0 /* KitchenScreen.swift in Sources */,
 				89B3EFA6CFC290DFD1BD0062 /* ListActions.swift in Sources */,
 				84BFE7D41C21D8B41E3B2F0B /* ListParts.swift in Sources */,
+				DC04BB3F6E4538144F8E1AE0 /* ListPresentation.swift in Sources */,
 				A5E0D12DFB87114797C31D22 /* ListRecords.swift in Sources */,
 				E15A69E61CD7A0FD44EFC0D7 /* ListSync+Records.swift in Sources */,
 				8D84EA9322134F83B06C6A68 /* ListSync.swift in Sources */,
@@ -513,6 +520,7 @@
 			files = (
 				CAECD7BEBC9EAB3C0F829554 /* EscalationCopyTests.swift in Sources */,
 				B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */,
+				52B72B23F1E34310AB575E93 /* ListCraftTests.swift in Sources */,
 				F09F47F7201F64D4DDA19BF9 /* ListCreateTests.swift in Sources */,
 				91B2E1CAF4C7FFE8B09A7656 /* ListDeltaTests.swift in Sources */,
 				18485F39E0B4CDB1B02E6B81 /* ListFailureTests.swift in Sources */,

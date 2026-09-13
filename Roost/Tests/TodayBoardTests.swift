@@ -206,64 +206,62 @@ final class TodayBoardTests: XCTestCase {
 
     // MARK: - Status line
 
+    /// What `SyncCoordinator.statusLine` would hand the screen. The Tasks header prints it verbatim in
+    /// every ordinary state, which is what keeps it in step with the three list tabs.
+    private let coordinatorLine = "Synced 28 sec. ago"
+
     func testUnpairedPointsAtTheGearMenu() {
-        let notice = TodayBoard.notice(isPaired: false, isSyncing: false, outcome: nil, lastSyncAt: nil, now: Date())
+        let notice = TodayBoard.notice(isPaired: false, outcome: nil, lastSyncAt: nil,
+                                       statusLine: coordinatorLine, now: Date())
         XCTAssertEqual(notice, TodayBoard.Notice(tone: .notice, text: Strings.Tasks.notPaired))
         XCTAssertTrue(Strings.Tasks.notPaired.contains(Strings.Settings.title),
                       "the line has to name the gear-menu item that actually exists")
 
-        let unpaired = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .unpaired,
-                                         lastSyncAt: Date(), now: Date())
+        let unpaired = TodayBoard.notice(isPaired: true, outcome: .unpaired, lastSyncAt: Date(),
+                                         statusLine: coordinatorLine, now: Date())
         XCTAssertEqual(unpaired.tone, .notice)
     }
 
     func testAFailedSyncIsANoticeCarryingTheLastSyncedTime() {
         let now = Date()
-        let never = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .failed("timed out"),
-                                      lastSyncAt: nil, now: now)
+        let never = TodayBoard.notice(isPaired: true, outcome: .failed("timed out"), lastSyncAt: nil,
+                                      statusLine: coordinatorLine, now: now)
         XCTAssertEqual(never, TodayBoard.Notice(tone: .notice, text: "Offline · last synced never"))
 
-        let justNow = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .failed("timed out"),
-                                        lastSyncAt: now.addingTimeInterval(-5), now: now)
-        XCTAssertEqual(justNow, TodayBoard.Notice(tone: .notice, text: "Offline · last synced just now"))
-
-        let earlier = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .failed("timed out"),
-                                        lastSyncAt: now.addingTimeInterval(-300), now: now)
+        let earlier = TodayBoard.notice(isPaired: true, outcome: .failed("timed out"),
+                                        lastSyncAt: now.addingTimeInterval(-300),
+                                        statusLine: coordinatorLine, now: now)
         XCTAssertEqual(earlier.tone, .notice)
         XCTAssertTrue(earlier.text.hasPrefix("Offline · last synced "), earlier.text)
-        XCTAssertFalse(earlier.text.hasSuffix("just now"), earlier.text)
+        XCTAssertNotEqual(earlier.text, coordinatorLine,
+                          "a failed pass is the one state that does not take the coordinator's wording")
     }
 
-    func testASuccessfulSyncIsQuiet() {
+    /// The point of the whole arrangement: on any ordinary state the Tasks header says exactly what the
+    /// list tabs say, because it is the same string. If this stops holding, the two tabs disagree.
+    func testAnOrdinarySyncPrintsTheCoordinatorsOwnLine() {
         let now = Date()
-        XCTAssertEqual(
-            TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .synced(posted: 1, deleted: 0, received: 2),
-                              lastSyncAt: now, now: now),
-            TodayBoard.Notice(tone: .quiet, text: "Synced just now")
-        )
-        XCTAssertEqual(
-            TodayBoard.notice(isPaired: true, isSyncing: false, outcome: nil, lastSyncAt: nil, now: now),
-            TodayBoard.Notice(tone: .quiet, text: "Not synced yet")
-        )
+        for outcome in [SyncOutcome.synced(posted: 1, deleted: 0, received: 2), .coalesced, nil] {
+            let notice = TodayBoard.notice(isPaired: true, outcome: outcome, lastSyncAt: now,
+                                           statusLine: coordinatorLine, now: now)
+            XCTAssertEqual(notice, TodayBoard.Notice(tone: .quiet, text: coordinatorLine), "\(String(describing: outcome))")
+        }
     }
 
-    func testSyncingWinsOverEverythingElse() {
-        let now = Date()
-        XCTAssertEqual(
-            TodayBoard.notice(isPaired: false, isSyncing: true, outcome: .failed("x"), lastSyncAt: nil, now: now),
-            TodayBoard.Notice(tone: .quiet, text: "Syncing…")
-        )
-        XCTAssertEqual(
-            TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .coalesced, lastSyncAt: now, now: now).text,
-            "Syncing…"
-        )
-    }
-
-    func testLastSyncedWording() {
+    /// The offline line is the one place the Tasks tab formats a time itself, so it has to be formatted
+    /// the way `SyncCoordinator.statusLine` formats its own: `RelativeDateTimeFormatter`, `.short`.
+    func testLastSyncedIsWordedLikeTheCoordinator() {
         let now = Date()
         XCTAssertEqual(TodayBoard.lastSynced(nil, now: now), "never")
-        XCTAssertEqual(TodayBoard.lastSynced(now.addingTimeInterval(-59), now: now), "just now")
-        XCTAssertNotEqual(TodayBoard.lastSynced(now.addingTimeInterval(-3600), now: now), "just now")
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        for seconds in [5.0, 59.0, 300.0, 3600.0, 86400.0] {
+            let then = now.addingTimeInterval(-seconds)
+            XCTAssertEqual(TodayBoard.lastSynced(then, now: now),
+                           formatter.localizedString(for: then, relativeTo: now),
+                           "\(seconds)s")
+        }
     }
 
     // MARK: - The overdue badge

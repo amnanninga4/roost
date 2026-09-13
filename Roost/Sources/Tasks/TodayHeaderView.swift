@@ -61,7 +61,7 @@ struct SyncNoticeLine: View {
     TodayHeaderView(
         date: Date(),
         streaks: StreakHeaderModel(streak: [.anne: 9, .wes: 6], doneThisWeek: [.anne: 14, .wes: 11]),
-        notice: TodayBoard.Notice(tone: .quiet, text: Strings.Tasks.synced(Strings.Tasks.justNow))
+        notice: TodayBoard.Notice(tone: .quiet, text: Strings.Tasks.synced(TodayBoard.lastSynced(Date())))
     )
     .padding(RoostSpacing.screenMargin)
     .background(RoostColor.Role.background.color)
