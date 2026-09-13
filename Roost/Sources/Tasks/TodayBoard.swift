@@ -11,15 +11,23 @@ enum TodayBoard {
 
     /// One person's rows in the order the card draws them:
     ///
-    /// 1. **Alert stage first** — five days late is the loudest thing on the screen, so it sits at the
-    ///    top of the card where it cannot be scrolled past.
-    /// 2. Then the planner's order for everything else still due: cat care first, then most days late.
-    /// 3. Then what was checked off today, so a finished row sinks under the work that is left but is
+    /// 1. **By escalation stage, loudest first** — alert (5+ days), then pointed, then nudge, then what
+    ///    is merely due today. The colour going down the card only ever gets calmer, so the state of
+    ///    the list is legible without reading a word of it, and the five-day row cannot be scrolled
+    ///    past. Within one stage the planner's order stands: cat care first, then most days late.
+    /// 2. Then what was checked off today, so a finished row sinks under the work that is left but is
     ///    still there to un-check.
+    ///
+    /// This is the order Kitchen mode already uses for its overdue cards, so the two screens agree.
     static func ordered(_ rows: [TodayRow]) -> [TodayRow] {
-        rows.filter { !$0.isDone && $0.stage == .alert }
-            + rows.filter { !$0.isDone && $0.stage != .alert }
-            + rows.filter(\.isDone)
+        let due = rows.filter { !$0.isDone }
+        // enumerated(), so rows at the same stage keep the order the planner put them in.
+        let byStage = due.enumerated().sorted { left, right in
+            left.element.stage == right.element.stage
+                ? left.offset < right.offset
+                : left.element.stage > right.element.stage
+        }
+        return byStage.map(\.element) + rows.filter(\.isDone)
     }
 
     // MARK: - Week bar

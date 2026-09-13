@@ -83,6 +83,17 @@ final class TodayBoardTests: XCTestCase {
         XCTAssertFalse(ordered.dropFirst(2).contains { !$0.isDone && $0.stage == .alert })
     }
 
+    /// The whole point of the order: going down the card, the colour only ever gets calmer. A row that is
+    /// merely due today never sits between two overdue ones, whatever the planner's own preference.
+    func testTheDueRowsRunLoudestFirst() {
+        let ordered = TodayBoard.ordered(plan().rows(for: .anne)).filter { !$0.isDone }
+        let stages = ordered.map(\.stage)
+
+        XCTAssertEqual(stages, stages.sorted(by: >), "\(stages)")
+        XCTAssertEqual(stages.first, .alert)
+        XCTAssertEqual(stages.last, .dueToday)
+    }
+
     func testDoneRowsSinkToTheBottom() throws {
         let ordered = TodayBoard.ordered(plan().rows(for: .anne))
         let firstDone = ordered.firstIndex(where: \.isDone)
@@ -90,10 +101,18 @@ final class TodayBoardTests: XCTestCase {
         XCTAssertTrue(try ordered[XCTUnwrap(firstDone?...)].allSatisfy(\.isDone))
     }
 
-    func testEverythingElseKeepsThePlannersOrder() {
+    /// Inside one stage nothing is re-shuffled: the planner's cat-care-first, most-days-late-next order
+    /// still decides, so two rows that are equally late keep the order the rest of the app gives them.
+    func testWithinOneStageThePlannersOrderStands() {
         let planned = plan().rows(for: .anne)
-        let quiet = { (rows: [TodayRow]) in rows.filter { !$0.isDone && $0.stage != .alert }.map(\.chore.id) }
-        XCTAssertEqual(quiet(TodayBoard.ordered(planned)), quiet(planned))
+        let ordered = TodayBoard.ordered(planned)
+
+        for stage in EscalationStage.allCases {
+            let sameStage = { (rows: [TodayRow]) in
+                rows.filter { !$0.isDone && $0.stage == stage }.map(\.chore.id)
+            }
+            XCTAssertEqual(sameStage(ordered), sameStage(planned), "\(stage)")
+        }
     }
 
     func testOrderLosesNothing() {
@@ -189,7 +208,9 @@ final class TodayBoardTests: XCTestCase {
 
     func testUnpairedPointsAtTheGearMenu() {
         let notice = TodayBoard.notice(isPaired: false, isSyncing: false, outcome: nil, lastSyncAt: nil, now: Date())
-        XCTAssertEqual(notice, TodayBoard.Notice(tone: .notice, text: "Not paired yet · gear menu → Pairing"))
+        XCTAssertEqual(notice, TodayBoard.Notice(tone: .notice, text: Strings.Tasks.notPaired))
+        XCTAssertTrue(Strings.Tasks.notPaired.contains(Strings.Settings.title),
+                      "the line has to name the gear-menu item that actually exists")
 
         let unpaired = TodayBoard.notice(isPaired: true, isSyncing: false, outcome: .unpaired,
                                          lastSyncAt: Date(), now: Date())

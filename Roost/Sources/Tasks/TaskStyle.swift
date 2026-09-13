@@ -36,12 +36,6 @@ extension EscalationStage {
     }
 }
 
-extension Person {
-    /// The design system's person, so view code asks for a role rather than picking a colour.
-    var design: RoostPerson {
-        switch self {
-        case .anne: .anne
-        case .wes: .wes
-        }
-    }
-}
+// `Person.design` — the RoostPerson a Person maps to, which the column header's dot and the week bar's two
+// halves both read — lives in `Onboarding/OnboardingPage.swift`, next to `Person.initial`. One definition,
+// wherever it was first needed.
