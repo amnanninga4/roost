@@ -16,6 +16,7 @@ struct TodayScreen: View {
     @Query private var syncStates: [SyncState]
 
     @State private var showPairing = false
+    @State private var showKitchen = false
     @State private var now = Date()
 
     private let calendar = HouseholdCalendar()
@@ -65,6 +66,7 @@ struct TodayScreen: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button(Strings.Kitchen.menuEntry) { showKitchen = true }
                         NavigationLink("All chores") { ChoreListScreen() }
                         Button("Pairing…") { showPairing = true }
                         Button("Sync now") { sync.syncSoon() }
@@ -74,6 +76,7 @@ struct TodayScreen: View {
                 }
             }
             .sheet(isPresented: $showPairing) { PairingScreen() }
+            .fullScreenCover(isPresented: $showKitchen) { KitchenScreen() }
         }
         .tint(RoostColor.accent)
         .task {

@@ -36,6 +36,28 @@ enum Strings {
         /// 5+ days late. The title is capitalized: "Scoop litter emergency"
         static func alert(title: String) -> String { "\(title.uppercasedFirst) emergency" }
     }
+
+    /// Kitchen mode (Gear → Kitchen mode): the phone propped on the counter, both people at once.
+    enum Kitchen {
+        static let menuEntry = "Kitchen mode"
+        static let close = "Close"
+        /// Heading over the shared red banner that lists every alert-stage chore from either person.
+        static let alertHeading = "VISIBLE TO BOTH OF YOU"
+        /// Under each name, beneath the big number: everything the person owes today, overdue included.
+        static let dueTodayLabel = "DUE TODAY"
+        /// The same as one line, for accessibility: "4 DUE TODAY"
+        static func dueToday(_ count: Int) -> String { "\(count) \(dueTodayLabel)" }
+        /// "1 DAY LATE" / "3 DAYS LATE", the stage label on an overdue card.
+        static func daysLate(_ days: Int) -> String { days == 1 ? "1 DAY LATE" : "\(days) DAYS LATE" }
+        /// Under a name when this person has nothing overdue but the other one does.
+        static let columnClear = "Nothing overdue."
+        /// The one calm line when nobody has anything overdue.
+        static let caughtUp = "All caught up."
+        /// Bottom line, from the coordinator's last successful sync.
+        static func synced(_ relative: String) -> String { "Synced \(relative)" }
+        static let syncedJustNow = "Synced just now"
+        static let neverSynced = "Not synced yet"
+    }
 }
 
 extension String {

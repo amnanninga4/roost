@@ -18,8 +18,10 @@
 		47641B203590A9E1117FB6F1 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437D3C9DA2143287D04065E3 /* RootTabView.swift */; };
 		4798048D31F0170904D22EFE /* NotificationCenterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942C42CA2EA09654B4A81C62 /* NotificationCenterClient.swift */; };
 		5C3E33554F496E34DB9C74FF /* ChoreListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 774412789D61C406A8D98E53 /* ChoreListScreen.swift */; };
+		5C48CC0675271C9AB0A796C0 /* KitchenScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF0A17F51BBAD90D575556D /* KitchenScreen.swift */; };
 		602AFC08808EC82D9B6584DA /* TodayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EF09CEC861E840F923EDA47 /* TodayScreen.swift */; };
 		7D58C56AB7C0F907F6E82391 /* SyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE52B0C57CE02C2906E1DB63 /* SyncCoordinator.swift */; };
+		7F0E2E2319A89428BAB50AF0 /* KitchenModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EEA3303FF22CD208D77A66 /* KitchenModel.swift */; };
 		8965F0FCBF8E740F05CD4E00 /* RootTabsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6F339EC29A50E64FE45C5FA /* RootTabsTests.swift */; };
 		8F63429AFE3DE3BE709E0A25 /* StreakHeaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334905B7A9952B9FF0F8BC28 /* StreakHeaderTests.swift */; };
 		8FF3D79D0510AA480A26B576 /* PairingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905C338F1F600C20B79ABDC2 /* PairingScreen.swift */; };
@@ -28,6 +30,7 @@
 		9556C1ACC4D00A39B7D6C422 /* TodayPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B250C6201CB77F9FC9A682 /* TodayPlannerTests.swift */; };
 		986D647BFF97684348BA8C55 /* NotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E03CE0F01E84A59CEB8FA510 /* NotificationTests.swift */; };
 		A9034DED020DA09E49340196 /* SyncClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78ECED567106C945B909F1CC /* SyncClient.swift */; };
+		B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */; };
 		C369D78023DDEEE13AA30A34 /* chores.json in Resources */ = {isa = PBXBuildFile; fileRef = AEDE70E38B5C767CEBF25D6B /* chores.json */; };
 		C71145DD7AB59557F27CE674 /* ChoreSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AF01D4B0027DC9BFEA9C94 /* ChoreSeeder.swift */; };
 		C88E648BDD73E1D2A3D3BC69 /* SyncAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C322C42624D2C3E5EF44F476 /* SyncAPI.swift */; };
@@ -61,7 +64,9 @@
 		356F45852D23F470A2889DFE /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
 		3AFCB4C23BE3B1B703EA7582 /* RoostCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoostCore; path = ../Packages/RoostCore; sourceTree = SOURCE_ROOT; };
 		437D3C9DA2143287D04065E3 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModelTests.swift; sourceTree = "<group>"; };
 		6A9D18E18A848E75999983A1 /* RoostDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoostDesign; path = ../Packages/RoostDesign; sourceTree = SOURCE_ROOT; };
+		70EEA3303FF22CD208D77A66 /* KitchenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModel.swift; sourceTree = "<group>"; };
 		76764903F0C41339B67FE451 /* Roost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Roost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		76AF01D4B0027DC9BFEA9C94 /* ChoreSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreSeeder.swift; sourceTree = "<group>"; };
 		774412789D61C406A8D98E53 /* ChoreListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreListScreen.swift; sourceTree = "<group>"; };
@@ -89,6 +94,7 @@
 		F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationCopyTests.swift; sourceTree = "<group>"; };
 		FAABFF10436145260720977A /* EscalationCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationCopy.swift; sourceTree = "<group>"; };
 		FB7E2D2040607F9F3DD01B58 /* RoostTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RoostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FBF0A17F51BBAD90D575556D /* KitchenScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenScreen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -142,6 +148,7 @@
 			isa = PBXGroup;
 			children = (
 				774412789D61C406A8D98E53 /* ChoreListScreen.swift */,
+				FBF0A17F51BBAD90D575556D /* KitchenScreen.swift */,
 				905C338F1F600C20B79ABDC2 /* PairingScreen.swift */,
 				786FB91B2CD4205D380958C8 /* PlaceholderScreen.swift */,
 				0D07271A0DB7B2161F47FEC0 /* StreakHeaderView.swift */,
@@ -194,6 +201,7 @@
 				76AF01D4B0027DC9BFEA9C94 /* ChoreSeeder.swift */,
 				9F2D83207427DCFB1F79CBC4 /* Converters.swift */,
 				FAABFF10436145260720977A /* EscalationCopy.swift */,
+				70EEA3303FF22CD208D77A66 /* KitchenModel.swift */,
 				A7168ED6D6C114A915763462 /* Records.swift */,
 				A10E35F985A65EA17D991EC0 /* StreakHeaderModel.swift */,
 				080ACA808436919384EF6875 /* TodayPlanner.swift */,
@@ -205,6 +213,7 @@
 			isa = PBXGroup;
 			children = (
 				F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */,
+				5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */,
 				E03CE0F01E84A59CEB8FA510 /* NotificationTests.swift */,
 				A6F339EC29A50E64FE45C5FA /* RootTabsTests.swift */,
 				DEB1E461FBB61E46D4B13B15 /* SeedTests.swift */,
@@ -331,6 +340,8 @@
 				C71145DD7AB59557F27CE674 /* ChoreSeeder.swift in Sources */,
 				945FB8FE02B65A30A5E26481 /* Converters.swift in Sources */,
 				F6E54746BBAAC8A68678C7D2 /* EscalationCopy.swift in Sources */,
+				7F0E2E2319A89428BAB50AF0 /* KitchenModel.swift in Sources */,
+				5C48CC0675271C9AB0A796C0 /* KitchenScreen.swift in Sources */,
 				4798048D31F0170904D22EFE /* NotificationCenterClient.swift in Sources */,
 				9305004166815524383CAF5C /* NotificationPlanner.swift in Sources */,
 				463F22DB87909E5645C8E931 /* NotificationScheduler.swift in Sources */,
@@ -357,6 +368,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CAECD7BEBC9EAB3C0F829554 /* EscalationCopyTests.swift in Sources */,
+				B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */,
 				986D647BFF97684348BA8C55 /* NotificationTests.swift in Sources */,
 				8965F0FCBF8E740F05CD4E00 /* RootTabsTests.swift in Sources */,
 				FE732B3691A48C147D082A40 /* SeedTests.swift in Sources */,

@@ -1,12 +1,12 @@
 # Roost/ — the iOS app
 
-SwiftUI + SwiftData, iOS 18+, offline-first. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy.
+SwiftUI + SwiftData, iOS 18+, offline-first. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy; R-17 added Kitchen mode, the counter display.
 
-| Tasks | Shopping (placeholder) |
-| --- | --- |
-| ![Tasks tab](docs/tasks-r10.png) | ![Shopping placeholder](docs/shopping-r10.png) |
+| Tasks | Shopping (placeholder) | Kitchen mode |
+| --- | --- | --- |
+| ![Tasks tab](docs/tasks-r10.png) | ![Shopping placeholder](docs/shopping-r10.png) | ![Kitchen mode](docs/kitchen-r17.png) |
 
-Both screenshots are a fresh, unpaired simulator install: the streaks are tied at 0 so nobody is tagged as ahead, and nothing is overdue yet so no row has a subtitle.
+All three screenshots are a fresh, unpaired simulator install: the streaks are tied at 0 so nobody is tagged as ahead, and nothing is overdue yet, so no row has a subtitle and Kitchen mode shows its calm state.
 
 ## Layout
 
@@ -16,7 +16,7 @@ Roost/
   Roost.xcodeproj             generated; regenerate, don't hand-edit
   Sources/
     RoostApp.swift            @main: registers fonts, opens (or rebuilds) the store, seeds, owns SyncCoordinator, shows RootTabView
-    Strings.swift             every R-10 user-facing string: tab titles, placeholder line, streak labels, escalation copy
+    Strings.swift             every R-10 user-facing string: tab titles, placeholder line, streak labels, escalation copy; plus the Kitchen mode strings
     Root/RootTabView.swift    the tab bar (RootTab: Tasks, Shopping, Meals, Projects); placeholders for all but Tasks
     Models/Records.swift      SwiftData models: ChoreRecord, CompletionRecord, SyncState
     Models/Converters.swift   record <-> RoostCore value types
@@ -24,6 +24,7 @@ Roost/
     Models/TodayPlanner.swift pure: records -> per-person rows via RoostCore Scheduler/Tallies
     Models/StreakHeaderModel.swift pure: streaks + weekly tallies -> two sides, the leader (nil on a tie), the tally line
     Models/EscalationCopy.swift pure: EscalationStage + category -> row subtitle (nil for dueToday and done rows)
+    Models/KitchenModel.swift pure: TodayPlan -> Anne/Wes columns (due count, overdue by stage) + the shared alert list; caught-up rule; "Synced …" line
     Sync/TokenStore.swift     Keychain (app) / in-memory (tests) storage for the device token
     Sync/SyncAPI.swift        typed HTTP client for server/ — no policy, no storage
     Sync/SyncClient.swift     @ModelActor: the replay + delta policy, in-flight guard
@@ -32,6 +33,7 @@ Roost/
     Notifications/NotificationPlanner.swift       pure: one day's due list -> ids, copy, Chicago fire times
     Notifications/NotificationScheduler.swift     reads the store, clears + reschedules, badge, foreground observer
     Screens/TodayScreen.swift Tasks tab: date, streak header, Anne/Wes sections, check-off, escalation color + copy, gear menu
+    Screens/KitchenScreen.swift Kitchen mode: full-screen counter view of both people, screen stays on; Gear -> "Kitchen mode"
     Screens/StreakHeaderView.swift the head-to-head block from the mockup
     Screens/PlaceholderScreen.swift title + one line, used by Shopping, Meals, and Projects until their tickets land
     Screens/PairingScreen.swift paste a token, connect, forget
@@ -39,6 +41,7 @@ Roost/
   Tests/                      in-memory ModelContainer + URLProtocol stub; no network
   docs/tasks-r10.png          simulator screenshot, Tasks tab (fresh unpaired install: tied streaks, nothing overdue)
   docs/shopping-r10.png       simulator screenshot, Shopping placeholder
+  docs/kitchen-r17.png        simulator screenshot, Kitchen mode (fresh install: everything due today, nothing overdue, "All caught up.")
   docs/today-r8.png           the R-8 screenshot, kept for history
 ```
 
@@ -61,7 +64,7 @@ xcodebuild -project Roost/Roost.xcodeproj -scheme Roost \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 ```
 
-42 tests: seed (31 rows, 2 pinned, idempotent, retire/restore, converters), sync (pairing stores person/cursor/token; 401 stores nothing; a queued completion is POSTed once and marked synced; a 400 marks it rejected and it is never retried; offline keeps the queue; a delete replays as DELETE; a delta with `deleted: true` hides the local row; server-sent chores re-seed; overlapping syncs coalesce), planning (pinned chores land on the right person; cat care sorts first; a completion today shows as a done row and counts in the tally; overdue days map to the escalation stage), the streak header (the higher streak leads; a tie, including 0 vs 0, has no leader; sides come out Anne then Wes with missing values as 0; the tally line reads `Anne · 14   Wes · 11`; it builds from a plan), the escalation copy (no subtitle for due today; nudge names the chore; pointed depends on category; alert capitalizes the chore; every overdue stage has copy for both categories; rows flow through their stage and done rows get nothing), the root tabs (four tabs in order with their SF Symbols; only Tasks has a real screen), and notifications (fixture plan yields the expected ids, Chicago fire times and titles; a replan clears the previous set; the other person's chores never appear; badge count; overlapping replans coalesce).
+50 tests: seed (31 rows, 2 pinned, idempotent, retire/restore, converters), sync (pairing stores person/cursor/token; 401 stores nothing; a queued completion is POSTed once and marked synced; a 400 marks it rejected and it is never retried; offline keeps the queue; a delete replays as DELETE; a delta with `deleted: true` hides the local row; server-sent chores re-seed; overlapping syncs coalesce), planning (pinned chores land on the right person; cat care sorts first; a completion today shows as a done row and counts in the tally; overdue days map to the escalation stage), the streak header (the higher streak leads; a tie, including 0 vs 0, has no leader; sides come out Anne then Wes with missing values as 0; the tally line reads `Anne · 14   Wes · 11`; it builds from a plan), the escalation copy (no subtitle for due today; nudge names the chore; pointed depends on category; alert capitalizes the chore; every overdue stage has copy for both categories; rows flow through their stage and done rows get nothing), the root tabs (four tabs in order with their SF Symbols; only Tasks has a real screen), notifications (fixture plan yields the expected ids, Chicago fire times and titles; a replan clears the previous set; the other person's chores never appear; badge count; overlapping replans coalesce), and Kitchen mode (overdue rows group by person and sort by stage descending with the right copy; alert-stage rows from both people land in the banner, most days late first; an empty plan and an all-due-today plan are both caught up; a 5-day-overdue litter box for Wes is a "Scoop litter emergency" in the banner; a missing `activeFrom` falls back to today; the synced line).
 
 ## Pairing
 
@@ -87,9 +90,9 @@ It runs on launch, when the app returns to the foreground, after every check-off
 
 ## Screens
 
-The root is `RootTabView`, a `TabView` over the `RootTab` enum: Tasks (`checklist`), Shopping (`cart`), Meals (`fork.knife`), Projects (`hammer`), tinted `RoostColor.accent`. Shopping, Meals, and Projects are `PlaceholderScreen`s, the tab title in the display face and one line, "Nothing here yet.", until their tickets land; the app has no sync code for those collections yet. The gear menu (All chores, Pairing…, Sync now) stays on Tasks.
+The root is `RootTabView`, a `TabView` over the `RootTab` enum: Tasks (`checklist`), Shopping (`cart`), Meals (`fork.knife`), Projects (`hammer`), tinted `RoostColor.accent`. Shopping, Meals, and Projects are `PlaceholderScreen`s, the tab title in the display face and one line, "Nothing here yet.", until their tickets land; the app has no sync code for those collections yet. The gear menu (Kitchen mode, All chores, Pairing…, Sync now) stays on Tasks.
 
-Every string R-10 added, the tab titles, the placeholder line, the streak labels, and the escalation copy, lives in `Sources/Strings.swift`, so the wording can change without touching a screen.
+Every string R-10 added, the tab titles, the placeholder line, the streak labels, and the escalation copy, lives in `Sources/Strings.swift`, so the wording can change without touching a screen. R-17's Kitchen mode strings sit in the same file under `Strings.Kitchen`.
 
 ### Tasks
 
@@ -100,6 +103,20 @@ Every string R-10 added, the tab titles, the placeholder line, the streak labels
 **Escalation.** Row color follows `EscalationStage`: due today = ink, 1–2 days = gold, 3–4 = tease, 5+ = alert, with a `ND LATE` badge when overdue. `EscalationCopy.subtitle` adds a line under the title once a row is overdue: nudge → "Still no <title>…" (title lowercased to read mid-sentence, unless it starts with an acronym like "PM wet cat food"), pointed → "The cat has feelings about this." for cat-care rows and "Getting overdue." for home rows, alert → "<Title> emergency". Due-today rows and done rows show no subtitle.
 
 Checking a row inserts a `CompletionRecord` (UUID id, `completedAt` now, UTC) and kicks a sync. Tapping a done row soft-deletes it.
+
+### Kitchen mode
+
+Gear → Kitchen mode presents `KitchenScreen` full-screen (`fullScreenCover`, no navigation chrome) for a phone propped on the counter. It shows both people at once and is read-only; check-off stays on the Tasks tab. Tap anywhere, or the Close pill, to leave.
+
+`KitchenModel` is built from the same `TodayPlanner.plan` as the Tasks tab, so the two can never disagree. Top to bottom:
+
+- **Date line** in the mono eyebrow style, with Close on the right.
+- **Alert banner**, only when something is at the alert stage (5+ days): a full-width `alertSoft` panel with an `alert` border headed "VISIBLE TO BOTH OF YOU", listing every alert-stage chore from *either* person, most days late first, each as its `EscalationCopy` line ("Scoop litter emergency") over the person's name and "N DAYS LATE".
+- **Two columns, Anne | Wes.** Each has the name, a big number of everything the person owes today (overdue included, the same count as the Tasks tab's "N DUE"), and "DUE TODAY". Under it, the person's overdue chores as cards sorted by stage descending (alert, pointed, nudge; within a stage the Tasks tab's order, cat care first then most days late), in the stage's color with the stage label, the title, and the escalation copy. A person with nothing overdue while the other has something reads "Nothing overdue."
+- **"All caught up."** replaces the cards when neither person has anything overdue; due-today rows do not count.
+- **"Synced 5 minutes ago"** at the bottom, from `SyncCoordinator.lastSyncAt` ("Synced just now" inside a minute, "Not synced yet" before the first sync).
+
+It follows the system appearance through the `RoostColor` tokens (ink on `bg` in light, the dark set in dark). While it is up `UIApplication.shared.isIdleTimerDisabled` is true, and the previous value is put back on dismiss. It re-renders on every store change (the `@Query` rows), on the coordinator's published sync state, and every 60 seconds through a `TimelineView`, so days-late counts and the synced line move on their own.
 
 ## Store rules
 
@@ -119,4 +136,4 @@ Identifiers are deterministic per chore and date (`roost.overdue.<choreId>.<yyyy
 
 Permission (alert, sound, badge) is requested the first time pairing succeeds, not on first launch.
 
-The other person's chores never produce a local notification here, so the mockup's "red alert visible to both of you" needs a push from the server: that is ticket R-6b (APNs), waiting on a key.
+The other person's chores never produce a local notification here, so the mockup's "red alert visible to both of you" needs a push from the server: that is ticket R-6b (APNs), waiting on a key. Kitchen mode's banner shows both people's alerts on whichever phone is on the counter, but it is a display, not a ping.
