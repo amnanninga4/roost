@@ -11,6 +11,26 @@ export const ANCHOR = chicagoLocal(2026, 1, 5, 0, 0, 0);
 /** Default household start: Sep 7 2026 Chicago midnight (= 2026-09-07T05:00:00.000Z CDT). */
 export const DEFAULT_ACTIVE_FROM = new Date("2026-09-07T05:00:00.000Z");
 
+/** Calendar YYYY-MM-DD in America/Chicago. */
+export function chicagoDateString(date = new Date()) {
+  const { year, month, day } = ymd(date);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
+ * Resolve household activeFrom. Meta stores YYYY-MM-DD (Chicago calendar).
+ * Date-only strings are Chicago midnight, not UTC midnight.
+ * Unset / empty falls back to DEFAULT_ACTIVE_FROM (tests + pre-pair).
+ */
+export function parseActiveFrom(value) {
+  if (value == null || value === "") return DEFAULT_ACTIVE_FROM;
+  if (value instanceof Date) return value;
+  const s = String(value).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (m) return chicagoLocal(+m[1], +m[2], +m[3], 0, 0, 0);
+  return asDate(s);
+}
+
 const STAGE_BY_DAYS = [
   [1, "dueToday"],
   [3, "nudge"],
