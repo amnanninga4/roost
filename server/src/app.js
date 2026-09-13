@@ -260,6 +260,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         push: push.health(),
         rev: readDeployedRev(),
         activeFrom: getMeta(db, "activeFrom") ?? chicagoDateString(DEFAULT_ACTIVE_FROM),
+        digestLastSent: getMeta(db, "digestLastSent"),
       });
     }
 

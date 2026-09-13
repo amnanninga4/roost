@@ -288,7 +288,8 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
 /**
  * Everything due on `asOf`, keyed by person. Most overdue first, then by chore list order.
  * Optional `balance` (default false) runs FairnessBalancer over the day's items — off unless asked.
- * `handoffs` is forwarded to the balancer for reassignability only; assignee override is R-18.
+ * Accepted handoffs override assignee for their exact chore+period (via assigneeFor).
+ * When balance is on, `handoffs` are also forwarded for reassignability checks.
  */
 export function dueItems({
   chores,

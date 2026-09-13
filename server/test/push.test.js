@@ -630,3 +630,70 @@ test("morning digest: zero due items still marks the day and sends nothing", asy
   // Restore chores for any later tests in this file.
   app.db.prepare("UPDATE chores SET retired = 0").run();
 });
+
+test("morning digest DST: chicagoLocal 08:00 on fall-back / spring-forward Sundays", async () => {
+  const { chicagoLocal } = await import("../src/rules.js");
+  assert.equal(
+    chicagoLocal(2026, 11, 1, 8, 0, 0).toISOString(),
+    "2026-11-01T14:00:00.000Z",
+    "2026-11-01 08:00 CST = 14:00Z"
+  );
+  assert.equal(
+    chicagoLocal(2027, 3, 14, 8, 0, 0).toISOString(),
+    "2027-03-14T13:00:00.000Z",
+    "2027-03-14 08:00 CDT = 13:00Z"
+  );
+});
+
+test("morning digest DST: fall-back Sunday 2026-11-01 (CDT→CST) gate + expiration", async () => {
+  const { setMeta, getMeta } = await import("../src/db.js");
+  const { chicagoDateString } = await import("../src/rules.js");
+  setMeta(app.db, "activeFrom", "2026-09-07");
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+  app.db.prepare("UPDATE chores SET retired = 0").run();
+
+  // Before 08:00 CST (07:59) — nothing, day unmarked.
+  sent.length = 0;
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run(DIGEST_LAST_SENT_META);
+  const before = new Date("2026-11-01T13:59:00.000Z");
+  await app.push.runMorningDigestSweep(before);
+  assert.equal(sent.length, 0, "07:59 CST must not digest");
+  assert.equal(getMeta(app.db, DIGEST_LAST_SENT_META), null);
+
+  // At 08:00 CST — send; expiration = next Chicago midnight (2026-11-02T06:00:00Z).
+  sent.length = 0;
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run(DIGEST_LAST_SENT_META);
+  const atEight = new Date("2026-11-01T14:00:00.000Z");
+  const wantExp = String(Math.floor(new Date("2026-11-02T06:00:00.000Z").getTime() / 1000));
+  await app.push.runMorningDigestSweep(atEight);
+  assert.ok(sent.length >= 1, "08:00 CST must digest when chores are due");
+  for (const req of sent) {
+    assert.equal(req.headers["apns-expiration"], wantExp);
+    assert.match(req.headers["apns-collapse-id"], /^digest-(anne|wes)$/);
+  }
+  assert.equal(getMeta(app.db, DIGEST_LAST_SENT_META), chicagoDateString(atEight));
+  assert.equal(getMeta(app.db, DIGEST_LAST_SENT_META), "2026-11-01");
+});
+
+test("morning digest DST: spring-forward Sunday 2027-03-14 gate + expiration", async () => {
+  const { setMeta, getMeta } = await import("../src/db.js");
+  const { chicagoDateString } = await import("../src/rules.js");
+  setMeta(app.db, "activeFrom", "2026-09-07");
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+  app.db.prepare("UPDATE chores SET retired = 0").run();
+
+  sent.length = 0;
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run(DIGEST_LAST_SENT_META);
+  const atEight = new Date("2027-03-14T13:00:00.000Z"); // 08:00 CDT
+  const wantExp = String(Math.floor(new Date("2027-03-15T05:00:00.000Z").getTime() / 1000));
+  await app.push.runMorningDigestSweep(atEight);
+  assert.ok(sent.length >= 1, "08:00 CDT must digest when chores are due");
+  for (const req of sent) {
+    assert.equal(req.headers["apns-expiration"], wantExp);
+    assert.match(req.headers["apns-collapse-id"], /^digest-(anne|wes)$/);
+  }
+  assert.equal(getMeta(app.db, DIGEST_LAST_SENT_META), chicagoDateString(atEight));
+  assert.equal(getMeta(app.db, DIGEST_LAST_SENT_META), "2027-03-14");
+});
