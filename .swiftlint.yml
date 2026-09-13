@@ -1,0 +1,11 @@
+excluded:
+  - .build
+  - DerivedData
+  - .claude
+  - "**/*.xcodeproj"
+line_length:
+  warning: 140
+  error: 200
+disabled_rules:
+  - trailing_comma
+  - todo

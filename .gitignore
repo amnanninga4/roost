@@ -13,5 +13,6 @@ Package.resolved
 # macOS
 .DS_Store
 
-# Claude Code agent worktrees
-.claude/
+# Claude Code: agent worktrees and per-user settings (project settings and hooks are committed)
+.claude/worktrees/
+.claude/settings.local.json
