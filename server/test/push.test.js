@@ -19,6 +19,7 @@ import {
   hasPushAlert,
   COMPLETION_EXPIRATION_SEC,
 } from "../src/push.js";
+import { expireOpenHandoffs } from "../src/handoffs.js";
 import { escalationStage } from "../src/rules.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -370,3 +371,112 @@ test("upsertPushToken stores person/platform/updatedAt", () => {
   assert.equal(row.platform, "ios");
   assert.equal(row.updatedAt, now);
 });
+
+
+test("GET /me returns person/label/source; createdAt null for file token; lastSeen after touch", async () => {
+  assert.equal((await call("GET", "/me")).status, 401);
+
+  const me = await call("GET", "/me", { token: ANNE });
+  assert.equal(me.status, 200);
+  assert.equal(me.body.person, "anne");
+  assert.equal(me.body.label, "Anne test");
+  assert.equal(me.body.source, "file");
+  assert.equal(me.body.createdAt, null, "file tokens have no paired createdAt");
+  assert.ok(me.body.lastSeen, "noteDevice should have written lastSeen");
+  assert.match(me.body.lastSeen, /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test("handoff offer pushes toPerson; accept→from; decline→from; collapse-id; no replay; expiry silent", async () => {
+  // Earlier prune tests leave extra tokens; deliver walks every row for the person.
+  app.db.prepare("DELETE FROM push_tokens").run();
+  await call("POST", "/push/token", { token: ANNE, body: { token: ANNE_PUSH, platform: "ios" } });
+  await call("POST", "/push/token", { token: WES, body: { token: WES_PUSH, platform: "ios" } });
+
+  sent.length = 0;
+  // Anne owns laundry (weekly fixed) — offer to Wes
+  const offer = await call("POST", "/handoffs", {
+    token: ANNE,
+    body: { id: "push-h-offer", choreId: "laundry", to: "wes" },
+  });
+  assert.equal(offer.status, 201);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent.length, 1, "offer notifies toPerson once");
+  assert.equal(sent[0].deviceToken, WES_PUSH);
+  assert.equal(sent[0].headers["apns-collapse-id"], "handoff-push-h-offer");
+  assert.equal(sent[0].body.aps.alert.title, "Roost");
+  assert.equal(sent[0].body.aps.alert.body, "Anne asked you to take Laundry this week");
+
+  // Create replay must not re-push
+  sent.length = 0;
+  const replayOffer = await call("POST", "/handoffs", {
+    token: ANNE,
+    body: { id: "push-h-offer", choreId: "laundry", to: "wes" },
+  });
+  assert.equal(replayOffer.status, 200);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent.length, 0, "offer replay does not re-push");
+
+  // Accept → notify fromPerson (Anne)
+  sent.length = 0;
+  const acc = await call("POST", "/handoffs/push-h-offer/accept", { token: WES });
+  assert.equal(acc.status, 200);
+  assert.equal(acc.body.state, "accepted");
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].deviceToken, ANNE_PUSH);
+  assert.equal(sent[0].headers["apns-collapse-id"], "handoff-push-h-offer");
+  assert.equal(sent[0].body.aps.alert.body, "Wes accepted Laundry this week");
+
+  // Accept replay must not re-push
+  sent.length = 0;
+  const replayAcc = await call("POST", "/handoffs/push-h-offer/accept", { token: WES });
+  assert.equal(replayAcc.status, 200);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent.length, 0, "accept replay does not re-push");
+
+  // Decline on scoop-litter: Mon Sep 14 rotation assignee is anne.
+  sent.length = 0;
+  const offer2 = await call("POST", "/handoffs", {
+    token: ANNE,
+    body: { id: "push-h-decline", choreId: "scoop-litter", to: "wes" },
+  });
+  assert.equal(offer2.status, 201, JSON.stringify(offer2.body));
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].deviceToken, WES_PUSH);
+  assert.equal(sent[0].headers["apns-collapse-id"], "handoff-push-h-decline");
+  assert.equal(sent[0].body.aps.alert.body, "Anne asked you to take Scoop litter today");
+
+  sent.length = 0;
+  const dec = await call("POST", "/handoffs/push-h-decline/decline", { token: WES });
+  assert.equal(dec.status, 200);
+  assert.equal(dec.body.state, "declined");
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].deviceToken, ANNE_PUSH);
+  assert.equal(sent[0].headers["apns-collapse-id"], "handoff-push-h-decline");
+  assert.equal(sent[0].body.aps.alert.body, "Wes declined Scoop litter today");
+
+  sent.length = 0;
+  const replayDec = await call("POST", "/handoffs/push-h-decline/decline", { token: WES });
+  assert.equal(replayDec.status, 200);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent.length, 0, "decline replay does not re-push");
+
+  // Expiry must stay silent — pending handoff with an ended period.
+  const seqRow = app.db.prepare("SELECT value FROM meta WHERE key = 'seq'").get();
+  const next = Number(seqRow.value) + 1;
+  app.db.prepare("UPDATE meta SET value = ? WHERE key = 'seq'").run(String(next));
+  app.db
+    .prepare(
+      `INSERT INTO handoffs (id, choreId, fromPerson, toPerson, periodIndex, cadence, state, createdAt, updatedAt, deletedAt, seq)
+       VALUES ('push-h-exp', 'laundry', 'anne', 'wes', 0, 'weekly', 'pending', ?, ?, NULL, ?)`
+    )
+    .run(clock.toISOString(), clock.toISOString(), next);
+  sent.length = 0;
+  const expired = expireOpenHandoffs(app.db, clock);
+  assert.ok(expired.some((r) => r.id === "push-h-exp"));
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent.length, 0, "expireOpenHandoffs must not push");
+});
+

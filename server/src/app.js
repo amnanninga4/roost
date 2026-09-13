@@ -3,6 +3,7 @@
 //   GET    /health                        no auth
 //   GET    /status                        no auth — kitchen status board (HTML)
 //   GET    /chores                        chores + version
+//   GET    /me                            { person, label, source, createdAt, lastSeen }
 //   GET    /completions?cursor=<n>        completions with seq > cursor, includes deleted rows
 //   POST   /completions                   { id, choreId, completedAt } -> 201 new / 200 replay
 //   DELETE /completions/:id               soft delete -> 200 (idempotent)
@@ -259,6 +260,24 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
       });
     }
 
+    if (req.method === "GET" && path === "/me") {
+      const lastSeen =
+        db.prepare("SELECT lastSeen FROM devices WHERE tokenHash = ?").get(device.tokenHash)?.lastSeen ?? null;
+      let createdAt = null;
+      if (device.source === "paired") {
+        createdAt =
+          db.prepare("SELECT createdAt FROM paired_tokens WHERE tokenHash = ?").get(device.tokenHash)?.createdAt ??
+          null;
+      }
+      return send(res, 200, {
+        person: device.person,
+        label: device.label,
+        source: device.source,
+        createdAt,
+        lastSeen,
+      });
+    }
+
     if (req.method === "GET" && path === "/completions") {
       const cursor = parseCursor(url.searchParams.get("cursor"));
       const rows = completionsAfter(db, cursor);
@@ -455,7 +474,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
 
     if (await pushRoutes({ req, res, path, db, device, send, readJson, iso })) return;
     if (await bonusRoutes({ req, res, path, url, db, device, send, readJson, parseCursor, now })) return;
-    if (await handoffRoutes({ req, res, path, db, device, send, readJson, now })) return;
+    if (await handoffRoutes({ req, res, path, db, device, send, readJson, now, push, log })) return;
 
     return send(res, 404, { error: "not found" });
   }
