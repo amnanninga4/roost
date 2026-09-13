@@ -21,7 +21,7 @@ SwiftUI + SwiftData, iOS 18+, offline-first. The phone keeps its own store and s
 
 One file per screen state, replaced in place rather than kept per ticket.
 
-The Tasks screenshots are one phone paired as Anne against a local server seeded with a fortnight of history, so
+The Tasks screenshots are one phone paired as Anne against a local server seeded with the week's history (the household started that Monday), so
 the whole escalation ladder is on screen at once: 5 days late in the danger role, 3 days late in the warning
 role, two rows 1 day late in the notice role, then the rows that are simply due today — loudest first, so the
 colour only gets calmer going down the card. Wes's own column, its rows, and the celebration are below the fold.
