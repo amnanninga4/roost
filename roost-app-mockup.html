@@ -1,0 +1,1072 @@
+<title>Roost</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700;9..144,900&family=Nunito+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root {
+    --bg: #F3F6F2;
+    --surface: #FFFFFF;
+    --surface-2: #FBFDFA;
+    --ink: #1F2A22;
+    --ink-soft: #5C6C60;
+    --line: #DCE6DA;
+    --accent: #2F6F5E;
+    --accent-soft: #DCEBE3;
+    --gold: #B9812E;
+    --gold-soft: #F3E4C9;
+    --info: #3E6B8A;
+    --info-soft: #DCE7EE;
+    --tease: #AE4568;
+    --tease-soft: #F4DEE6;
+    --alert: #C81E3A;
+    --alert-soft: #FBDCE1;
+    --meal: #C2571F;
+    --meal-soft: #F5DCC8;
+    --assign: #6B4FA0;
+    --assign-soft: #E6DFF5;
+    --shadow: rgba(31, 42, 34, 0.14);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121A15;
+      --surface: #1B241D;
+      --surface-2: #212C22;
+      --ink: #EAF2EC;
+      --ink-soft: #9FB3A4;
+      --line: #2B3830;
+      --accent: #6FC2A6;
+      --accent-soft: #1E362E;
+      --gold: #D9A754;
+      --gold-soft: #3A2D15;
+      --info: #7FB3D9;
+      --info-soft: #1E2E3A;
+      --tease: #E389A8;
+      --tease-soft: #3A2129;
+      --alert: #FF6478;
+      --alert-soft: #3D1620;
+      --meal: #E8935A;
+      --meal-soft: #3A2415;
+      --assign: #B79EE0;
+      --assign-soft: #332750;
+      --shadow: rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #121A15;
+    --surface: #1B241D;
+    --surface-2: #212C22;
+    --ink: #EAF2EC;
+    --ink-soft: #9FB3A4;
+    --line: #2B3830;
+    --accent: #6FC2A6;
+    --accent-soft: #1E362E;
+    --gold: #D9A754;
+    --gold-soft: #3A2D15;
+    --info: #7FB3D9;
+    --info-soft: #1E2E3A;
+    --tease: #E389A8;
+    --tease-soft: #3A2129;
+    --alert: #FF6478;
+    --alert-soft: #3D1620;
+    --meal: #E8935A;
+    --meal-soft: #3A2415;
+    --assign: #B79EE0;
+    --assign-soft: #332750;
+    --shadow: rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body { background: var(--bg); }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 56px 28px 80px;
+    font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(32px, 4.2vw, 48px);
+    line-height: 1.08;
+    margin: 0 0 18px;
+    text-wrap: balance;
+    max-width: 16ch;
+  }
+
+  .lede {
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0 0 6px;
+  }
+
+  .placeholder-note {
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin: 10px 0 0;
+  }
+
+  .hint {
+    font-size: 13px;
+    color: var(--ink-soft);
+    text-align: center;
+    margin: 28px 0 14px;
+  }
+
+  .screen-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    box-shadow: 0 18px 40px -22px var(--shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 560px;
+  }
+
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px 6px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink);
+    flex-shrink: 0;
+  }
+
+  .signal { display: flex; align-items: flex-end; gap: 2px; }
+  .signal span { width: 3px; background: var(--ink); border-radius: 1px; }
+  .signal span:nth-child(1) { height: 4px; }
+  .signal span:nth-child(2) { height: 6px; }
+  .signal span:nth-child(3) { height: 8px; }
+  .signal span:nth-child(4) { height: 10px; }
+
+  .battery {
+    width: 20px;
+    height: 10px;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    position: relative;
+    margin-left: 6px;
+  }
+  .battery::after {
+    content: "";
+    position: absolute;
+    right: -3px;
+    top: 3px;
+    width: 2px;
+    height: 4px;
+    background: var(--ink);
+    border-radius: 0 1px 1px 0;
+  }
+  .battery::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    width: 70%;
+    background: var(--ink);
+    border-radius: 1px;
+  }
+  .status-right { display: flex; align-items: center; }
+
+  .screen-head {
+    padding: 4px 20px 14px;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .screen-head .app-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700;
+    font-size: 22px;
+    margin: 0 0 2px;
+  }
+
+  .screen-head .app-sub {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .screen-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px 20px;
+  }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 6px;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .item:hover { background: var(--surface-2); }
+
+  .cb { position: absolute; opacity: 0; width: 1px; height: 1px; }
+
+  .box {
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .cb:checked + .box {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .cb:focus-visible + .box {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .box::after { content: "✓"; }
+
+  .item-main { flex: 1; min-width: 0; }
+  .item-title {
+    font-size: 14px;
+    font-weight: 600;
+    display: block;
+  }
+  .cb:checked ~ .item-main .item-title {
+    text-decoration: line-through;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+
+  .avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .avatar-a { background: var(--accent-soft); color: var(--accent); }
+  .avatar-p { background: var(--info-soft); color: var(--info); }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin: 18px 0 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  .columns { display: flex; gap: 14px; margin-bottom: 4px; }
+  .column { flex: 1; min-width: 0; }
+  .column-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .column-name { font-weight: 700; font-size: 14px; }
+  .column-stat {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .column .item { padding: 7px 4px; gap: 8px; }
+  .column .item-title { font-size: 12.5px; }
+  .column .box { width: 18px; height: 18px; }
+
+  .shared-block {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
+  }
+
+  .section-label-sm {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin: 12px 0 2px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .section-label-sm:first-child { margin-top: 0; }
+
+  .late-tag {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .tag-tease { background: var(--tease-soft); color: var(--tease); }
+  .tag-alert { background: var(--alert-soft); color: var(--alert); }
+  .tag-bonus { background: var(--gold-soft); color: var(--gold); }
+  .tag-next { background: var(--meal-soft); color: var(--meal); }
+  .tag-deadline { background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-soft); margin-left: 0; }
+  .tag-assigned { background: var(--assign-soft); color: var(--assign); }
+  .bonus-tags { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 0; }
+  .bonus-tags .late-tag { margin-left: 0; }
+
+  .column .item.assigned { background: var(--assign-soft); }
+  .column .item.assigned .item-title { color: var(--assign); font-weight: 700; }
+
+  .column .item.due-1 { background: var(--tease-soft); }
+  .column .item.due-1 .item-title { color: var(--tease); font-weight: 700; }
+  .column .item.due-3 { background: var(--alert-soft); }
+  .column .item.due-3 .item-title { color: var(--alert); font-weight: 700; }
+
+  .section-note {
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin: -2px 0 8px;
+  }
+
+  .streak-vs {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .streak-side {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .streak-side.leading { background: var(--accent-soft); border-color: var(--accent); }
+  .streak-side-name { font-size: 11px; font-weight: 700; color: var(--ink-soft); }
+  .streak-side.leading .streak-side-name { color: var(--accent); }
+  .streak-side-num {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .streak-side.leading .streak-side-num { color: var(--accent); }
+  .streak-side-label { font-size: 10px; color: var(--ink-soft); }
+  .streak-crown {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-top: 3px;
+  }
+  .streak-vs-mid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    padding: 0 2px;
+    width: 20px;
+    flex-shrink: 0;
+  }
+
+  .week-tally { margin: 10px 0 14px; }
+  .week-tally-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .tally-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--line);
+  }
+  .tally-fill-a { background: var(--accent); }
+  .tally-fill-p { background: var(--info); }
+  .tally-nums {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    margin-top: 5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .tally-nums .tally-a { color: var(--accent); }
+  .tally-nums .tally-p { color: var(--info); }
+
+  .cat-icon-head { display: flex; align-items: center; gap: 7px; }
+  .icon-badge {
+    width: 21px;
+    height: 21px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .icon-badge svg { width: 12px; height: 12px; }
+  .icon-badge.icon-cat { background: var(--accent-soft); color: var(--accent); }
+  .icon-badge.icon-chore { background: var(--gold-soft); color: var(--gold); }
+  .icon-badge.icon-bonus { background: var(--gold-soft); color: var(--gold); }
+  .icon-badge.icon-meal { background: var(--meal-soft); color: var(--meal); }
+
+  /* Colorful app styling */
+  .app-shell {
+    --accent: #2F8F72;
+    --accent-soft: #CFEEE1;
+    --gold: #E08F2E;
+    --gold-soft: #FBE3C2;
+    --info: #4C7FE0;
+    --info-soft: #DEE6FC;
+    --tease: #D6487A;
+    --tease-soft: #FBDCE8;
+    --alert: #E2233F;
+    --alert-soft: #FCD9DF;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  .app-shell .screen-card { border-radius: 30px; }
+  .app-shell .item { border-radius: 14px; }
+  .app-shell .streak-side { border-radius: 18px; }
+  .app-shell .streak-side.leading { background: var(--accent); border-color: var(--accent); }
+  .app-shell .streak-side.leading .streak-side-name,
+  .app-shell .streak-side.leading .streak-side-num { color: white; }
+  .app-shell .streak-crown {
+    background: rgba(255,255,255,0.28);
+    color: white !important;
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 5px;
+    width: fit-content;
+  }
+  .app-shell .app-title { color: var(--accent); }
+  .app-shell .item-title,
+  .app-shell .column-name,
+  .app-shell .streak-side-name {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+  }
+  .app-shell .item-title { font-size: 15px; }
+  .app-shell .column .item-title { font-size: 14px; }
+  .app-shell .streak-side-name { font-size: 12px; }
+  .app-shell .section-label-sm,
+  .app-shell .section-label {
+    color: var(--ink);
+    font-weight: 700;
+    font-size: 11px;
+  }
+  .app-shell .section-label-sm span:last-child,
+  .app-shell .section-label span:last-child {
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .app-shell .column-stat { color: var(--ink); font-weight: 700; }
+
+  .app-card { max-width: 400px; margin: 0 auto; height: 680px; }
+  .app-card .screen-head { padding: 8px 22px 16px; }
+  .app-card .screen-body { position: relative; flex: 1; overflow: hidden; padding: 0; }
+  .app-card .item { padding: 12px 8px; gap: 12px; }
+  .app-card .item-title { font-size: 14.5px; }
+  .app-card .box { width: 22px; height: 22px; }
+  .app-card .streak-side-num { font-size: 25px; }
+  .app-card .streak-side { padding: 13px 14px; }
+  .app-card .columns { gap: 22px; }
+  .app-card .section-label-sm { font-size: 10.5px; margin: 16px 0 6px; }
+  .app-card .late-tag { font-size: 9.5px; }
+
+  .tab-panel { position: absolute; inset: 0; overflow-y: auto; padding: 16px 18px 76px; display: none; }
+  #nav-tasks:checked ~ .panel-tasks,
+  #nav-shop:checked ~ .panel-shop,
+  #nav-meals:checked ~ .panel-meals,
+  #nav-projects:checked ~ .panel-projects { display: block; }
+
+  .tab-bar {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 62px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    display: flex;
+    z-index: 2;
+  }
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .tab-btn svg { width: 20px; height: 20px; }
+  .tab-btn-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 9.5px;
+    font-weight: 600;
+  }
+  #nav-tasks:checked ~ .tab-bar .tab-btn-tasks,
+  #nav-shop:checked ~ .tab-bar .tab-btn-shop,
+  #nav-meals:checked ~ .tab-bar .tab-btn-meals,
+  #nav-projects:checked ~ .tab-bar .tab-btn-projects { color: var(--accent); }
+
+  .panel-head {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin: 0 0 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .add-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1.5px dashed var(--line);
+    border-radius: 12px;
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+  .plus-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .meal-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 6px;
+    border-radius: 12px;
+  }
+  .meal-item:hover { background: var(--surface-2); }
+  .meal-main { flex: 1; min-width: 0; }
+  .meal-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    display: block;
+  }
+  .meal-meta { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+
+  .project {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 2px 14px 4px;
+    margin-bottom: 14px;
+  }
+  .project[open] { padding-bottom: 14px; }
+  .project summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 0;
+  }
+  .project summary::-webkit-details-marker { display: none; }
+  .project-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .project-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .chevron {
+    color: var(--ink-soft);
+    transition: transform 0.15s;
+    flex-shrink: 0;
+  }
+  .project[open] .chevron { transform: rotate(90deg); }
+  .project-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .project-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 5px;
+    background: var(--line);
+    overflow: hidden;
+  }
+  .project-bar-fill { height: 100%; background: var(--accent); }
+  .project-progress-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .project-subtasks { margin-top: 4px; }
+  .project .item { padding: 8px 6px; }
+  .project .item-title { font-size: 13.5px; }
+  .project .box { width: 19px; height: 19px; }
+
+  /* Escalation section */
+  .escalation { margin-top: 88px; }
+  .escalation h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 26px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    text-wrap: balance;
+  }
+  .escalation > p {
+    font-size: 15px;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    line-height: 1.6;
+    margin: 0 0 32px;
+  }
+
+  .stages {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    align-items: stretch;
+  }
+  @media (max-width: 780px) {
+    .stages { grid-template-columns: 1fr; max-width: 420px; margin-inline: auto; }
+    .arrow { transform: rotate(90deg); margin: 4px auto; }
+  }
+
+  .stage-wrap { display: contents; }
+  @media (max-width: 780px) { .stage-wrap { display: flex; flex-direction: column; align-items: center; } }
+
+  .stage {
+    border-radius: 16px;
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .stage-1 { background: var(--surface); border: 1px solid var(--line); }
+  .stage-2 { background: var(--tease-soft); border: 1px solid var(--tease); }
+  .stage-3 { background: var(--tease-soft); border: 2px solid var(--tease); }
+  .stage-4 {
+    background: var(--alert-soft);
+    border: 2px solid var(--alert);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stage-4 { animation: none; }
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--alert-soft); }
+    50% { box-shadow: 0 0 0 6px transparent; }
+  }
+
+  .stage-label {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+  }
+  .stage-1 .stage-label { color: var(--ink-soft); }
+  .stage-2 .stage-label, .stage-3 .stage-label { color: var(--tease); }
+  .stage-4 .stage-label { color: var(--alert); }
+
+  .stage-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700;
+    font-size: 17px;
+    line-height: 1.25;
+  }
+  .stage-4 .stage-title {
+    font-size: 18px;
+    text-transform: uppercase;
+    color: var(--alert);
+  }
+
+  .stage-body { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; }
+  .stage-4 .stage-body { color: var(--ink); }
+
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-soft);
+    font-size: 18px;
+    padding: 0 4px;
+  }
+  @media (max-width: 780px) { .arrow { padding: 4px 0; } }
+
+  .closing {
+    margin-top: 72px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+  }
+  .closing p {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+</style>
+
+<div class="page">
+  <header>
+    <p class="eyebrow">ROOST — CONCEPT MOCKUP</p>
+    <h1>Chores, cat care, and a little competition</h1>
+    <p class="lede">A shared app for household tasks — a head-to-head streak, bonus-point tasks, a running shopping list, and a bank of meal ideas for cooking together. The checkboxes and tabs below actually work, so feel free to click around.</p>
+    <p class="placeholder-note">"Roost" is a placeholder name — nothing's decided yet.</p>
+  </header>
+
+  <p class="hint">Tap the icons at the bottom of the screen to switch between Tasks, Shopping, Meals, and Projects. Tap a project to expand its subtasks.</p>
+
+  <div class="app-shell">
+    <div class="screen-card app-card">
+      <div class="status-bar">
+        <span>9:41</span>
+        <span class="status-right">
+          <span class="signal"><span></span><span></span><span></span><span></span></span>
+          <span class="battery"></span>
+        </span>
+      </div>
+      <div class="screen-head">
+        <p class="app-title">Roost</p>
+        <p class="app-sub">Friday, September 12</p>
+      </div>
+      <div class="screen-body">
+        <input type="radio" name="nav" id="nav-tasks" class="tab-radio" checked hidden>
+        <input type="radio" name="nav" id="nav-shop" class="tab-radio" hidden>
+        <input type="radio" name="nav" id="nav-meals" class="tab-radio" hidden>
+        <input type="radio" name="nav" id="nav-projects" class="tab-radio" hidden>
+
+        <div class="tab-panel panel-tasks">
+          <div class="streak-vs">
+            <div class="streak-side leading">
+              <span class="streak-side-name">Anne</span>
+              <span class="streak-side-num">9</span>
+              <span class="streak-side-label">day streak</span>
+              <span class="streak-crown">CURRENTLY AHEAD</span>
+            </div>
+            <div class="streak-vs-mid">VS</div>
+            <div class="streak-side">
+              <span class="streak-side-name">Partner</span>
+              <span class="streak-side-num">6</span>
+              <span class="streak-side-label">day streak</span>
+            </div>
+          </div>
+
+          <div class="week-tally">
+            <p class="week-tally-label">TASKS DONE THIS WEEK</p>
+            <div class="tally-bar">
+              <div class="tally-fill-a" style="width:56%"></div>
+              <div class="tally-fill-p" style="width:44%"></div>
+            </div>
+            <div class="tally-nums">
+              <span class="tally-a">Anne · 14</span>
+              <span class="tally-p">Partner · 11</span>
+            </div>
+          </div>
+
+          <div class="columns">
+            <div class="column">
+              <div class="column-head">
+                <span class="column-name">Anne</span>
+                <span class="column-stat">2/4</span>
+              </div>
+              <p class="section-label-sm"><span class="cat-icon-head"><span class="icon-badge icon-cat"><svg viewBox="0 0 20 18" fill="currentColor"><circle cx="10" cy="13" r="4.3"/><circle cx="4.3" cy="7.2" r="2.1"/><circle cx="8.3" cy="3.6" r="2.1"/><circle cx="12.6" cy="3.6" r="2.1"/><circle cx="16.2" cy="7.2" r="2.1"/></svg></span>CAT CARE</span><span>1/2</span></p>
+              <label class="item">
+                <input type="checkbox" class="cb" checked>
+                <span class="box"></span>
+                <span class="item-main"><span class="item-title">Feed cat (AM)</span></span>
+              </label>
+              <label class="item">
+                <input type="checkbox" class="cb">
+                <span class="box"></span>
+                <span class="item-main"><span class="item-title">Feed cat (PM)</span></span>
+              </label>
+              <p class="section-label-sm"><span class="cat-icon-head"><span class="icon-badge icon-chore"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.5 L11.6 8.4 L18.5 10 L11.6 11.6 L10 18.5 L8.4 11.6 L1.5 10 L8.4 8.4 Z"/></svg></span>CHORES</span><span>1/2</span></p>
+              <label class="item">
+                <input type="checkbox" class="cb" checked>
+                <span class="box"></span>
+                <span class="item-main"><span class="item-title">Water plants</span></span>
+              </label>
+              <label class="item due-1">
+                <input type="checkbox" class="cb">
+                <span class="box"></span>
+                <span class="item-main"><span class="item-title">Wash dishes</span></span>
+                <span class="late-tag tag-tease">1D LATE</span>
+              </label>
+            </div>
+            <div class="column">
+              <div class="column-head">
+                <span class="column-name">Partner</span>
+                <span class="column-stat">0/4</span>
+              </div>
+              <p class="section-label-sm"><span class="cat-icon-head"><span class="icon-badge icon-cat"><svg viewBox="0 0 20 18" fill="currentColor"><circle cx="10" cy="13" r="4.3"/><circle cx="4.3" cy="7.2" r="2.1"/><circle cx="8.3" cy="3.6" r="2.1"/><circle cx="12.6" cy="3.6" r="2.1"/><circle cx="16.2" cy="7.2" r="2.1"/></svg></span>CAT CARE</span><span>0/1</span></p>
+              <label class="item due-3">
+                <input type="checkbox" class="cb">
+                <span class="box"></span>
+                <span class="item-main"><span class="item-title">Litter box</span></span>
+                <span class="late-tag tag-alert">3D LATE</span>
+              </label>
+              <p class="section-label-sm"><span class="cat-icon-head"><span class="icon-badge icon-chore"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.5 L11.6 8.4 L18.5 10 L11.6 11.6 L10 18.5 L8.4 11.6 L1.5 10 L8.4 8.4 Z"/></svg></span>CHORES</span><span>0/3</span></p>
+              <label class="item">
+                <input type="checkbox" class="cb">
+                <span class="box"></span>
+                <span class="item-main"><span class="item-title">Recycling out</span></span>
+              </label>
+              <label class="item">
+                <input type="checkbox" class="cb">
+                <span class="box"></span>
+                <span class="item-main"><span class="item-title">Vacuum living room</span></span>
+              </label>
+              <label class="item assigned">
+                <input type="checkbox" class="cb">
+                <span class="box"></span>
+                <span class="item-main"><span class="item-title">Order cat litter</span></span>
+                <span class="late-tag tag-assigned">AUTO</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="shared-block">
+            <p class="section-label"><span class="cat-icon-head"><span class="icon-badge icon-bonus"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="8.2"/><path d="M10 5.8v8.4M5.8 10h8.4"/></svg></span>BONUS — FIRST TO CLAIM</span><span>0/1</span></p>
+            <p class="section-note">First to check it off gets the points. Left unclaimed past the deadline, it gets assigned automatically — and shows up right in that person's list, in purple, so it can't just disappear.</p>
+            <label class="item">
+              <input type="checkbox" class="cb">
+              <span class="box"></span>
+              <span class="item-main"><span class="item-title">Pay internet bill — due tomorrow</span></span>
+              <span class="bonus-tags">
+                <span class="late-tag tag-deadline">CLAIM BY SUN</span>
+                <span class="late-tag tag-bonus">+2 PTS</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="tab-panel panel-shop">
+          <p class="panel-head">10 items · 2 already bought</p>
+          <div class="add-row"><span class="plus-badge">+</span>Add an item…</div>
+          <label class="item"><input type="checkbox" class="cb" checked><span class="box"></span><span class="item-main"><span class="item-title">Cat litter</span></span><span class="avatar avatar-p">P</span></label>
+          <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Paper towels</span></span><span class="avatar avatar-a">A</span></label>
+          <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Coffee</span></span><span class="avatar avatar-a">A</span></label>
+          <label class="item"><input type="checkbox" class="cb" checked><span class="box"></span><span class="item-main"><span class="item-title">Trash bags</span></span><span class="avatar avatar-p">P</span></label>
+          <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Dish soap</span></span><span class="avatar avatar-a">A</span></label>
+          <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Eggs</span></span><span class="avatar avatar-p">P</span></label>
+          <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Chicken thighs</span></span><span class="avatar avatar-p">P</span></label>
+          <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Olive oil</span></span><span class="avatar avatar-a">A</span></label>
+          <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Cat food</span></span><span class="avatar avatar-p">P</span></label>
+          <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Sponges</span></span><span class="avatar avatar-a">A</span></label>
+        </div>
+
+        <div class="tab-panel panel-meals">
+          <p class="panel-head">8 saved ideas</p>
+          <div class="add-row"><span class="plus-badge">+</span>Add an idea…</div>
+          <div class="meal-item">
+            <span class="icon-badge icon-meal"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg></span>
+            <span class="meal-main"><span class="meal-title">Homemade pizza night</span><span class="meal-meta">Cook together</span></span>
+            <span class="late-tag tag-next">NEXT UP</span>
+          </div>
+          <div class="meal-item">
+            <span class="icon-badge icon-meal"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg></span>
+            <span class="meal-main"><span class="meal-title">Sheet-pan salmon &amp; broccoli</span><span class="meal-meta">Weeknight</span></span>
+          </div>
+          <div class="meal-item">
+            <span class="icon-badge icon-meal"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg></span>
+            <span class="meal-main"><span class="meal-title">Grandma's chili</span><span class="meal-meta">Weekend · last made Jul 20</span></span>
+          </div>
+          <div class="meal-item">
+            <span class="icon-badge icon-meal"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg></span>
+            <span class="meal-main"><span class="meal-title">Thai basil chicken</span><span class="meal-meta">Weeknight</span></span>
+          </div>
+          <div class="meal-item">
+            <span class="icon-badge icon-meal"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg></span>
+            <span class="meal-main"><span class="meal-title">Slow cooker pulled pork</span><span class="meal-meta">Weekend</span></span>
+          </div>
+          <div class="meal-item">
+            <span class="icon-badge icon-meal"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg></span>
+            <span class="meal-main"><span class="meal-title">Shakshuka for dinner</span><span class="meal-meta">Breakfast for dinner</span></span>
+          </div>
+          <div class="meal-item">
+            <span class="icon-badge icon-meal"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg></span>
+            <span class="meal-main"><span class="meal-title">Sushi bake</span><span class="meal-meta">Want to try</span></span>
+          </div>
+          <div class="meal-item">
+            <span class="icon-badge icon-meal"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg></span>
+            <span class="meal-main"><span class="meal-title">Copycat Chipotle bowls</span><span class="meal-meta">Weeknight · last made Aug 2</span></span>
+          </div>
+        </div>
+
+        <div class="tab-panel panel-projects">
+          <p class="panel-head">3 active projects</p>
+          <div class="add-row"><span class="plus-badge">+</span>Start a project…</div>
+
+          <details class="project" open>
+            <summary>
+              <div class="project-head">
+                <span class="project-title">Clean out &amp; organize garage</span>
+                <svg class="chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M7 4l6 6-6 6"/></svg>
+              </div>
+              <div class="project-progress">
+                <div class="project-bar"><div class="project-bar-fill" style="width:20%"></div></div>
+                <span class="project-progress-label">1/5</span>
+              </div>
+            </summary>
+            <div class="project-subtasks">
+              <label class="item"><input type="checkbox" class="cb" checked><span class="box"></span><span class="item-main"><span class="item-title">Throw out trash from inside garage</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Fill cement cracks</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Wipe down surfaces</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Sort tools &amp; organize shelving</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Sweep and mop floor</span></span></label>
+            </div>
+          </details>
+
+          <details class="project">
+            <summary>
+              <div class="project-head">
+                <span class="project-title">Repaint the guest room</span>
+                <svg class="chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M7 4l6 6-6 6"/></svg>
+              </div>
+              <div class="project-progress">
+                <div class="project-bar"><div class="project-bar-fill" style="width:0%"></div></div>
+                <span class="project-progress-label">0/4</span>
+              </div>
+            </summary>
+            <div class="project-subtasks">
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Pick a color</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Move furniture out</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Tape and prime</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Paint and reassemble</span></span></label>
+            </div>
+          </details>
+
+          <details class="project">
+            <summary>
+              <div class="project-head">
+                <span class="project-title">Organize the coat closet</span>
+                <svg class="chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M7 4l6 6-6 6"/></svg>
+              </div>
+              <div class="project-progress">
+                <div class="project-bar"><div class="project-bar-fill" style="width:0%"></div></div>
+                <span class="project-progress-label">0/3</span>
+              </div>
+            </summary>
+            <div class="project-subtasks">
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Pull everything out, sort keep/donate</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Wipe down shelves</span></span></label>
+              <label class="item"><input type="checkbox" class="cb"><span class="box"></span><span class="item-main"><span class="item-title">Put back, labeled bins</span></span></label>
+            </div>
+          </details>
+        </div>
+
+        <div class="tab-bar">
+          <label for="nav-tasks" class="tab-btn tab-btn-tasks">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="3.5"/><path d="M6.5 10.2l2 2 4-4.6"/></svg>
+            <span class="tab-btn-label">Tasks</span>
+          </label>
+          <label for="nav-shop" class="tab-btn tab-btn-shop">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h10l-.8 9a1.5 1.5 0 0 1-1.5 1.4H7.3A1.5 1.5 0 0 1 5.8 16z"/><path d="M7.5 7V5.5a2.5 2.5 0 0 1 5 0V7"/></svg>
+            <span class="tab-btn-label">Shopping</span>
+          </label>
+          <label for="nav-meals" class="tab-btn tab-btn-meals">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 1.8c.3 2.7-1.8 3.6-2.9 5.2-1 1.5-1.4 3-.9 4.4.6 1.7 2.2 2.8 3.8 2.8 2.4 0 4.4-1.9 4.4-4.3 0-1.6-.7-2.6-1.6-3.7-.2 1.1-.9 1.7-1.6 1.7-.9 0-1.5-.7-1.5-1.6 0-1.7 1.2-2.8.3-4.5z"/></svg>
+            <span class="tab-btn-label">Meals</span>
+          </label>
+          <label for="nav-projects" class="tab-btn tab-btn-projects">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M3 8h14M7 4v-.5M13 4v-.5"/></svg>
+            <span class="tab-btn-label">Projects</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="escalation">
+    <h2>How an overdue task gets louder</h2>
+    <p>Nothing happens right away — a task just shows up as a friendly ask. But the longer it sits, the more it escalates, until it's an unmissable red alert visible to both of you. Here's what that looks like for one task, the litter box.</p>
+    <div class="stages">
+      <div class="stage-wrap">
+        <div class="stage stage-1">
+          <span class="stage-label">DUE TODAY</span>
+          <span class="stage-title">Litter box o'clock</span>
+          <span class="stage-body">First ask of the day. Friendly, no pressure yet.</span>
+        </div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="stage-wrap">
+        <div class="stage stage-2">
+          <span class="stage-label">1 DAY LATE</span>
+          <span class="stage-title">Still no litter box…</span>
+          <span class="stage-body">A little nudge. Nothing serious yet.</span>
+        </div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="stage-wrap">
+        <div class="stage stage-3">
+          <span class="stage-label">3 DAYS LATE</span>
+          <span class="stage-title">The cat has feelings about this.</span>
+          <span class="stage-body">Getting pointed. Shows up brighter on the shared screen.</span>
+        </div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="stage-wrap">
+        <div class="stage stage-4">
+          <span class="stage-label">5 DAYS LATE</span>
+          <span class="stage-title">Litter box emergency</span>
+          <span class="stage-body">Full red alert — visible to both of you until it's done.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="closing">
+    <p>This is a concept mockup, not a finished app — we'd love your take before we decide what to build first.</p>
+  </footer>
+</div>

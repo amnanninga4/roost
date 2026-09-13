@@ -1,0 +1,247 @@
+<title>Chore Master List</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Nunito+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root {
+    --bg: #F3F6F2;
+    --surface: #FFFFFF;
+    --surface-2: #FBFDFA;
+    --ink: #1F2A22;
+    --ink-soft: #5C6C60;
+    --line: #DCE6DA;
+    --accent: #2F6F5E;
+    --accent-soft: #DCEBE3;
+    --pin: #6B4FA0;
+    --pin-soft: #E6DFF5;
+    --shadow: rgba(31, 42, 34, 0.1);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121A15;
+      --surface: #1B241D;
+      --surface-2: #212C22;
+      --ink: #EAF2EC;
+      --ink-soft: #9FB3A4;
+      --line: #2B3830;
+      --accent: #6FC2A6;
+      --accent-soft: #1E362E;
+      --pin: #B79EE0;
+      --pin-soft: #332750;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121A15;
+    --surface: #1B241D;
+    --surface-2: #212C22;
+    --ink: #EAF2EC;
+    --ink-soft: #9FB3A4;
+    --line: #2B3830;
+    --accent: #6FC2A6;
+    --accent-soft: #1E362E;
+    --pin: #B79EE0;
+    --pin-soft: #332750;
+    --shadow: rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); }
+
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 56px 28px 72px;
+    font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--ink);
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(30px, 4vw, 38px);
+    line-height: 1.1;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+
+  .meta {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 0 0 40px;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .meta strong { color: var(--ink); font-weight: 700; }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 0 0 44px;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch {
+    width: 10px; height: 10px; border-radius: 3px; background: var(--pin-soft);
+    border: 1px solid var(--pin);
+  }
+
+  .group { margin-bottom: 40px; }
+  .group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+  }
+  .group-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 600;
+    font-size: 19px;
+  }
+  .group-count {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  ol { list-style: none; margin: 0; padding: 0; counter-reset: item; }
+  li {
+    counter-increment: item;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 9px 2px;
+    border-bottom: 1px solid var(--line);
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  li:last-child { border-bottom: none; }
+  li::before {
+    content: counter(item);
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    flex-shrink: 0;
+    width: 1.4em;
+    text-align: right;
+    padding-top: 1px;
+  }
+  .task-text { flex: 1; }
+
+  .pin {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--pin);
+    background: var(--pin-soft);
+    padding: 2px 7px;
+    border-radius: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .footnote {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 58ch;
+  }
+</style>
+
+<div class="page">
+  <p class="eyebrow">HOUSEHOLD REFERENCE</p>
+  <h1>Chore Master List</h1>
+  <p class="meta"><span><strong>32</strong> tasks</span><span><strong>4</strong> frequencies</span><span>Locked in Sep 13, 2026</span></p>
+
+  <p class="legend">
+    <span class="legend-item"><span class="legend-swatch"></span> Fixed assignment — always the same person, not up for grabs</span>
+  </p>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="group-title">Daily</span>
+      <span class="group-count">11 tasks</span>
+    </div>
+    <ol>
+      <li><span class="task-text">Load dishes into dishwasher / run dishwasher</span></li>
+      <li><span class="task-text">Scoop litter</span></li>
+      <li><span class="task-text">Wipe down kitchen counters, bathroom counters/mirror</span></li>
+      <li><span class="task-text">Wipe down tables</span></li>
+      <li><span class="task-text">Vacuum first floor</span></li>
+      <li><span class="task-text">Vacuum basement</span></li>
+      <li><span class="task-text">AM wet cat food</span></li>
+      <li><span class="task-text">PM wet cat food</span></li>
+      <li><span class="task-text">Refill cat water</span></li>
+      <li><span class="task-text">Water the plants</span></li>
+      <li><span class="task-text">General tidy/reset pass (clutter, counters)</span></li>
+    </ol>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="group-title">Weekly</span>
+      <span class="group-count">9 tasks</span>
+    </div>
+    <ol>
+      <li><span class="task-text">Clean toilet bowl</span></li>
+      <li><span class="task-text">Wipe stove top</span></li>
+      <li><span class="task-text">Take out all garbages — basement, bathroom, kitchen</span></li>
+      <li><span class="task-text">Garbage can to street, Sunday</span><span class="pin">ALWAYS WES</span></li>
+      <li><span class="task-text">Laundry</span><span class="pin">ALWAYS ANNIE</span></li>
+      <li><span class="task-text">Wipe down outer cabinet doors — kitchen and bathroom</span></li>
+      <li><span class="task-text">Change bed sheets</span></li>
+      <li><span class="task-text">Clean microwave inside</span></li>
+      <li><span class="task-text">Wipe kitchen appliance exteriors (fridge, toaster, coffee maker)</span></li>
+    </ol>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="group-title">Biweekly</span>
+      <span class="group-count">5 tasks</span>
+    </div>
+    <ol>
+      <li><span class="task-text">Scrub/clean shower</span></li>
+      <li><span class="task-text">Mop first floor</span></li>
+      <li><span class="task-text">Mop basement</span></li>
+      <li><span class="task-text">Clean rugs (cat hair, vacuum)</span></li>
+      <li><span class="task-text">Wash pillows/comforters, rotate mattress</span></li>
+    </ol>
+  </div>
+
+  <div class="group">
+    <div class="group-head">
+      <span class="group-title">Monthly</span>
+      <span class="group-count">6 tasks</span>
+    </div>
+    <ol>
+      <li><span class="task-text">Change litter</span></li>
+      <li><span class="task-text">Clean out fridge</span></li>
+      <li><span class="task-text">Clean inside ovens — basement and kitchen</span></li>
+      <li><span class="task-text">Clean/vacuum under cushions</span></li>
+      <li><span class="task-text">Move and clean under couches</span></li>
+      <li><span class="task-text">Wipe down/dust bar cart</span></li>
+    </ol>
+  </div>
+
+  <p class="footnote">This is the source list for Roost's task data — everything here becomes a recurring task at its listed frequency, split between Anne and Wes, except the two pinned tasks above which stay fixed to one person.</p>
+</div>
