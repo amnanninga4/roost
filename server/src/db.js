@@ -7,6 +7,7 @@
 // never used as a cursor, so same-millisecond writes and clock steps cannot lose rows.
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
+import { BONUS_SCHEMA } from "./bonus.js";
 
 /** The household. Single source for the Node side; the CHECK constraints below are built from it. */
 export const PEOPLE = Object.freeze(["anne", "wes"]);
@@ -95,6 +96,7 @@ export function openDb(path) {
   const db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   db.exec(SCHEMA);
+  db.exec(BONUS_SCHEMA);
   return db;
 }
 
