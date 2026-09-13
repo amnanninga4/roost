@@ -1,0 +1,12 @@
+[Unit]
+Description=Roost offsite SQLite backup to grater
+After=network-online.target roost-backup.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+# Root reads roost:roost 750 /var/backups/roost, stages a copy, then runuser -u
+# hinescreative for ssh/scp. Do not add hinescreative to roost group — that would
+# expose /etc/roost/tokens.json (640 root:roost).
+ExecStart=/opt/roost/server/offsite-backup.sh

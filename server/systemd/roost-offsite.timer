@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the Roost offsite backup nightly after local backup
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

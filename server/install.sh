@@ -6,6 +6,7 @@
 #   /var/lib/roost        SQLite database, owned by roost
 #   /etc/roost/tokens.json device tokens, root:roost 0640
 #   /var/backups/roost    nightly DB copies, 30 kept
+#   offsite (grater)      roost-offsite.timer ~04:00 UTC → /mnt/storage-sdd/backups/roost, 30 kept
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then echo "run with sudo" >&2; exit 1; fi
@@ -33,6 +34,8 @@ cp -R "$HERE/src" /opt/roost/server/src
 cp "$HERE/package.json" /opt/roost/server/package.json
 cp "$HERE/scripts/backup.sh" /opt/roost/server/backup.sh
 chmod 755 /opt/roost/server/backup.sh
+cp "$HERE/scripts/offsite-backup.sh" /opt/roost/server/offsite-backup.sh
+chmod 755 /opt/roost/server/offsite-backup.sh
 cp "$REPO/data/chores.json" /opt/roost/data/chores.json
 chown -R root:root /opt/roost
 chmod -R a+rX /opt/roost
@@ -48,8 +51,11 @@ chmod 640 /etc/roost/tokens.json
 sed "s|@NODE@|$NODE|g" "$HERE/systemd/roost.service" > /etc/systemd/system/roost.service
 cp "$HERE/systemd/roost-backup.service" /etc/systemd/system/roost-backup.service
 cp "$HERE/systemd/roost-backup.timer" /etc/systemd/system/roost-backup.timer
+cp "$HERE/systemd/roost-offsite.service" /etc/systemd/system/roost-offsite.service
+cp "$HERE/systemd/roost-offsite.timer" /etc/systemd/system/roost-offsite.timer
 systemctl daemon-reload
 systemctl enable --now roost-backup.timer
+systemctl enable --now roost-offsite.timer
 systemctl enable roost.service
 systemctl restart roost.service
 
