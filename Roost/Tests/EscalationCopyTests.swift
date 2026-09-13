@@ -11,6 +11,8 @@ final class EscalationCopyTests: XCTestCase {
     func testNudgeNamesTheChoreMidSentence() {
         XCTAssertEqual(EscalationCopy.subtitle(stage: .nudge, title: "Scoop litter", category: .catCare), "Still no scoop litter…")
         XCTAssertEqual(EscalationCopy.subtitle(stage: .nudge, title: "Vacuum", category: .chore), "Still no vacuum…")
+        XCTAssertEqual(EscalationCopy.subtitle(stage: .nudge, title: "PM wet cat food", category: .catCare), "Still no PM wet cat food…", "an acronym keeps its case")
+        XCTAssertEqual(EscalationCopy.subtitle(stage: .nudge, title: "wipe mirrors", category: .chore), "Still no wipe mirrors…", "already lowercase is left alone")
     }
 
     func testPointedDependsOnCategory() {

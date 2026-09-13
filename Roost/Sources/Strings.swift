@@ -39,6 +39,12 @@ enum Strings {
 }
 
 extension String {
-    var lowercasedFirst: String { prefix(1).lowercased() + dropFirst() }
+    /// "Scoop litter" -> "scoop litter", but an acronym keeps its case: "PM wet cat food" stays as it is.
+    var lowercasedFirst: String {
+        guard let first, first.isUppercase else { return self }
+        if let second = dropFirst().first, second.isUppercase { return self }
+        return first.lowercased() + dropFirst()
+    }
+
     var uppercasedFirst: String { prefix(1).uppercased() + dropFirst() }
 }
