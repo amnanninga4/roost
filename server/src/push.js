@@ -10,8 +10,8 @@
 import { readFileSync, existsSync } from "node:fs";
 import { createPrivateKey, sign } from "node:crypto";
 import http2 from "node:http2";
-import { PEOPLE } from "./db.js";
-import { dueItems } from "./rules.js";
+import { PEOPLE, getMeta } from "./db.js";
+import { dueItems, parseActiveFrom } from "./rules.js";
 
 export const DEFAULT_APNS_PATH = "/etc/roost/apns.json";
 export const DEFAULT_BUNDLE_ID = "xyz.hinescreative.roost";
@@ -375,7 +375,8 @@ export function createPush({
       const completions = db
         .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
         .all();
-      const due = dueItems({ chores, completions, asOf });
+      const activeFrom = parseActiveFrom(getMeta(db, "activeFrom"));
+      const due = dueItems({ chores, completions, asOf, activeFrom });
       const sentAt = asOf.toISOString();
       for (const person of PEOPLE) {
         for (const item of due[person] ?? []) {
