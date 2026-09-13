@@ -1,4 +1,4 @@
-// APNs push: device token registry, HTTP/2 sender, completion + red-alert triggers.
+// APNs push: device token registry, HTTP/2 sender, completion + red-alert + morning digest.
 //
 // Everything push lives here so app.js only imports, creates the service, dispatches
 // pushRoutes, and adds one /health field (same shape as pairing/bonus).
@@ -10,14 +10,18 @@
 import { readFileSync, existsSync } from "node:fs";
 import { createPrivateKey, sign } from "node:crypto";
 import http2 from "node:http2";
-import { PEOPLE, getMeta } from "./db.js";
-import { dueItems, parseActiveFrom } from "./rules.js";
+import { PEOPLE, getMeta, setMeta } from "./db.js";
+import { listHandoffs } from "./handoffs.js";
+import { dueItems, parseActiveFrom, chicagoDateString, chicagoLocal } from "./rules.js";
 
 export const DEFAULT_APNS_PATH = "/etc/roost/apns.json";
 export const DEFAULT_BUNDLE_ID = "xyz.hinescreative.roost";
 export const RED_ALERT_MS = 15 * 60 * 1000;
 export const APNS_REQUEST_TIMEOUT_MS = 10_000;
 export const COMPLETION_EXPIRATION_SEC = 3600;
+
+/** meta key: Chicago YYYY-MM-DD of the last morning-digest pass (R-25). */
+export const DIGEST_LAST_SENT_META = "digestLastSent";
 
 /** dueToday=0, nudge=1, pointed=2, alert=3 — red-alert is stage >= 3. */
 export const STAGE_RANK = Object.freeze({ dueToday: 0, nudge: 1, pointed: 2, alert: 3 });
@@ -375,8 +379,9 @@ export function createPush({
       const completions = db
         .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
         .all();
+      const handoffs = listHandoffs(db);
       const activeFrom = parseActiveFrom(getMeta(db, "activeFrom"));
-      const due = dueItems({ chores, completions, asOf, activeFrom });
+      const due = dueItems({ chores, completions, asOf, activeFrom, handoffs, balance: false });
       const sentAt = asOf.toISOString();
       for (const person of PEOPLE) {
         for (const item of due[person] ?? []) {
@@ -397,11 +402,70 @@ export function createPush({
     }
   }
 
+  /**
+   * Morning digest (R-25): at/after 08:00 America/Chicago, one push per person who has
+   * due-today or overdue items. Title Roost; body "N for you today: <most urgent>"
+   * (+ " and N-1 more" when N > 1). Most urgent = highest STAGE_RANK, ties keep list order.
+   * apns-collapse-id digest-<person>; apns-expiration = next Chicago midnight.
+   * Persists digestLastSent (Chicago date) so a restart never double-sends.
+   * dueItems with activeFrom + handoffs, balancer off. Same interval as red-alert.
+   */
+  let digestSweeping = false;
+  async function runMorningDigestSweep(asOf = now()) {
+    if (digestSweeping) return;
+    digestSweeping = true;
+    try {
+      const today = chicagoDateString(asOf);
+      if (getMeta(db, DIGEST_LAST_SENT_META) === today) return;
+
+      const [y, m, d] = today.split("-").map(Number);
+      const eight = chicagoLocal(y, m, d, 8, 0, 0);
+      if (asOf.getTime() < eight.getTime()) return;
+
+      const chores = db
+        .prepare("SELECT id, title, cadence, fixedAssignee, category FROM chores WHERE retired = 0 ORDER BY sortOrder")
+        .all();
+      const completions = db
+        .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
+        .all();
+      const handoffs = listHandoffs(db);
+      const activeFrom = parseActiveFrom(getMeta(db, "activeFrom"));
+      const due = dueItems({ chores, completions, asOf, activeFrom, handoffs, balance: false });
+      const endOfDay = chicagoLocal(y, m, d + 1, 0, 0, 0);
+      const expiration = String(Math.floor(endOfDay.getTime() / 1000));
+
+      for (const person of PEOPLE) {
+        const items = due[person] ?? [];
+        if (items.length === 0) continue;
+        const n = items.length;
+        const mostUrgent = items.reduce((best, item) =>
+          (STAGE_RANK[item.stage] ?? -1) > (STAGE_RANK[best.stage] ?? -1) ? item : best
+        );
+        const first = mostUrgent.chore?.title ?? mostUrgent.chore?.id ?? "chore";
+        const body =
+          n > 1 ? `${n} for you today: ${first} and ${n - 1} more` : `${n} for you today: ${first}`;
+        await deliver(person, {
+          title: "Roost",
+          body,
+          headers: {
+            "apns-collapse-id": `digest-${person}`,
+            "apns-expiration": expiration,
+          },
+        });
+      }
+
+      setMeta(db, DIGEST_LAST_SENT_META, today);
+    } finally {
+      digestSweeping = false;
+    }
+  }
+
   let timer = null;
   function startSweep() {
     if (timer || sweepIntervalMs <= 0) return;
     timer = setInterval(() => {
       runRedAlertSweep().catch((err) => log(`red-alert sweep: ${err.message}`));
+      runMorningDigestSweep().catch((err) => log(`morning digest: ${err.message}`));
     }, sweepIntervalMs);
     timer.unref?.();
   }
@@ -420,6 +484,7 @@ export function createPush({
     notifyCompletion,
     notifyHandoff,
     runRedAlertSweep,
+    runMorningDigestSweep,
     deliver,
     startSweep,
     stopSweep,

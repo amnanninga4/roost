@@ -214,6 +214,7 @@
 		7CDB030F573210AC01F0A2AD /* RootGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootGate.swift; sourceTree = "<group>"; };
 		7D23E6AAE5D72F9033FC491B /* OnboardingPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingPage.swift; sourceTree = "<group>"; };
 		84347A76B73F4360AC90C950 /* TaskStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskStyle.swift; sourceTree = "<group>"; };
+		8A06E54A250DF554DA2D8E77 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
 		8E7ED3A3F187B7D465B0F1EB /* ListDeltaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListDeltaTests.swift; sourceTree = "<group>"; };
 		8EC7EF81E36E1517F9EC7528 /* PushTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushTests.swift; sourceTree = "<group>"; };
 		8EF09CEC861E840F923EDA47 /* TodayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayScreen.swift; sourceTree = "<group>"; };
@@ -435,6 +436,7 @@
 		79EDDC42C02814046DF8FA9D = {
 			isa = PBXGroup;
 			children = (
+				BF118371A4D0CA41837F77AF /* Config */,
 				5BD08FA4AD865ADBD2EB4B47 /* Packages */,
 				786477E916E34F21E21E7BC4 /* Resources */,
 				159FDBA45C2FC925272A7F5A /* Shared */,
@@ -534,6 +536,14 @@
 				DE87345DE3AD1EF332142F9A /* WelcomeStep.swift */,
 			);
 			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		BF118371A4D0CA41837F77AF /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				8A06E54A250DF554DA2D8E77 /* Local.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		E2182AB46D74977CE4573709 /* Notifications */ = {
@@ -968,6 +978,7 @@
 		};
 		4D7C7E4376A98CA1C47FCADF /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8A06E54A250DF554DA2D8E77 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Roost.entitlements;
@@ -1003,6 +1014,7 @@
 		};
 		955938C149655033D836B2A7 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8A06E54A250DF554DA2D8E77 /* Local.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Widget/RoostWidget.entitlements;
 				ENABLE_PREVIEWS = YES;
@@ -1081,6 +1093,7 @@
 		};
 		A4861BB0BD52651D9EC6C950 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8A06E54A250DF554DA2D8E77 /* Local.xcconfig */;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = Widget/RoostWidget.entitlements;
 				ENABLE_PREVIEWS = YES;
@@ -1116,6 +1129,7 @@
 		};
 		D6D804210941AC585D9F04F7 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8A06E54A250DF554DA2D8E77 /* Local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Roost.entitlements;

@@ -18,6 +18,7 @@ import {
   shouldPruneToken,
   hasPushAlert,
   COMPLETION_EXPIRATION_SEC,
+  DIGEST_LAST_SENT_META,
 } from "../src/push.js";
 import { expireOpenHandoffs } from "../src/handoffs.js";
 import { escalationStage } from "../src/rules.js";
@@ -222,6 +223,35 @@ test("red-alert sweep notifies partner for stage>=3; collapse-id; persists acros
   assert.equal(restartSent.length, 0, "restart must not re-send every stage>=3 alert");
   push2.stopSweep();
   assert.ok(firstCount > 0);
+});
+
+test("R-25b: accepted handoff routes red-alert to taker's partner naming the taker", async () => {
+  // Laundry is weekly fixedAssignee=anne. Oldest incomplete week at asOf Sep 20 is
+  // periodIndex 35 (stage alert). An accepted anne→wes handoff for that period must
+  // make dueItems assign wes, so the red-alert goes to anne and names Wes.
+  app.db.prepare("DELETE FROM push_tokens").run();
+  app.db.prepare("DELETE FROM push_alerts").run();
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+
+  const asOf = new Date("2026-09-20T17:00:00.000Z");
+  const nowIso = asOf.toISOString();
+  app.db.prepare(
+    `INSERT INTO handoffs (id, choreId, fromPerson, toPerson, periodIndex, cadence, state, createdAt, updatedAt, deletedAt, seq)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`
+  ).run("r25b-laundry-35", "laundry", "anne", "wes", 35, "weekly", "accepted", nowIso, nowIso, 1);
+
+  sent.length = 0;
+  await app.push.runRedAlertSweep(asOf);
+
+  const laundryAlerts = sent.filter((r) => r.headers["apns-collapse-id"] === "red-laundry");
+  assert.equal(laundryAlerts.length, 1, "exactly one red-alert for handed-off laundry");
+  const req = laundryAlerts[0];
+  assert.equal(req.deviceToken, ANNE_PUSH, "alert goes to taker's partner (anne), not rotation partner");
+  assert.match(req.body.aps.alert.title, /red alert/i);
+  assert.equal(req.body.aps.alert.body, "Wes's chore is overdue: Laundry");
+
+  app.db.prepare("DELETE FROM handoffs WHERE id = ?").run("r25b-laundry-35");
 });
 
 test("red-alert sweep respects meta activeFrom (no spam on fresh pair)", async () => {
@@ -504,3 +534,99 @@ test("handoff offer pushes toPerson; accept→from; decline→from; collapse-id;
   assert.equal(sent.length, 0, "expireOpenHandoffs must not push");
 });
 
+
+test("morning digest: before 08:00 Chicago sends nothing and does not mark the day", async () => {
+  const { setMeta, getMeta } = await import("../src/db.js");
+  sent.length = 0;
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run(DIGEST_LAST_SENT_META);
+  app.db.prepare("DELETE FROM push_alerts").run();
+  // Keep activeFrom early so chores are due.
+  setMeta(app.db, "activeFrom", "2026-09-07");
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+
+  // 07:30 Chicago on Sep 14 2026 (CDT = UTC-5) → 12:30 UTC
+  const asOf = new Date("2026-09-14T12:30:00.000Z");
+  await app.push.runMorningDigestSweep(asOf);
+  assert.equal(sent.length, 0, "pre-08:00 must not digest");
+  assert.equal(getMeta(app.db, DIGEST_LAST_SENT_META), null, "day not marked before 08:00");
+});
+
+test("morning digest: at/after 08:00 one push per person with due items; collapse + expiration; no double-send", async () => {
+  const { setMeta, getMeta } = await import("../src/db.js");
+  const { chicagoLocal, chicagoDateString } = await import("../src/rules.js");
+  sent.length = 0;
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run(DIGEST_LAST_SENT_META);
+  setMeta(app.db, "activeFrom", "2026-09-07");
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+
+  // 08:05 Chicago Sep 14 2026 → 13:05 UTC
+  const asOf = new Date("2026-09-14T13:05:00.000Z");
+  const today = chicagoDateString(asOf);
+  const [y, m, d] = today.split("-").map(Number);
+  const endOfDay = chicagoLocal(y, m, d + 1, 0, 0, 0);
+  const wantExp = String(Math.floor(endOfDay.getTime() / 1000));
+
+  await app.push.runMorningDigestSweep(asOf);
+  assert.ok(sent.length >= 1, "at least one person gets a digest when chores are due");
+  const byCollapse = Object.fromEntries(
+    sent.map((req) => [req.headers["apns-collapse-id"], req])
+  );
+  for (const person of ["anne", "wes"]) {
+    const req = byCollapse[`digest-${person}`];
+    if (!req) continue; // person may have zero due after rotation; skip
+    assert.equal(req.body.aps.alert.title, "Roost");
+    assert.match(req.body.aps.alert.body, /^\d+ for you today: .+( and \d+ more)?$/);
+    assert.equal(req.headers["apns-collapse-id"], `digest-${person}`);
+    assert.equal(req.headers["apns-expiration"], wantExp);
+    assert.equal(req.headers["apns-topic"], "xyz.hinescreative.roost");
+  }
+  assert.ok(
+    byCollapse["digest-anne"] || byCollapse["digest-wes"],
+    "at least one digest-<person> collapse id"
+  );
+  assert.equal(getMeta(app.db, DIGEST_LAST_SENT_META), today);
+
+  const firstCount = sent.length;
+  sent.length = 0;
+  await app.push.runMorningDigestSweep(asOf);
+  assert.equal(sent.length, 0, "same Chicago day does not re-send in-process");
+
+  // Restart: new createPush on same db must honor digestLastSent meta.
+  const restartSent = [];
+  const push2 = createPush({
+    db: app.db,
+    apnsPath: join(dir, "missing-apns.json"),
+    sender: async (req) => {
+      restartSent.push(req);
+      return { status: 200 };
+    },
+    now: () => asOf,
+    log: () => {},
+    sweepIntervalMs: 0,
+  });
+  await push2.runMorningDigestSweep(asOf);
+  assert.equal(restartSent.length, 0, "restart must not re-send morning digest");
+  push2.stopSweep();
+  assert.ok(firstCount > 0);
+});
+
+test("morning digest: zero due items still marks the day and sends nothing", async () => {
+  const { setMeta, getMeta } = await import("../src/db.js");
+  const { chicagoDateString } = await import("../src/rules.js");
+  sent.length = 0;
+  app.db.prepare("DELETE FROM meta WHERE key = ?").run(DIGEST_LAST_SENT_META);
+  const asOf = new Date("2026-09-14T13:05:00.000Z"); // 08:05 Chicago
+  // Retire every chore so dueItems is empty regardless of activeFrom / history.
+  app.db.prepare("UPDATE chores SET retired = 1").run();
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+
+  await app.push.runMorningDigestSweep(asOf);
+  assert.equal(sent.length, 0, "nothing when zero due");
+  assert.equal(getMeta(app.db, DIGEST_LAST_SENT_META), chicagoDateString(asOf));
+
+  // Restore chores for any later tests in this file.
+  app.db.prepare("UPDATE chores SET retired = 0").run();
+});

@@ -85,6 +85,19 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: xyz.hinescreative.roost
         TARGETED_DEVICE_FAMILY: "1"
         ENABLE_PREVIEWS: YES
+    # Where the Team ID comes from on a machine that has one. `Config/Local.xcconfig` is
+    # committed and holds no values — it only `#include?`s the gitignored
+    # `Config/Local.override.xcconfig`. A target xcconfig outranks the project-level
+    # `DEVELOPMENT_TEAM: ""` above, so the override wins when it exists and a checkout
+    # without one builds unsigned, exactly as CI does.
+    #
+    # The file sits in Config/ rather than beside project.yml because xcodegen 2.46.0 gives
+    # a config file in the spec's own directory a fresh random `TEMP_<uuid>` object id on
+    # every run when `createIntermediateGroups` is on — which would break the CI step that
+    # checks a regenerate is a no-op. One directory down, the id is stable.
+    configFiles:
+      Debug: Config/Local.xcconfig
+      Release: Config/Local.xcconfig
 
   # The Home Screen and Lock Screen widget. It reads the App Group snapshot and nothing else: no SwiftData,
   # no network, no bearer token. RoostDesign is the only dependency, for colours and type.
@@ -114,6 +127,11 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         ENABLE_PREVIEWS: YES
         SKIP_INSTALL: YES
+    # The same local Team ID as the app. The extension is signed separately and embedded,
+    # so a team on the app alone archives the app and then fails on the appex.
+    configFiles:
+      Debug: Config/Local.xcconfig
+      Release: Config/Local.xcconfig
 
   RoostTests:
     type: bundle.unit-test

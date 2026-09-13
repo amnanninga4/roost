@@ -20,14 +20,18 @@ else
   exit 1
 fi
 
-newest="$(ls -1t "$DIR"/roost-*.db 2>/dev/null | head -n 1 || true)"
-
 # Drop stale SQLite sidecars left by earlier read-write opens next to backups we check.
-shopt -s nullglob
-for f in "$DIR"/roost-*.db-wal "$DIR"/roost-*.db-shm; do
-  rm -f -- "$f"
-done
-shopt -u nullglob
+cleanup_sidecars() {
+  shopt -s nullglob
+  for f in "$DIR"/roost-*.db-wal "$DIR"/roost-*.db-shm; do
+    rm -f -- "$f"
+  done
+  shopt -u nullglob
+}
+
+cleanup_sidecars
+
+newest="$(ls -1t "$DIR"/roost-*.db 2>/dev/null | head -n 1 || true)"
 
 if [[ -z "$newest" ]]; then
   echo "verify-backup: no roost-*.db in $DIR" >&2
@@ -36,6 +40,10 @@ fi
 
 out="$("$NODE" --no-warnings=ExperimentalWarning "$CHECK_JS" "$newest")"
 ok="$(printf '%s' "$out" | "$NODE" -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const j=JSON.parse(s); process.stdout.write(j.ok?"1":"0");})')"
+
+# Same sidecar cleanup after the check (success or fail) so a non-immutable open cannot leave residue.
+cleanup_sidecars
+
 if [[ "$ok" != "1" ]]; then
   echo "verify-backup: FAILED for $newest: $out" >&2
   exit 1
