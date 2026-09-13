@@ -63,7 +63,7 @@ git pull --ff-only && sudo server/install.sh
 
 The script creates the `roost` system user, `/opt/roost` (code), `/var/lib/roost` (DB), `/etc/roost/tokens.json` (0640 root:roost, created empty once, never overwritten), `/var/backups/roost`, installs `roost.service` plus a nightly backup service and timer, and restarts the API. Re-run it to deploy a new version.
 
-Backups: `roost-backup.timer` runs `backup.sh` at 03:30 UTC via SQLite's online backup, keeping 30 files in `/var/backups/roost`. Offsite copy to the grater is a later ticket.
+Backups: `roost-backup.timer` runs `backup.sh` at 03:30 host-local time (theoldone is America/Chicago) via SQLite's online backup, keeping 30 files in `/var/backups/roost`. `roost-offsite.timer` runs `offsite-backup.sh` at 04:00 host-local and copies the newest file to the grater at `/mnt/storage-sdd/backups/roost/` over the tailnet, also keeping 30.
 
 Logs: `journalctl -u roost -f`.
 

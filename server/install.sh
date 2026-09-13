@@ -6,7 +6,7 @@
 #   /var/lib/roost        SQLite database, owned by roost
 #   /etc/roost/tokens.json device tokens, root:roost 0640
 #   /var/backups/roost    nightly DB copies, 30 kept
-#   offsite (grater)      roost-offsite.timer ~04:00 UTC → /mnt/storage-sdd/backups/roost, 30 kept
+#   offsite (grater)      roost-offsite.timer ~04:00 host-local → /mnt/storage-sdd/backups/roost, 30 kept
 set -euo pipefail
 
 if [[ $EUID -ne 0 ]]; then echo "run with sudo" >&2; exit 1; fi
