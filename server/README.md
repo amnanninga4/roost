@@ -91,6 +91,7 @@ sudo -u roost ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/device
 | POST | `/pair` | no | body `{ code, deviceName }` → `{ token, person }`; one `404 invalid or expired code` for unknown, already used and expired alike; `400` unless `code` is 6 digits and `deviceName` is 1-60 chars; `429` over 10 answered attempts a minute from one address or 30 across all of them |
 | DELETE | `/pair/self` | yes | unpairs the calling device: its `paired_tokens` row is marked revoked, its `devices` row is dropped, and the next request with it is `401`; `403` for a hand-minted token, which only the tokens file can revoke |
 | GET | `/chores` | yes | full list + version |
+| GET | `/me` | yes | `{ person, label, source, createdAt, lastSeen }` — `source` is `file` or `paired`; `createdAt` from `paired_tokens` when paired, else `null`; `lastSeen` from the `devices` table (null until first touch) |
 | GET | `/completions?cursor=<n>` | yes | rows with `seq > cursor`, deleted rows included with `deleted: true` |
 | POST | `/completions` | yes | body `{ id, choreId, completedAt }`; person comes from the token; `201` new, `200` replay |
 | DELETE | `/completions/:id` | yes | soft delete, idempotent, `404` if unknown |
@@ -111,7 +112,10 @@ sudo -u roost ROOST_DB=/var/lib/roost/roost.db node /opt/roost/server/src/device
 | POST | `/bonus/:id/claim` | yes | first claim wins: `200` (a repeat by the same person is a `200` replay); `409` when the other person holds it (`claimedBy` in the body) or the deadline has passed / it was auto-assigned; `404` unknown or deleted |
 | POST | `/bonus/:id/complete` | yes | `claimedBy` or `assignedTo` only: `200` (repeat is a `200` replay); `403` for anyone else, including on an unclaimed task; `404` unknown or deleted |
 | DELETE | `/bonus/:id` | yes | soft delete, idempotent, `404` if unknown |
-| GET | `/sync?cursor=<n>&choresVersion=<v>` | yes | one call: `serverTime`, `person`, `choresVersion`, `cursor`, then `completions`, `shopping`, `meals`, `projects`, `subtasks`, `bonus` (every row with `seq > cursor`, deleted rows with `deleted: true`), and `chores` only when the client's version differs. Expired bonus tasks are auto-assigned before the response is built, so their new `assignedTo` rides this same delta |
+| POST | `/handoffs` | yes | body `{ id, choreId, to, periodIndex?, cadence? }`; `from` from the token; `201` new pending, `200` replay; on create, push notifies `to` |
+| POST | `/handoffs/:id/accept` | yes | `to` person only; `200`; on a real pending→accepted transition, push notifies `from` |
+| POST | `/handoffs/:id/decline` | yes | `to` person only; `200`; on a real pending→declined transition, push notifies `from` |
+| GET | `/sync?cursor=<n>&choresVersion=<v>` | yes | one call: `serverTime`, `person`, `choresVersion`, `cursor`, then `completions`, `shopping`, `meals`, `projects`, `subtasks`, `bonus`, `handoffs` (every row with `seq > cursor`, deleted rows with `deleted: true`), and `chores` only when the client's version differs. Expired bonus tasks are auto-assigned and past-period open handoffs are expired before the response is built, so those updates ride this same delta |
 
 Validation is `400` with an `error` message: ids outside the pattern, missing or empty titles, titles over 200 chars, tags over 40, non-ISO dates, non-boolean flags, non-integer `sortOrder`, bonus `points` that are not an integer 1-10, an empty PATCH body, an unknown `projectId`, or a subtask id that already exists. Bad ids in a path simply do not route (`404`). A bonus `claimBy` already in the past is accepted (an offline POST replayed late) and assigned on the next sync.
 
@@ -184,4 +188,5 @@ Dead tokens are pruned automatically when APNs returns `410`, or `400` with reas
 ### Behaviour
 
 - Completion create notifies the other person (`apns-expiration` = now+3600 seconds).
+- Handoff offer (201 only) notifies `to`; accept/decline (real state change only) notify `from`. Bodies use display names (Anne/Wes) and a period phrase from cadence (`today` / `this week` / `this month`). All handoff pushes set `apns-collapse-id: handoff-<id>`. Expiry is silent — no push when `expireOpenHandoffs` runs.
 - Every 15 minutes, stage ≥ 3 overdue chores notify the assignee's partner (`apns-collapse-id` = `red-<choreId>`). Sent pairs are stored in `push_alerts` so restarts do not re-blast.

@@ -122,15 +122,15 @@ enum Strings {
         /// days the server pushes it there.
         static let onTheOtherPhone = "On the other phone too"
 
-        /// Gear menu, in order.
+        /// Gear menu, in order. Settings is `Strings.Settings.title`, which the screen itself owns.
         static let allChores = "All chores"
-        static let pairing = "Pairing…"
         static let syncNow = "Sync now"
-        /// VoiceOver name for the gear button itself.
-        static let settings = "Settings"
+        /// VoiceOver name for the gear button itself; the menu behind it has its own item named Settings.
+        static let gear = "More"
 
-        /// Not paired: one line under the header pointing at the gear menu's Pairing item.
-        static let notPaired = "Not paired yet · gear menu → Pairing"
+        /// Not paired: one line under the header pointing at the gear menu's Settings item, where
+        /// "Paired as" lives. A phone with a token but no person yet sees this.
+        static let notPaired = "Not paired yet · gear menu → Settings"
         static let syncing = "Syncing…"
         /// The last sync failed, or the server could not be reached. Never a modal: offline is normal here.
         static func offline(_ lastSynced: String) -> String {
@@ -241,6 +241,126 @@ enum Strings {
 
         static let syncedJustNow = "Synced just now"
         static let neverSynced = "Not synced yet"
+    }
+
+    /// First run: what this is, the pairing code, who the server says you are, notifications.
+    /// Four screens, one job each. Sentence case in the body, no terminal period on a button.
+    enum Onboarding {
+        // MARK: step 1 — what this is
+
+        static let welcomeEyebrow = "WELCOME"
+        static let welcomeTitle = "Roost"
+        /// One sentence. Anne reads this before she has agreed to anything.
+        static let welcomeLine = "Roost is one shared chore list for the two of you."
+        static let welcomeAction = "Get started"
+
+        // MARK: step 2 — the code
+
+        static let codeEyebrow = "PAIRING"
+        static let codeTitle = "Enter your code"
+        static let codeLine = "Wes makes a six-digit code on the server. It works once, and only for 15 minutes."
+        static let codeWorking = "Pairing…"
+        /// The small link under the boxes, for a phone that was handed a token instead of a code.
+        static let tokenLink = "Enter a token instead"
+        static let retry = "Try again"
+
+        // MARK: step 2 — what went wrong
+
+        /// 404: unknown, already used, or expired. The server answers all three the same way.
+        static let codeInvalid = "That code didn't work. Codes last 15 minutes and work once."
+        /// 429: too many attempts, per address or across all of them.
+        static let codeRateLimited = "Too many tries. Wait a minute, then try again."
+        /// 400: the server would not read the body. Should not happen — the field only sends six digits.
+        static let codeRejected = "The server didn't accept that code. Six digits, numbers only."
+        /// Transport failure: offline, tunnel down, wrong server.
+        static let codeOffline = "Couldn't reach the server. Check the connection and try again."
+
+        // MARK: step 2 — the token fallback
+
+        static let tokenTitle = "Device token"
+        static let tokenLine = "For a phone that was set up by hand. Paste the token Wes minted on the server."
+        static let tokenField = "Device token"
+        static let tokenAction = "Connect"
+        static let tokenWorking = "Connecting…"
+        static let cancel = "Cancel"
+
+        // MARK: step 3 — who you are
+
+        static let confirmEyebrow = "PAIRED"
+        /// "You're Anne"
+        static func youAre(_ name: String) -> String {
+            "You're \(name)"
+        }
+
+        static let confirmLine = "This phone is paired. Your chores show up under your name."
+        static let confirmAction = "Continue"
+
+        // MARK: step 4 — notifications
+
+        static let notificationsEyebrow = "ONE LAST THING"
+        static let notificationsTitle = "Reminders"
+        static let notificationsLine = "Roost can list what's due at 9 in the morning, and say something at 6 in the evening when a chore is late."
+        static let notificationsAction = "Turn on reminders"
+        static let notificationsSkip = "Not now"
+        static let notificationsFootnote = "You can change this later in iOS Settings."
+
+        // MARK: the code field, for VoiceOver
+
+        /// The whole field is one element: the label says what it is, the value says what has been typed.
+        static let codeFieldLabel = "Pairing code, six digits"
+        static let codeFieldHint = "Type the code, or paste it."
+        static let codeFieldEmpty = "Empty"
+        /// The dots, read out: "Step 2 of 4".
+        static func progress(_ step: Int, of total: Int) -> String {
+            "Step \(step) of \(total)"
+        }
+
+        /// "0 4 8" — spoken a digit at a time, not as "forty-eight".
+        static func codeFieldValue(_ digits: String) -> String {
+            digits.isEmpty ? codeFieldEmpty : digits.map(String.init).joined(separator: " ")
+        }
+    }
+
+    /// Gear → Settings. What this phone is paired to, and how to undo it.
+    enum Settings {
+        static let title = "Settings"
+        static let close = "Close"
+
+        static let phoneHeader = "This phone"
+        static let pairedAs = "Paired as"
+        static let device = "Device"
+        static let notPaired = "Not paired"
+
+        static let serverHeader = "Server"
+        /// Debug builds only: the field is editable and the launch argument overrides everything.
+        static let serverFooter = "Debug builds only. Launch with -roostServer http://127.0.0.1:8790, or change it here and pair again."
+
+        static let syncHeader = "Sync"
+        static let lastSync = "Last sync"
+        static let status = "Status"
+        static let neverSynced = "Not synced yet"
+        /// The state of the last pass, as one phrase. The time it happened is the row above.
+        static let statusUpToDate = "Up to date"
+        static let statusSyncing = "Syncing…"
+        static let statusOffline = "Offline · will retry"
+
+        static let cancel = "Cancel"
+        static let unpair = "Unpair this phone"
+        static let unpairFooter = "Roost forgets the token on this phone. You'll need a new code to pair again."
+        static let unpairConfirmTitle = "Unpair this phone?"
+        static let unpairConfirm = "Unpair"
+        /// 403 from DELETE /pair/self: the token came from the tokens file, so only that file can revoke it.
+        static let unpairHandMinted = "This phone was set up by hand, so the server keeps its token. Roost forgot it here; ask Wes to remove it from the tokens file."
+        /// The server could not be reached, so its copy of the token may still work.
+        static let unpairOffline = "Couldn't reach the server, so its copy of the token may still work. Roost forgot it on this phone."
+        /// The heading over the note, after the fact.
+        static let unpairNoticeTitle = "Unpaired"
+        static let unpairNoticeAction = "Got it"
+
+        /// "Roost 0.1.0 (1)"
+        static func version(_ short: String, build: String) -> String {
+            "Roost \(short) (\(build))"
+        }
     }
 }
 

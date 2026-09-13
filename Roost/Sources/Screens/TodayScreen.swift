@@ -23,7 +23,7 @@ struct TodayScreen: View {
     private var completionRecords: [CompletionRecord]
     @Query private var syncStates: [SyncState]
 
-    @State private var showPairing = false
+    @State private var showSettings = false
     @State private var showKitchen = false
     /// Two counters and a gate, so the feel of a tap is decided once and never on a cold launch:
     /// a haptic fires when one of these changes, and they only change under a finger.
@@ -51,7 +51,7 @@ struct TodayScreen: View {
             .navigationTitle(Strings.appTitle)
             .toolbarTitleDisplayMode(.inline)
             .toolbar { gear }
-            .sheet(isPresented: $showPairing) { PairingScreen() }
+            .sheet(isPresented: $showSettings) { SettingsScreen() }
             .fullScreenCover(isPresented: $showKitchen) { KitchenScreen() }
         }
         .tint(RoostColor.Role.accent.color)
@@ -103,10 +103,10 @@ struct TodayScreen: View {
                 } label: {
                     Label(Strings.Tasks.allChores, systemImage: "list.bullet")
                 }
-                Button(Strings.Tasks.pairing, systemImage: "iphone.and.arrow.forward") { showPairing = true }
+                Button(Strings.Settings.title, systemImage: "iphone.and.arrow.forward") { showSettings = true }
                 Button(Strings.Tasks.syncNow, systemImage: "arrow.triangle.2.circlepath") { sync.syncSoon() }
             } label: {
-                Label(Strings.Tasks.settings, systemImage: "gearshape")
+                Label(Strings.Tasks.gear, systemImage: "gearshape")
             }
         }
     }

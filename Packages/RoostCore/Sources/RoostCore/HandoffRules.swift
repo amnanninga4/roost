@@ -5,6 +5,9 @@ import Foundation
 /// The rules are deliberately thin: only the person who owes the chore right now can offer it, and there can be
 /// one open offer per chore per period. Everything else is the `Scheduler`'s job — see
 /// `Scheduler.plan(on:completions:handoffs:)` for how an accepted handoff lands on the day's list.
+///
+/// `resolve(on:)` sweeps offers nobody answered. It never touches an accepted handoff: that one is a permanent
+/// fact about its period, and everything that reads the past — streaks, overdue items — depends on it staying.
 public struct HandoffRules: Sendable {
     /// What the person being asked said.
     public enum Decision: String, Sendable, Hashable, CaseIterable {
@@ -76,38 +79,42 @@ public struct HandoffRules: Sendable {
     }
 
     /// Answering one offer. Answering after its period ended expires it instead — too late to take a turn that
-    /// is already over. An offer that was already answered keeps its answer.
+    /// is already over. An offer that was already answered keeps its answer, so a late no cannot undo a turn
+    /// that was taken.
     public func resolve(_ handoff: Handoff, as decision: Decision, on date: Date) -> Handoff {
+        // Only a pending offer can have expired, so this branch never touches an accepted or declined one.
         if handoff.hasExpired(on: date, calendar: calendar) {
-            return handoff.state == .expired ? handoff : handoff.with(state: .expired)
+            return handoff.with(state: .expired)
         }
         guard handoff.state == .pending else { return handoff }
         return handoff.with(state: decision == .accept ? .accepted : .declined)
     }
 
-    /// The whole set with every open handoff whose period has ended marked `.expired`. Run it when the day
-    /// rolls over. Declined handoffs are left alone: the record that someone said no is worth keeping.
+    /// The whole set with every offer that nobody answered inside its period marked `.expired`. Run it when the
+    /// day rolls over. Accepted handoffs are left alone, and that is the point: sweeping one away would rewrite
+    /// who owed the chore in that period, which is history the streak and an overdue item both still read.
+    /// Declined ones are left alone too — the record that someone said no is worth keeping.
     public func resolve(on date: Date) -> [Handoff] {
         handoffs.map { handoff in
-            guard handoff.isOpen, handoff.hasExpired(on: date, calendar: calendar) else { return handoff }
+            guard handoff.hasExpired(on: date, calendar: calendar) else { return handoff }
             return handoff.with(state: .expired)
         }
     }
 
-    /// What a handoff counts as on `date`: its stored state, or `.expired` once its period has ended.
+    /// What a handoff counts as on `date`: its stored state, or `.expired` once a pending offer's period has
+    /// ended. An accepted handoff reads `.accepted` whatever the date, swept or not.
     public static func effectiveState(
         _ handoff: Handoff,
         on date: Date,
         calendar: HouseholdCalendar = HouseholdCalendar()
     ) -> Handoff.State {
-        if handoff.isOpen, handoff.hasExpired(on: date, calendar: calendar) {
-            return .expired
-        }
-        return handoff.state
+        handoff.hasExpired(on: date, calendar: calendar) ? .expired : handoff.state
     }
 
     /// The accepted handoff that decides who owes `choreId` for `periodIndex`, or nil if rotation and pins win.
-    /// Pending and declined handoffs are not overrides, and an accepted one stops being one when its period ends.
+    /// Pending and declined handoffs are not overrides. An accepted one is, for its own period, permanently:
+    /// asked about a past period it still answers, which is how `Tallies.streak` reads history and how an
+    /// overdue item stays with the person who took that turn.
     public static func acceptedOverride(
         choreId: String,
         periodIndex: Int,
@@ -121,7 +128,10 @@ public struct HandoffRules: Sendable {
             .min { $0.createdAt < $1.createdAt || ($0.createdAt == $1.createdAt && $0.id < $1.id) }
     }
 
-    /// The open (pending or accepted, not past its period) handoff for one chore and period.
+    /// The open handoff for one chore and period: an offer still waiting for an answer inside its period, or
+    /// the accepted one that settled it. `canOffer` only ever asks about the chore's current period, where this
+    /// is the one-open-offer check; asked about a past period, a turn that was taken still answers, so nobody
+    /// can re-offer a period that is already settled.
     public static func openHandoff(
         choreId: String,
         periodIndex: Int,

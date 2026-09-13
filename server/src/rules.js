@@ -198,7 +198,24 @@ export function rotationAssignee(choreId, periodIdx) {
   return slot === 0 ? "anne" : "wes";
 }
 
-export function assigneeFor(chore, periodIdx) {
+/**
+ * Who owes `chore` for `periodIdx`. An accepted handoff for that exact chore+period
+ * wins over fixedAssignee and rotation. Pending/declined do nothing.
+ * R-21: accepted handoffs remain permanent for their periodIndex (no asOf expiry filter).
+ *
+ * `handoffs` rows may use SQL names (fromPerson/toPerson) or JSON names (from/to).
+ */
+export function assigneeFor(chore, periodIdx, handoffs = [], asOf = new Date()) {
+  const override = (handoffs ?? [])
+    .filter((h) => !h.deletedAt)
+    .filter((h) => h.choreId === chore.id && h.periodIndex === periodIdx)
+    .filter((h) => h.state === "accepted")
+    .sort((a, b) => {
+      const at = asDate(a.createdAt).getTime() - asDate(b.createdAt).getTime();
+      if (at !== 0) return at;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    })[0];
+  if (override) return override.toPerson ?? override.to;
   if (chore.fixedAssignee) return chore.fixedAssignee;
   return rotationAssignee(chore.id, periodIdx);
 }
@@ -218,7 +235,7 @@ export function escalationStage(daysOverdue) {
  * Oldest incomplete period for `chore` as of `asOf`, or null if done for the current period.
  * Completing in a later period clears older missed ones (one nag, not a backlog).
  */
-export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM, handoffs = [] }) {
   const asOfD = asDate(asOf);
   const active = asDate(activeFrom);
   const current = periodIndex(chore.cadence, asOfD);
@@ -234,9 +251,12 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
 
   const bounds = periodBounds(chore.cadence, oldestIncomplete);
   const daysOverdue = Math.max(0, dayIndex(asOfD) - dayIndex(bounds.lastDay));
+  const person = assigneeFor(chore, oldestIncomplete, handoffs, asOfD);
+  const viaHandoff = person !== (chore.fixedAssignee || rotationAssignee(chore.id, oldestIncomplete));
   return {
     chore,
-    person: assigneeFor(chore, oldestIncomplete),
+    person,
+    viaHandoff,
     periodIndex: oldestIncomplete,
     periodStart: bounds.firstDay,
     periodLastDay: bounds.lastDay,
@@ -247,21 +267,38 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
 
 /**
  * Everything due on `asOf`, keyed by person. Most overdue first, then by chore list order.
+ * Optional `balance` (default false) runs FairnessBalancer over the day's items — off unless asked.
+ * `handoffs` is forwarded to the balancer for reassignability only; assignee override is R-18.
  */
-export function dueItems({ chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+export function dueItems({
+  chores,
+  completions,
+  asOf,
+  activeFrom = DEFAULT_ACTIVE_FROM,
+  handoffs = [],
+  balance: doBalance = false,
+}) {
   const byChore = new Map();
   for (const c of completions) {
     if (!byChore.has(c.choreId)) byChore.set(c.choreId, []);
     byChore.get(c.choreId).push(c);
   }
-  const result = Object.fromEntries(PEOPLE.map((p) => [p, []]));
+  let items = [];
   for (const chore of chores) {
     const item = dueItemFor(chore, {
       completions: byChore.get(chore.id) ?? [],
       asOf,
       activeFrom,
+      handoffs,
     });
     if (!item) continue;
+    items.push(item);
+  }
+  if (doBalance) {
+    items = balance(items, { chores, completions, handoffs, asOf });
+  }
+  const result = Object.fromEntries(PEOPLE.map((p) => [p, []]));
+  for (const item of items) {
     result[item.person].push(item);
   }
   for (const person of PEOPLE) {
@@ -288,12 +325,12 @@ export function doneThisWeek({ completions, asOf }) {
   return counts;
 }
 
-function isDayComplete(person, dayIdx, dailies, completions, /* for assignee */) {
+function isDayComplete(person, dayIdx, dailies, completions, handoffs = []) {
   const start = dayAt(dayIdx);
   const end = dayAt(dayIdx + 1);
   const startMs = start.getTime();
   const endMs = end.getTime();
-  const mine = dailies.filter((ch) => assigneeFor(ch, dayIdx) === person);
+  const mine = dailies.filter((ch) => assigneeFor(ch, dayIdx, handoffs, start) === person);
   for (const chore of mine) {
     const done = completions.some((c) => {
       if (c.choreId !== chore.id) return false;
@@ -310,17 +347,17 @@ function isDayComplete(person, dayIdx, dailies, completions, /* for assignee */)
  * Unfinished today does not break (count from yesterday). Days before activeFrom never count.
  * A day with no dailies assigned counts as complete.
  */
-export function streak({ person, chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
+export function streak({ person, chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM, handoffs = [] }) {
   const dailies = chores.filter((c) => c.cadence === "daily");
   const firstDay = dayIndex(activeFrom);
   const today = dayIndex(asOf);
   let day = today;
   let n = 0;
-  if (!isDayComplete(person, today, dailies, completions)) {
+  if (!isDayComplete(person, today, dailies, completions, handoffs)) {
     day = today - 1;
   }
   while (day >= firstDay) {
-    if (!isDayComplete(person, day, dailies, completions)) break;
+    if (!isDayComplete(person, day, dailies, completions, handoffs)) break;
     n += 1;
     day -= 1;
   }
@@ -330,14 +367,21 @@ export function streak({ person, chores, completions, asOf, activeFrom = DEFAULT
 /**
  * Aggregator for the status board: streak, week tally, overdue (+ optional due-today) per person.
  */
-export function boardStats({ chores, completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM }) {
-  const due = dueItems({ chores, completions, asOf, activeFrom });
+export function boardStats({
+  chores,
+  completions,
+  asOf,
+  activeFrom = DEFAULT_ACTIVE_FROM,
+  handoffs = [],
+  balance: doBalance = false,
+}) {
+  const due = dueItems({ chores, completions, asOf, activeFrom, handoffs, balance: doBalance });
   const week = doneThisWeek({ completions, asOf });
   const out = {};
   for (const person of PEOPLE) {
     const items = due[person] ?? [];
     out[person] = {
-      streak: streak({ person, chores, completions, asOf, activeFrom }),
+      streak: streak({ person, chores, completions, asOf, activeFrom, handoffs }),
       week: week[person] ?? 0,
       overdue: items.filter((i) => i.daysOverdue >= 1),
       dueToday: items.filter((i) => i.daysOverdue === 0),
@@ -346,3 +390,162 @@ export function boardStats({ chores, completions, asOf, activeFrom = DEFAULT_ACT
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// FairnessBalancer — mirror of Packages/RoostCore FairnessBalancer.swift
+// Off by default: dueItems/boardStats only balance when callers pass balance: true.
+// Integer math only. streak / isDayComplete never balance.
+// ---------------------------------------------------------------------------
+
+/** Provisional cadence weights — same knob as FairnessWeights.provisional. */
+export const FAIRNESS_WEIGHTS = Object.freeze({ daily: 1, weekly: 3, biweekly: 5, monthly: 8 });
+
+/** Trailing Chicago days that count toward load (today included). */
+export const FAIRNESS_WINDOW_DAYS = 14;
+
+export function weightFor(cadence) {
+  const w = FAIRNESS_WEIGHTS[cadence];
+  if (w === undefined) throw new Error(`unknown cadence: ${cadence}`);
+  return w | 0;
+}
+
+function dueItemId(item) {
+  return `${item.chore.id}#${item.periodIndex}`;
+}
+
+/**
+ * Accepted handoff still live for chore+period on asOf, or null.
+ * Mirrors HandoffRules.acceptedOverride — used only for isReassignable / balance.
+ */
+function acceptedHandoffOverride(choreId, periodIdx, handoffs, asOf) {
+  const matches = (handoffs ?? []).filter((h) => {
+    if (h.choreId !== choreId || h.periodIndex !== periodIdx) return false;
+    // R-21: accepted is permanent for its period; pending never overrides.
+    return h.state === "accepted";
+  });
+  if (matches.length === 0) return null;
+  matches.sort((a, b) => {
+    const at = asDate(a.createdAt).getTime() - asDate(b.createdAt).getTime();
+    if (at !== 0) return at;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+  return matches[0];
+}
+
+function loads(chores, completions, asOf, dropCurrentPeriod) {
+  const asOfD = asDate(asOf);
+  const lastDay = dayIndex(asOfD);
+  const windowStart = dayAt(lastDay - (FAIRNESS_WINDOW_DAYS - 1));
+  const windowEnd = dayAt(lastDay + 1);
+  const startMs = windowStart.getTime();
+  const endMs = windowEnd.getTime();
+  const cadenceByChore = new Map(chores.map((c) => [c.id, c.cadence]));
+
+  const out = Object.fromEntries(PEOPLE.map((p) => [p, 0]));
+  for (const completion of completions) {
+    const t = asDate(completion.completedAt).getTime();
+    if (t < startMs || t >= endMs) continue;
+    const cadence = cadenceByChore.get(completion.choreId);
+    if (cadence == null) continue;
+    if (dropCurrentPeriod) {
+      const itsPeriod = periodIndex(cadence, asDate(completion.completedAt));
+      const currentPeriod = periodIndex(cadence, asOfD);
+      if (itsPeriod === currentPeriod) continue;
+    }
+    if (out[completion.person] !== undefined) {
+      out[completion.person] = (out[completion.person] + weightFor(cadence)) | 0;
+    }
+  }
+  return out;
+}
+
+/** Weighted completions per person over the trailing window (today + 13 days back). */
+export function windowLoads({ chores, completions, asOf }) {
+  return loads(chores, completions, asOf, false);
+}
+
+/**
+ * Window loads minus completions inside each chore's current period —
+ * those are counted at their own slot in the balance walk instead.
+ */
+export function backgroundLoads({ chores, completions, asOf }) {
+  return loads(chores, completions, asOf, true);
+}
+
+/** Whoever finished chore in its current period, or null. Latest completedAt, then id. */
+export function currentPeriodFinisher(chore, { completions, asOf }) {
+  const asOfD = asDate(asOf);
+  const current = periodIndex(chore.cadence, asOfD);
+  const candidates = (completions ?? []).filter(
+    (c) =>
+      c.choreId === chore.id &&
+      periodIndex(chore.cadence, asDate(c.completedAt)) === current
+  );
+  if (candidates.length === 0) return null;
+  let best = candidates[0];
+  for (let i = 1; i < candidates.length; i++) {
+    const c = candidates[i];
+    const bt = asDate(best.completedAt).getTime();
+    const ct = asDate(c.completedAt).getTime();
+    if (ct > bt || (ct === bt && c.id > best.id)) best = c;
+  }
+  return best.person;
+}
+
+/**
+ * Whether the balancing pass may move this item.
+ * Unpinned, daysOverdue === 0, and no accepted handoff covering it.
+ */
+export function isReassignable(item, { handoffs = [], asOf } = {}) {
+  if (item.chore.fixedAssignee) return false;
+  if ((item.daysOverdue | 0) !== 0) return false;
+  return (
+    acceptedHandoffOverride(item.chore.id, item.periodIndex, handoffs, asOf) == null
+  );
+}
+
+/**
+ * Spread reassignable items across anne/wes by projected load.
+ * Walks `chores` in master-list order. Returns same items, some with person flipped.
+ * Integer math only. Tie → keep item's current person (rotation's answer).
+ */
+export function balance(items, { chores, completions, handoffs = [], asOf }) {
+  const projected = backgroundLoads({ chores, completions, asOf });
+  const itemByChore = new Map();
+  for (const item of items) {
+    if (!itemByChore.has(item.chore.id)) itemByChore.set(item.chore.id, item);
+  }
+  const reassigned = new Map();
+
+  for (const chore of chores) {
+    const weight = weightFor(chore.cadence);
+    const finisher = currentPeriodFinisher(chore, { completions, asOf });
+    if (finisher != null) {
+      if (projected[finisher] !== undefined) {
+        projected[finisher] = (projected[finisher] + weight) | 0;
+      }
+      continue;
+    }
+    const item = itemByChore.get(chore.id);
+    if (!item) continue;
+    if (!isReassignable(item, { handoffs, asOf })) {
+      if (projected[item.person] !== undefined) {
+        projected[item.person] = (projected[item.person] + weight) | 0;
+      }
+      continue;
+    }
+
+    const anne = projected.anne | 0;
+    const wes = projected.wes | 0;
+    const owner = anne === wes ? item.person : anne < wes ? "anne" : "wes";
+    projected[owner] = (projected[owner] + weight) | 0;
+    reassigned.set(dueItemId(item), owner);
+  }
+
+  return items.map((item) => {
+    const owner = reassigned.get(dueItemId(item));
+    if (!owner || owner === item.person) return item;
+    return { ...item, person: owner };
+  });
+}
+

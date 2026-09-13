@@ -48,7 +48,8 @@ extension DueItem {
 /// `plan(on:completions:handoffs:)` then runs the optional `balancer` over the whole day's list, which can move
 /// an item that is unpinned, un-handed-off, and still inside its period. Nothing else consults the balancer:
 /// `assignee(for:periodIndex:)` and `dueItem(...)` answer for one chore at a time and cannot balance a list
-/// they cannot see, so `Tallies` and anything else walking history gets the plain rotation answer.
+/// they cannot see, so `Tallies` and anything else walking history gets the unbalanced answer: handoff, then
+/// pin, then rotation.
 public struct Scheduler: Sendable {
     public let chores: [Chore]
     public let rotation: Rotation
@@ -76,8 +77,10 @@ public struct Scheduler: Sendable {
         chore.fixedAssignee ?? rotation.assignee(for: chore, periodIndex: periodIndex)
     }
 
-    /// Same, except an accepted handoff for that exact period — still live on `date` — outranks both the pin
-    /// and the rotation. Pending, declined, and expired handoffs change nothing.
+    /// Same, except an accepted handoff for that exact period outranks both the pin and the rotation — whether
+    /// that period is the current one or one long past, because an accepted turn does not expire. That is what
+    /// keeps an overdue item with the person who took it, and what lets `Tallies.streak` read history. Pending,
+    /// declined, and expired handoffs change nothing; `date` is only what a pending offer is judged against.
     public func assignee(for chore: Chore, periodIndex: Int, on date: Date, handoffs: [Handoff]) -> Person {
         let override = HandoffRules.acceptedOverride(
             choreId: chore.id,

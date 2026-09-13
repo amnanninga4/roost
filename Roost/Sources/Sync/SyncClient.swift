@@ -17,6 +17,28 @@ enum SyncOutcome: Equatable, Sendable {
     case failed(String)
 }
 
+/// What `DELETE /pair/self` came back with. The token is forgotten locally in every case — a phone that
+/// cannot reach the server must still be able to stop being this household's phone.
+enum UnpairOutcome: Equatable, Sendable {
+    /// 200: the server revoked the token. Nothing left to explain.
+    case unpaired
+    /// 403: the token came from the tokens file, so only that file can revoke it.
+    case handMinted
+    /// The server could not be reached (or answered something unexpected); its copy may still work.
+    case localOnly(String)
+    /// There was nothing stored to unpair.
+    case notPaired
+
+    /// The line Settings shows before it sends the app back to onboarding. nil when there is nothing to say.
+    var note: String? {
+        switch self {
+        case .unpaired, .notPaired: nil
+        case .handMinted: Strings.Settings.unpairHandMinted
+        case .localOnly: Strings.Settings.unpairOffline
+        }
+    }
+}
+
 @ModelActor
 actor SyncClient {
     private var tokenStore: TokenStore = KeychainTokenStore()
@@ -52,12 +74,64 @@ actor SyncClient {
         return person
     }
 
+    /// Trades a 6-digit pairing code for a real token (`POST /pair`, no bearer) and stores it.
+    ///
+    /// The token is written as soon as the server hands it over, before anything else can fail: the code is
+    /// spent in the same transaction that mints the token, so a phone that threw it away would need a new code.
+    /// The first `/sync` is left to the normal trigger on the Tasks tab.
+    func pair(baseURL: URL, code: String, deviceName: String) async throws -> Person {
+        let api = SyncAPI(baseURL: baseURL, session: session)
+        let response = try await api.pair(code: code, deviceName: deviceName)
+        guard let person = Person(rawValue: response.person) else {
+            throw SyncAPIError.decoding("unknown person '\(response.person)'")
+        }
+        try tokenStore.write(response.token)
+        let state = try syncState()
+        state.baseURL = baseURL.absoluteString
+        state.person = person.rawValue
+        try modelContext.save()
+        return person
+    }
+
+    /// Tells the server to revoke this device (`DELETE /pair/self`), then forgets the token locally
+    /// whatever the answer was — 200, 403 for a hand-minted token, or no answer at all.
+    func unpairDevice() async -> UnpairOutcome {
+        var outcome = UnpairOutcome.unpaired
+        do {
+            let state = try syncState()
+            guard let base = state.baseURL.flatMap(URL.init(string:)), let token = try tokenStore.read() else {
+                try unpair()
+                return .notPaired
+            }
+            do {
+                _ = try await SyncAPI(baseURL: base, token: token, session: session).unpair()
+            } catch SyncAPIError.forbidden {
+                outcome = .handMinted
+            } catch SyncAPIError.unauthorized {
+                outcome = .unpaired // already revoked on the server; nothing left to do there
+            } catch let e as SyncAPIError {
+                outcome = .localOnly(e.description)
+            }
+            try unpair()
+            return outcome
+        } catch {
+            try? unpair()
+            return .localOnly(error.localizedDescription)
+        }
+    }
+
+    /// Forgets the token and the pairing fields. Local only; `unpairDevice()` is the one that tells the server.
     func unpair() throws {
         try tokenStore.clear()
         let state = try syncState()
         state.person = nil
         state.baseURL = nil
         try modelContext.save()
+    }
+
+    /// The base URL pairing stored, if this phone has ever paired. `ServerEndpoint` turns it into the URL to use.
+    func storedBaseURL() -> String? {
+        try? syncState().baseURL
     }
 
     // MARK: sync

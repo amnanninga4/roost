@@ -3,6 +3,7 @@
 //   GET    /health                        no auth
 //   GET    /status                        no auth — kitchen status board (HTML)
 //   GET    /chores                        chores + version
+//   GET    /me                            { person, label, source, createdAt, lastSeen }
 //   GET    /completions?cursor=<n>        completions with seq > cursor, includes deleted rows
 //   POST   /completions                   { id, choreId, completedAt } -> 201 new / 200 replay
 //   DELETE /completions/:id               soft delete -> 200 (idempotent)
@@ -19,13 +20,16 @@
 //   PATCH  /subtasks/:id                  { title?, done?, sortOrder? }; done=true stamps doneBy/doneAt, false clears
 //   DELETE /subtasks/:id                  soft delete
 //   /bonus, /bonus/:id/{claim,complete}   first-to-claim bonus tasks; routes and rules live in bonus.js
+//   POST   /handoffs                     { id, choreId, to } -> 201 pending / 200 replay; handoffs.js
+//   POST   /handoffs/:id/{accept,decline} answer an offer; to-person only
 //   POST   /pair                          no auth — { code, deviceName } -> { token, person }; pairing.js
 //   DELETE /pair/self                     unpair the calling device (paired tokens only); pairing.js
 //   POST|DELETE /push/token               APNs device token register/unregister; sender in push.js
 //   GET    /sync?cursor=<n>&choresVersion=<v>
 //          one call for the app: cursor, choresVersion, chores (only when version differs), and the
-//          completions / shopping / meals / projects / subtasks / bonus deltas (every row with seq > cursor)
+//          completions / shopping / meals / projects / subtasks / bonus / handoffs deltas (every row with seq > cursor)
 import http from "node:http";
+import { readFileSync } from "node:fs";
 import {
   openDb,
   seedChores,
@@ -59,6 +63,7 @@ import { statusHandler } from "./status.js";
 import { bonusRoutes, bonusSync } from "./bonus.js";
 import { createPairing, pendingCodes } from "./pairing.js";
 import { createPush, pushRoutes } from "./push.js";
+import { handoffRoutes, handoffSync } from "./handoffs.js";
 
 const MAX_BODY = 64 * 1024;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
@@ -90,6 +95,19 @@ class BadRequest extends Error {
   constructor(message) {
     super(message);
     this.status = 400;
+  }
+}
+
+
+/** Deployed git SHA for /health. ROOST_REV env wins; else /opt/roost/.deployed-rev from install.sh. */
+function readDeployedRev() {
+  if (process.env.ROOST_REV != null && process.env.ROOST_REV !== "") {
+    return String(process.env.ROOST_REV).trim();
+  }
+  try {
+    return readFileSync("/opt/roost/.deployed-rev", "utf8").trim() || "unknown";
+  } catch {
+    return "unknown";
   }
 }
 
@@ -236,6 +254,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         pendingCodes: pendingCodes(db, iso()),
         tokensFileError,
         push: push.health(),
+        rev: readDeployedRev(),
       });
     }
 
@@ -253,6 +272,24 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         source: getMeta(db, "choresSource"),
         locked: getMeta(db, "choresLocked"),
         chores: listChores(db),
+      });
+    }
+
+    if (req.method === "GET" && path === "/me") {
+      const lastSeen =
+        db.prepare("SELECT lastSeen FROM devices WHERE tokenHash = ?").get(device.tokenHash)?.lastSeen ?? null;
+      let createdAt = null;
+      if (device.source === "paired") {
+        createdAt =
+          db.prepare("SELECT createdAt FROM paired_tokens WHERE tokenHash = ?").get(device.tokenHash)?.createdAt ??
+          null;
+      }
+      return send(res, 200, {
+        person: device.person,
+        label: device.label,
+        source: device.source,
+        createdAt,
+        lastSeen,
       });
     }
 
@@ -446,11 +483,13 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
       };
       if (clientVersion == null || Number(clientVersion) !== version) out.chores = listChores(db);
       bonusSync(db, out, cursor, now()); // auto-assigns expired bonus tasks, adds out.bonus, folds its seqs into out.cursor
+      handoffSync(db, out, cursor, now()); // expires past-period open handoffs, adds out.handoffs, folds seqs into out.cursor
       return send(res, 200, out);
     }
 
     if (await pushRoutes({ req, res, path, db, device, send, readJson, iso })) return;
     if (await bonusRoutes({ req, res, path, url, db, device, send, readJson, parseCursor, now })) return;
+    if (await handoffRoutes({ req, res, path, db, device, send, readJson, now, push, log })) return;
 
     return send(res, 404, { error: "not found" });
   }
