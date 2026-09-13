@@ -206,3 +206,4 @@ Dead tokens are pruned automatically when APNs returns `410`, or `400` with reas
 - Completion create notifies the other person (`apns-expiration` = now+3600 seconds).
 - Handoff offer (201 only) notifies `to`; accept/decline (real state change only) notify `from`. Bodies use display names (Anne/Wes) and a period phrase from cadence (`today` / `this week` / `this month`). All handoff pushes set `apns-collapse-id: handoff-<id>`. Expiry is silent — no push when `expireOpenHandoffs` runs.
 - Every 15 minutes, stage ≥ 3 overdue chores notify the assignee's partner (`apns-collapse-id` = `red-<choreId>`). Sent pairs are stored in `push_alerts` so restarts do not re-blast.
+- At/after 08:00 America/Chicago, one push per person with anything due today or overdue (`apns-collapse-id digest-<person>`). Expires at the next Chicago midnight. Meta `digestLastSent` (Chicago date) prevents resends across restarts; nobody with zero items gets one.
