@@ -19,6 +19,8 @@
 //   PATCH  /subtasks/:id                  { title?, done?, sortOrder? }; done=true stamps doneBy/doneAt, false clears
 //   DELETE /subtasks/:id                  soft delete
 //   /bonus, /bonus/:id/{claim,complete}   first-to-claim bonus tasks; routes and rules live in bonus.js
+//   POST   /pair                          no auth — { code, deviceName } -> { token, person }; pairing.js
+//   DELETE /pair/self                     unpair the calling device (paired tokens only); pairing.js
 //   GET    /sync?cursor=<n>&choresVersion=<v>
 //          one call for the app: cursor, choresVersion, chores (only when version differs), and the
 //          completions / shopping / meals / projects / subtasks / bonus deltas (every row with seq > cursor)
@@ -51,9 +53,10 @@ import {
   deleteSubtask,
   listsAfter,
 } from "./db.js";
-import { createTokenStore, bearerFrom } from "./auth.js";
+import { createTokenStore, bearerFrom, hashToken } from "./auth.js";
 import { statusHandler } from "./status.js";
 import { bonusRoutes, bonusSync } from "./bonus.js";
+import { createPairing, pendingCodes } from "./pairing.js";
 
 const MAX_BODY = 64 * 1024;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/;
@@ -91,10 +94,11 @@ class BadRequest extends Error {
 export function createApp({ dbPath, choresPath, tokensPath, now = () => new Date(), log = console.error }) {
   const db = openDb(dbPath);
   const seeded = seedChores(db, choresPath);
-  const tokens = createTokenStore(tokensPath, { log });
+  const tokens = createTokenStore(tokensPath, { db, log });
   const lastTouched = new Map(); // tokenHash -> ms; throttles devices-table writes on read-only polls
 
   const iso = () => now().toISOString();
+  const pairing = createPairing({ db, tokens, hashToken, bearerFrom, send, readJson, now });
 
   function send(res, status, body) {
     const json = JSON.stringify(body);
@@ -226,11 +230,14 @@ export function createApp({ dbPath, choresPath, tokensPath, now = () => new Date
         choresSeeded: seeded,
         cursor: currentSeq(db),
         devices: tokens.size(),
+        pendingCodes: pendingCodes(db, iso()),
         tokensFileError,
       });
     }
 
     if (req.method === "GET" && path === "/status") return statusHandler(db, req, res, { now });
+
+    if (await pairing.routes(req, res, path)) return; // POST /pair has no bearer yet; /pair/self checks its own
 
     const device = tokens.lookup(bearerFrom(req));
     if (!device) return send(res, 401, { error: "unauthorized" });
