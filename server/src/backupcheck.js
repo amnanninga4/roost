@@ -28,19 +28,45 @@ export const EXPECTED_TABLES = Object.freeze(["meta", "chores", "completions"]);
  */
 
 /**
- * Open a SQLite file read-only if the API supports it; fall back to default open.
+ * Build a SQLite URI that opens read-only + immutable (no -wal/-shm creation).
+ * Absolute filesystem paths must use immutable=1.
+ * @param {string} path
+ * @returns {string}
+ */
+function toImmutableUri(path) {
+  if (path.startsWith("file:")) {
+    if (path.includes("?")) {
+      const q = path.indexOf("?");
+      const base = path.slice(0, q);
+      const params = new URLSearchParams(path.slice(q + 1));
+      params.set("mode", "ro");
+      params.set("immutable", "1");
+      return `${base}?${params.toString()}`;
+    }
+    return `${path}?mode=ro&immutable=1`;
+  }
+  // encodeURI keeps "/" intact while escaping spaces / special chars in segments
+  return `file:${encodeURI(path)}?mode=ro&immutable=1`;
+}
+
+/**
+ * Open a SQLite file read-only without creating -wal/-shm sidecars.
+ * Primary path: URI with mode=ro&immutable=1. Fallbacks omit immutable / use { readOnly }.
  * Caller must close.
  * @param {string} path
  */
 export function openReadonly(path) {
   try {
-    return new DatabaseSync(path, { readOnly: true });
+    return new DatabaseSync(toImmutableUri(path));
   } catch {
-    // Older node:sqlite builds without { readOnly: true } — URI form.
-    const uri = path.startsWith("file:")
-      ? (path.includes("?") ? path : `${path}?mode=ro`)
-      : `file:${path}?mode=ro`;
-    return new DatabaseSync(uri);
+    try {
+      return new DatabaseSync(path, { readOnly: true });
+    } catch {
+      const uri = path.startsWith("file:")
+        ? (path.includes("?") ? path : `${path}?mode=ro`)
+        : `file:${encodeURI(path)}?mode=ro`;
+      return new DatabaseSync(uri);
+    }
   }
 }
 

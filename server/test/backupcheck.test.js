@@ -153,3 +153,31 @@ test("backupcheck: checkBackup leaves no -wal/-shm sidecars", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("backupcheck: WAL-mode fixture leaves no -wal/-shm after checkBackup", () => {
+  const dir = mkdtempSync(join(tmpdir(), "roost-bc-walmode-"));
+  try {
+    const path = join(dir, "wal.db");
+    const db = new DatabaseSync(path);
+    db.exec(`PRAGMA journal_mode=WAL;
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE chores (id TEXT PRIMARY KEY, title TEXT NOT NULL);
+      CREATE TABLE completions (id TEXT PRIMARY KEY, choreId TEXT NOT NULL);
+      INSERT INTO meta (key, value) VALUES ('seq', '55');
+      INSERT INTO chores (id, title) VALUES ('c1', 'Sweep');
+    `);
+    db.close();
+    // Clear any sidecars left by the WAL write session; checkBackup must not recreate them.
+    rmSync(path + "-wal", { force: true });
+    rmSync(path + "-shm", { force: true });
+    const result = checkBackup(path);
+    assert.equal(result.ok, true, result.error);
+    assert.equal(result.seq, 55);
+    assert.equal(existsSync(path + "-wal"), false, "unexpected -wal sidecar after WAL-mode check");
+    assert.equal(existsSync(path + "-shm"), false, "unexpected -shm sidecar after WAL-mode check");
+    const leftovers = readdirSync(dir).filter((n) => n.endsWith("-wal") || n.endsWith("-shm"));
+    assert.deepEqual(leftovers, []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
