@@ -19,7 +19,10 @@ Roost/
     Sync/TokenStore.swift     Keychain (app) / in-memory (tests) storage for the device token
     Sync/SyncAPI.swift        typed HTTP client for server/ — no policy, no storage
     Sync/SyncClient.swift     @ModelActor: the replay + delta policy, in-flight guard
-    Sync/SyncCoordinator.swift @Observable main-actor face for the views
+    Sync/SyncCoordinator.swift @Observable main-actor face for the views; owns NotificationScheduler
+    Notifications/NotificationCenterClient.swift  the slice of UNUserNotificationCenter we use, behind a protocol
+    Notifications/NotificationPlanner.swift       pure: one day's due list -> ids, copy, Chicago fire times
+    Notifications/NotificationScheduler.swift     reads the store, clears + reschedules, badge, foreground observer
     Screens/TodayScreen.swift root: date, tallies, Anne/Wes sections, check-off, escalation color
     Screens/PairingScreen.swift paste a token, connect, forget
     Screens/ChoreListScreen.swift the R-2 list, reachable from the gear menu as "All chores"
@@ -46,7 +49,7 @@ xcodebuild -project Roost/Roost.xcodeproj -scheme Roost \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 ```
 
-17 tests: seed (31 rows, 2 pinned, idempotent, retire/restore, converters), sync (pairing stores person/cursor/token; 401 stores nothing; a queued completion is POSTed once and marked synced; a 400 marks it rejected and it is never retried; offline keeps the queue; a delete replays as DELETE; a delta with `deleted: true` hides the local row; server-sent chores re-seed; overlapping syncs coalesce), and planning (pinned chores land on the right person; cat care sorts first; a completion today shows as a done row and counts in the tally; overdue days map to the escalation stage).
+29 tests: seed (31 rows, 2 pinned, idempotent, retire/restore, converters), sync (pairing stores person/cursor/token; 401 stores nothing; a queued completion is POSTed once and marked synced; a 400 marks it rejected and it is never retried; offline keeps the queue; a delete replays as DELETE; a delta with `deleted: true` hides the local row; server-sent chores re-seed; overlapping syncs coalesce), and planning (pinned chores land on the right person; cat care sorts first; a completion today shows as a done row and counts in the tally; overdue days map to the escalation stage), and notifications (fixture plan yields the expected ids, Chicago fire times and titles; a replan clears the previous set; the other person's chores never appear; badge count; overlapping replans coalesce).
 
 ## Pairing
 
@@ -83,4 +86,15 @@ Checking a row inserts a `CompletionRecord` (UUID id, `completedAt` now, UTC) an
 - `SyncState` is a single row: `cursor` (server seq), `choresVersion`, `baseURL`, `person`, `activeFrom`, `lastSyncAt`.
 - Pre-release: if the on-disk store cannot be migrated, `RoostApp` deletes it and rebuilds. Chores re-seed from the bundle and completions come back from the server on the next sync. This goes away once the schema is stable.
 
-Push notifications (APNs) are a later ticket.
+## Notifications
+
+Local only (`UserNotifications`, no server involvement). `NotificationScheduler.replan()` rewrites the pending set after every successful sync and whenever the app becomes active (launch and foreground); overlapping replans coalesce. Each pass clears every pending Roost notification, then schedules, for the paired person only:
+
+- **09:00 Chicago** one digest listing what is due that day (skipped when nothing is due).
+- **18:00 Chicago** one notification per overdue chore, worded by `EscalationStage` as in the mockup: nudge "Still no <title>…", pointed "The cat has feelings about this." (cat care) or "Getting overdue." (home), alert "<Title> emergency".
+
+Identifiers are deterministic per chore and date (`roost.overdue.<choreId>.<yyyy-MM-dd>`, `roost.digest.<yyyy-MM-dd>`), so a replan replaces rather than duplicates. The plan covers today and tomorrow (tomorrow assumes nothing else gets done and is replaced by the next replan) so a phone opened after 18:00 still gets the next ping. The app badge is the paired person's overdue count, updated with each replan. An unpaired phone gets nothing and a zero badge.
+
+Permission (alert, sound, badge) is requested the first time pairing succeeds, not on first launch.
+
+The other person's chores never produce a local notification here, so the mockup's "red alert visible to both of you" needs a push from the server: that is ticket R-6b (APNs), waiting on a key.
