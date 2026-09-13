@@ -37,6 +37,9 @@ targets:
       path: Sources/Info.plist
       properties:
         CFBundleDisplayName: Roost
+        # Point at the build settings so Settings shows what project.yml says, not xcodegen's 1.0 default.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         ITSAppUsesNonExemptEncryption: false

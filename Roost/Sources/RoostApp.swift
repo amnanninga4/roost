@@ -1,6 +1,6 @@
-import SwiftUI
-import SwiftData
 import RoostDesign
+import SwiftData
+import SwiftUI
 
 @main
 struct RoostApp: App {
@@ -22,7 +22,7 @@ struct RoostApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            RootGate()
                 .environment(sync)
         }
         .modelContainer(container)

@@ -15,7 +15,7 @@ struct TodayScreen: View {
     private var completionRecords: [CompletionRecord]
     @Query private var syncStates: [SyncState]
 
-    @State private var showPairing = false
+    @State private var showSettings = false
     @State private var showKitchen = false
     @State private var now = Date()
 
@@ -68,14 +68,14 @@ struct TodayScreen: View {
                     Menu {
                         Button(Strings.Kitchen.menuEntry) { showKitchen = true }
                         NavigationLink("All chores") { ChoreListScreen() }
-                        Button("Pairing…") { showPairing = true }
+                        Button(Strings.Settings.title) { showSettings = true }
                         Button("Sync now") { sync.syncSoon() }
                     } label: {
                         Image(systemName: "gearshape")
                     }
                 }
             }
-            .sheet(isPresented: $showPairing) { PairingScreen() }
+            .sheet(isPresented: $showSettings) { SettingsScreen() }
             .fullScreenCover(isPresented: $showKitchen) { KitchenScreen() }
         }
         .tint(RoostColor.accent)

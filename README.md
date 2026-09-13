@@ -38,4 +38,4 @@ CI runs the app and server checks on every pull request and on `main`.
 
 ## Status
 
-Early working build. The app runs in the simulator, pairs with the server, and syncs chore completions between two devices. Shopping, meals, and projects are being wired up. Not on TestFlight yet.
+Early working build. The app runs in the simulator, pairs with the server by six-digit code, and syncs chore completions between two devices. Shopping, meals, and projects are being wired up. Not on TestFlight yet.

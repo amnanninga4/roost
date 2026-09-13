@@ -4,39 +4,46 @@ import RoostCore
 
 enum SyncAPIError: Error, CustomStringConvertible, Equatable {
     case unauthorized
+    case forbidden
     case badRequest(String)
     case notFound
+    case rateLimited
     case http(Int)
     case transport(String)
     case decoding(String)
 
     var description: String {
         switch self {
-        case .unauthorized: return "That token was not accepted (401)."
-        case .badRequest(let m): return "Rejected by the server: \(m)"
-        case .notFound: return "Not found (404)."
-        case .http(let code): return "Server returned HTTP \(code)."
-        case .transport(let m): return "Could not reach the server: \(m)"
-        case .decoding(let m): return "Unexpected response: \(m)"
+        case .unauthorized: "That token was not accepted (401)."
+        case .forbidden: "The server refused that (403)."
+        case let .badRequest(m): "Rejected by the server: \(m)"
+        case .notFound: "Not found (404)."
+        case .rateLimited: "Too many attempts (429)."
+        case let .http(code): "Server returned HTTP \(code)."
+        case let .transport(m): "Could not reach the server: \(m)"
+        case let .decoding(m): "Unexpected response: \(m)"
         }
     }
 
     /// True for failures worth retrying later: offline, 5xx, rate limiting (429), a gateway saying no for
     /// now (403, 408), an unreadable reply. False for 400, 401, 404 and the rest of 4xx, which will not
     /// change on retry.
+    ///
+    /// 403 and 429 have their own cases now (pairing has to tell them apart), so they are named here rather
+    /// than matched by number.
     var isTransient: Bool {
         switch self {
-        case .transport, .decoding: return true
-        case .http(let code): return code >= 500 || code == 403 || code == 408 || code == 429
-        case .unauthorized, .badRequest, .notFound: return false
+        case .transport, .decoding, .rateLimited, .forbidden: true
+        case let .http(code): code >= 500 || code == 408
+        case .unauthorized, .badRequest, .notFound: false
         }
     }
 
     /// The whole pass stops on these: the token is dead (re-pair), or nothing is getting through at all.
     var endsThePass: Bool {
         switch self {
-        case .unauthorized, .transport: return true
-        case .badRequest, .notFound, .http, .decoding: return false
+        case .unauthorized, .transport: true
+        case .forbidden, .badRequest, .notFound, .rateLimited, .http, .decoding: false
         }
     }
 }
@@ -75,6 +82,19 @@ struct SyncAPI: Sendable {
         let subtasks: [SubtaskDTO]?
     }
 
+    /// `POST /pair` — the only unauthenticated call. The token it returns is the bearer for everything else.
+    struct PairResponse: Codable, Sendable, Equatable {
+        let token: String
+        let person: String
+    }
+
+    /// `DELETE /pair/self` — the server's answer when it revoked this device's own token.
+    struct UnpairResponse: Codable, Sendable, Equatable {
+        let unpaired: Bool
+        let person: String
+        let label: String?
+    }
+
     struct ErrorBody: Codable { let error: String }
 
     static let iso: ISO8601DateFormatter = {
@@ -84,26 +104,50 @@ struct SyncAPI: Sendable {
     }()
 
     static func parseDate(_ s: String) -> Date? {
-        if let d = iso.date(from: s) { return d }
+        if let d = iso.date(from: s) {
+            return d
+        }
         let plain = ISO8601DateFormatter()
         plain.formatOptions = [.withInternetDateTime]
         return plain.date(from: s)
     }
 
     let baseURL: URL
-    let token: String
+    /// nil only for `POST /pair`, which is the one route that takes no bearer.
+    let token: String?
     let session: URLSession
 
-    init(baseURL: URL, token: String, session: URLSession = .shared) {
+    init(baseURL: URL, token: String? = nil, session: URLSession = .shared) {
         self.baseURL = baseURL
         self.token = token
         self.session = session
     }
 
+    // MARK: pairing
+
+    /// Trades a 6-digit code for a bearer token. No auth.
+    /// `404` unknown / used / expired (the server answers all three alike), `429` over the attempt limit,
+    /// `400` when the code is not six digits or the device name is empty or over 60 characters.
+    func pair(code: String, deviceName: String) async throws -> PairResponse {
+        let body = try JSONEncoder().encode(["code": code, "deviceName": deviceName])
+        let (data, status) = try await send(method: "POST", url: baseURL.appending(path: "pair"), body: body)
+        try Self.check(status, data)
+        return try Self.decode(PairResponse.self, data)
+    }
+
+    /// Revokes this device's own paired token. `403` for a hand-minted token: only the tokens file can revoke one.
+    func unpair() async throws -> UnpairResponse {
+        let (data, status) = try await send(method: "DELETE", url: baseURL.appending(path: "pair/self"), body: nil)
+        try Self.check(status, data)
+        return try Self.decode(UnpairResponse.self, data)
+    }
+
     func sync(cursor: Int, choresVersion: Int?) async throws -> SyncResponse {
         var comps = URLComponents(url: baseURL.appending(path: "sync"), resolvingAgainstBaseURL: false)!
         var items = [URLQueryItem(name: "cursor", value: String(cursor))]
-        if let v = choresVersion { items.append(URLQueryItem(name: "choresVersion", value: String(v))) }
+        if let v = choresVersion {
+            items.append(URLQueryItem(name: "choresVersion", value: String(v)))
+        }
         comps.queryItems = items
         let (data, status) = try await send(method: "GET", url: comps.url!, body: nil)
         try Self.check(status, data)
@@ -112,7 +156,11 @@ struct SyncAPI: Sendable {
 
     /// 201 new, 200 replay. Both are success.
     func post(id: String, choreId: String, completedAt: Date) async throws -> CompletionDTO {
-        let body = try JSONEncoder().encode(["id": id, "choreId": choreId, "completedAt": Self.iso.string(from: completedAt)])
+        let body = try JSONEncoder().encode([
+            "id": id,
+            "choreId": choreId,
+            "completedAt": Self.iso.string(from: completedAt),
+        ])
         let (data, status) = try await send(method: "POST", url: baseURL.appending(path: "completions"), body: body)
         try Self.check(status, data)
         return try Self.decode(CompletionDTO.self, data)
@@ -120,16 +168,22 @@ struct SyncAPI: Sendable {
 
     /// 200 deleted (idempotent), 404 unknown.
     func delete(id: String) async throws -> CompletionDTO {
-        let (data, status) = try await send(method: "DELETE", url: baseURL.appending(path: "completions/\(id)"), body: nil)
+        let (data, status) = try await send(
+            method: "DELETE",
+            url: baseURL.appending(path: "completions/\(id)"),
+            body: nil
+        )
         try Self.check(status, data)
         return try Self.decode(CompletionDTO.self, data)
     }
 
-    // send / check / decode are shared with the list endpoints in SyncAPI+Lists.swift.
+    /// send / check / decode are shared with the list endpoints in SyncAPI+Lists.swift.
     func send(method: String, url: URL, body: Data?) async throws -> (Data, Int) {
         var req = URLRequest(url: url)
         req.httpMethod = method
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let token {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         if let body {
             req.httpBody = body
@@ -149,9 +203,11 @@ struct SyncAPI: Sendable {
 
     static func check(_ status: Int, _ data: Data) throws {
         switch status {
-        case 200...299: return
+        case 200 ... 299: return
         case 401: throw SyncAPIError.unauthorized
+        case 403: throw SyncAPIError.forbidden
         case 404: throw SyncAPIError.notFound
+        case 429: throw SyncAPIError.rateLimited
         case 400:
             let msg = (try? JSONDecoder().decode(ErrorBody.self, from: data))?.error ?? "bad request"
             throw SyncAPIError.badRequest(msg)
@@ -160,6 +216,8 @@ struct SyncAPI: Sendable {
     }
 
     static func decode<T: Decodable>(_ type: T.Type, _ data: Data) throws -> T {
-        do { return try JSONDecoder().decode(type, from: data) } catch { throw SyncAPIError.decoding(error.localizedDescription) }
+        do { return try JSONDecoder().decode(type, from: data) } catch {
+            throw SyncAPIError.decoding(error.localizedDescription)
+        }
     }
 }
