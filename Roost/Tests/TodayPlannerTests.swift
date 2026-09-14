@@ -26,10 +26,11 @@ final class TodayPlannerTests: XCTestCase {
         XCTAssertTrue(wes.contains("garbage-can-to-street-sunday"))
         XCTAssertFalse(anne.contains("garbage-can-to-street-sunday"))
 
-        // every active chore is due for exactly one person on day one
-        XCTAssertEqual(Set(anne).intersection(wes).count, 0)
-        XCTAssertEqual(anne.count + wes.count, 31)
-        XCTAssertEqual(plan.dueCount(for: .anne) + plan.dueCount(for: .wes), 31)
+        // every active chore is due for exactly one person on day one — except the together chore, due for both
+        XCTAssertEqual(Set(anne).intersection(wes), ["clean-out-fridge-pantry"])
+        XCTAssertEqual(anne.count + wes.count, 40, "39 chores, one of them twice")
+        XCTAssertEqual(plan.dueCount(for: .anne) + plan.dueCount(for: .wes), 40)
+        XCTAssertTrue(anne.contains("mow-lawn"), "September is in season")
     }
 
     func testCatCareRowsComeFirstWithinEachPerson() throws {
