@@ -282,4 +282,9 @@ final class KitchenModelTests: XCTestCase {
         XCTAssertTrue(older.hasPrefix("Synced "), older)
         XCTAssertNotEqual(older, "Synced just now")
     }
+
+    func testCloseIsTheOnlyDismissControl() {
+        XCTAssertFalse(KitchenModel.backgroundTapDismisses,
+                       "the whole board used to be a tap target; Close is the only way out now")
+    }
 }

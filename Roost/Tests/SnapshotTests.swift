@@ -334,4 +334,16 @@ final class SnapshotTests: XCTestCase {
         XCTAssertNotNil(writer.write())
         XCTAssertEqual(reloads, 0)
     }
+
+    func testLoudestOverdueStageFollowsDaysLate() {
+        let person = RoostSnapshot.Person(
+            id: "anne", name: "Anne", due: 3, overdue: 2, streak: 1,
+            top: [
+                .init(title: "Scoop", stage: .nudge, daysOverdue: 1),
+                .init(title: "Mop", stage: .pointed, daysOverdue: 3),
+            ]
+        )
+        XCTAssertEqual(person.loudestOverdueStage, .pointed)
+        XCTAssertEqual(person.loudestOverdueStage.role, .warning)
+    }
 }

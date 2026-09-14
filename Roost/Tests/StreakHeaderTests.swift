@@ -3,23 +3,25 @@ import RoostCore
 import XCTest
 
 final class StreakHeaderTests: XCTestCase {
-    func testHigherStreakLeads() {
-        let m = StreakHeaderModel(streak: [.anne: 9, .wes: 6], doneThisWeek: [.anne: 14, .wes: 11])
+    func testHigherWeekTallyLeads() {
+        // Anne's streak is lower, but her week bar number is higher — she leads, matching the bar.
+        let m = StreakHeaderModel(streak: [.anne: 2, .wes: 9], doneThisWeek: [.anne: 14, .wes: 11])
         XCTAssertEqual(m.leader, .anne)
         XCTAssertTrue(m.isLeading(.anne))
         XCTAssertFalse(m.isLeading(.wes))
 
-        let flipped = StreakHeaderModel(streak: [.anne: 2, .wes: 5], doneThisWeek: [:])
+        let flipped = StreakHeaderModel(streak: [.anne: 9, .wes: 2], doneThisWeek: [.anne: 3, .wes: 8])
         XCTAssertEqual(flipped.leader, .wes)
     }
 
     func testTieHasNoLeader() {
-        let tied = StreakHeaderModel(streak: [.anne: 4, .wes: 4], doneThisWeek: [.anne: 1, .wes: 2])
+        // Streaks differ; week tallies match — no leader, because the badge follows the bar.
+        let tied = StreakHeaderModel(streak: [.anne: 9, .wes: 2], doneThisWeek: [.anne: 5, .wes: 5])
         XCTAssertNil(tied.leader)
         XCTAssertFalse(tied.isLeading(.anne))
         XCTAssertFalse(tied.isLeading(.wes))
 
-        let zero = StreakHeaderModel(streak: [:], doneThisWeek: [:])
+        let zero = StreakHeaderModel(streak: [.anne: 4, .wes: 1], doneThisWeek: [:])
         XCTAssertNil(zero.leader, "0 vs 0 is a tie, nobody is tagged")
     }
 

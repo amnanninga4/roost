@@ -9,11 +9,11 @@ import RoostDesign
 import SwiftUI
 
 extension RoostSnapshot.Stage {
-    /// Information, then a warning, then danger — the Tasks tab's ladder, not three reds.
+    /// The nudge's own blue, then a warning, then danger — the Tasks tab's ladder, not three reds.
     var role: RoostColor.Role {
         switch self {
         case .dueToday: .textSecondary
-        case .nudge: .notice
+        case .nudge: .nudge
         case .pointed: .warning
         case .alert: .danger
         }
@@ -30,5 +30,17 @@ extension RoostSnapshot.Person {
     /// Anne is the green, Wes the blue — the mockup's avatar colours, through `RoostPerson`.
     var design: RoostPerson {
         RoostPerson(rawValue: id) ?? .anne
+    }
+}
+
+extension RoostSnapshot.Person {
+    /// The stage of the most-overdue top row, or `.alert` when the overdue count is positive but the
+    /// top list is empty — the chip still needs a colour from the ladder.
+    var loudestOverdueStage: RoostSnapshot.Stage {
+        let overdue = top.filter { $0.daysOverdue > 0 }
+        guard let loudest = overdue.max(by: { $0.daysOverdue < $1.daysOverdue }) else {
+            return .alert
+        }
+        return loudest.stage
     }
 }

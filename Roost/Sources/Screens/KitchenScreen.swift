@@ -3,7 +3,8 @@ import RoostDesign
 import SwiftData
 
 // Kitchen mode: the phone propped on the counter. Both people at once, big type, no chrome, screen stays on.
-// Read-only; check-off stays on the Tasks tab. Tap anywhere, or Close, to leave.
+// Read-only; check-off stays on the Tasks tab. Close is the only way to leave — the board itself
+// is not a tap target.
 //
 // Refreshes three ways: the @Query rows re-render on any store change (a check-off on the other phone lands
 // through sync), the coordinator's last sync is observed for the bottom line, and a 60-second timeline
@@ -54,8 +55,6 @@ struct KitchenScreen: View {
             content(asOf: context.date)
         }
         .background(RoostColor.Role.background.color.ignoresSafeArea())
-        .contentShape(Rectangle())
-        .onTapGesture { dismiss() }
         .onAppear {
             idleTimerWasDisabled = UIApplication.shared.isIdleTimerDisabled
             UIApplication.shared.isIdleTimerDisabled = true

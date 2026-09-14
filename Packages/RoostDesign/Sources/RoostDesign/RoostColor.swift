@@ -83,6 +83,15 @@ public enum RoostColor {
     public static let mealSoftToken = RoostColorToken("mealSoft", light: 0xF5DCC8, dark: 0x3A2415)
     public static let assignToken = RoostColorToken("assign", light: 0x6B4FA0, dark: 0xB79EE0)
     public static let assignSoftToken = RoostColorToken("assignSoft", light: 0xE6DFF5, dark: 0x332750)
+    // Own person + nudge tokens: same hex as the roles they used to borrow, so the mockup palette
+    // character stays, but Anne is no longer "the accent", Wes is no longer "info", and the 1–2 day
+    // nudge is no longer "a notice".
+    public static let anneToken = RoostColorToken("anne", light: 0x2F8F72, dark: 0x6FC2A6)
+    public static let anneSoftToken = RoostColorToken("anneSoft", light: 0xCFEEE1, dark: 0x1E362E)
+    public static let wesToken = RoostColorToken("wes", light: 0x4C7FE0, dark: 0x7FB3D9)
+    public static let wesSoftToken = RoostColorToken("wesSoft", light: 0xDEE6FC, dark: 0x1E2E3A)
+    public static let nudgeToken = RoostColorToken("nudge", light: 0x4C7FE0, dark: 0x7FB3D9)
+    public static let nudgeSoftToken = RoostColorToken("nudgeSoft", light: 0xDEE6FC, dark: 0x1E2E3A)
     /// rgba(31,42,34,0.14) light, rgba(0,0,0,0.45) dark
     public static let shadowToken = RoostColorToken(
         "shadow",
@@ -172,6 +181,30 @@ public enum RoostColor {
         assignSoftToken.color
     }
 
+    public static var anne: Color {
+        anneToken.color
+    }
+
+    public static var anneSoft: Color {
+        anneSoftToken.color
+    }
+
+    public static var wes: Color {
+        wesToken.color
+    }
+
+    public static var wesSoft: Color {
+        wesSoftToken.color
+    }
+
+    public static var nudge: Color {
+        nudgeToken.color
+    }
+
+    public static var nudgeSoft: Color {
+        nudgeSoftToken.color
+    }
+
     public static var shadow: Color {
         shadowToken.color
     }
@@ -181,14 +214,16 @@ public enum RoostColor {
         bgToken, surfaceToken, surface2Token, inkToken, inkSoftToken, lineToken,
         accentToken, accentSoftToken, goldToken, goldSoftToken, infoToken, infoSoftToken,
         teaseToken, teaseSoftToken, alertToken, alertSoftToken, mealToken, mealSoftToken,
-        assignToken, assignSoftToken, shadowToken,
+        assignToken, assignSoftToken, anneToken, anneSoftToken, wesToken, wesSoftToken,
+        nudgeToken, nudgeSoftToken, shadowToken,
     ]
 
     /// Semantic pairs the mockup uses together: a strong color and its soft background.
     public static let pairs: [(strong: RoostColorToken, soft: RoostColorToken)] = [
         (accentToken, accentSoftToken), (goldToken, goldSoftToken), (infoToken, infoSoftToken),
         (teaseToken, teaseSoftToken), (alertToken, alertSoftToken), (mealToken, mealSoftToken),
-        (assignToken, assignSoftToken),
+        (assignToken, assignSoftToken), (anneToken, anneSoftToken), (wesToken, wesSoftToken),
+        (nudgeToken, nudgeSoftToken),
     ]
 
     /// The marketing page's light palette (`:root`), for the ten tokens `.app-shell` overrides.

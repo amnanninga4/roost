@@ -201,11 +201,14 @@ final class RoostColorRoleTests: XCTestCase {
 
     /// The mockup's mapping: Anne is the green (.avatar-a / .tally-fill-a), Wes is the blue
     /// (.avatar-p / .tally-fill-p), cat care is the green badge, chores are the gold one.
+    /// Anne/Wes/nudge each own a token now (same hex as what they used to borrow).
     func testPeopleAndCategoriesKeepTheMockupsTints() {
-        XCTAssertEqual(RoostPerson.anne.role.token.name, "accent")
-        XCTAssertEqual(RoostPerson.anne.softRole.token.name, "accentSoft")
-        XCTAssertEqual(RoostPerson.wes.role.token.name, "info")
-        XCTAssertEqual(RoostPerson.wes.softRole.token.name, "infoSoft")
+        XCTAssertEqual(RoostPerson.anne.role.token.name, "anne")
+        XCTAssertEqual(RoostPerson.anne.softRole.token.name, "anneSoft")
+        XCTAssertEqual(RoostPerson.wes.role.token.name, "wes")
+        XCTAssertEqual(RoostPerson.wes.softRole.token.name, "wesSoft")
+        XCTAssertEqual(RoostPerson.anne.role.token.hex(.light), RoostColor.accentToken.hex(.light))
+        XCTAssertEqual(RoostPerson.wes.role.token.hex(.light), RoostColor.infoToken.hex(.light))
         XCTAssertEqual(RoostCategory.catCare.role.token.name, "accent")
         XCTAssertEqual(RoostCategory.home.role.token.name, "gold")
         XCTAssertEqual(RoostCategory.meals.role.token.name, "meal")
@@ -215,11 +218,32 @@ final class RoostColorRoleTests: XCTestCase {
             RoostPerson.wes.role.token,
             "the two of them need to be told apart"
         )
+        XCTAssertNotEqual(
+            RoostPerson.anne.role.token,
+            RoostColor.Role.accent.token,
+            "Anne no longer borrows the accent token"
+        )
+        XCTAssertNotEqual(
+            RoostPerson.wes.role.token,
+            RoostColor.Role.notice.token,
+            "Wes no longer borrows the notice/info token"
+        )
+    }
+
+    func testNudgeStageHasItsOwnToken() {
+        XCTAssertEqual(RoostColor.Role.nudge.token.name, "nudge")
+        XCTAssertEqual(RoostColor.Role.nudgeSoft.token.name, "nudgeSoft")
+        XCTAssertEqual(RoostColor.Role.nudge.token.hex(.light), RoostColor.infoToken.hex(.light))
+        XCTAssertNotEqual(
+            RoostColor.Role.nudge.token,
+            RoostColor.Role.notice.token,
+            "nudge no longer borrows notice"
+        )
     }
 
     func testStatusLadderUsesThreeDistinctColours() {
-        let ladder = [RoostColor.Role.success, .warning, .danger].map(\.token.name)
-        XCTAssertEqual(Set(ladder).count, 3, "on time, nudge, and late must look different")
+        let ladder = [RoostColor.Role.success, .nudge, .warning, .danger].map(\.token.name)
+        XCTAssertEqual(Set(ladder).count, 4, "on time, nudge, pointed, and alert must look different")
     }
 
     func testSoftPartnersPointAtASoftToken() {

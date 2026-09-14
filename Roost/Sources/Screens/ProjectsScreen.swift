@@ -53,9 +53,9 @@ struct ProjectsScreen: View {
                 }
                 Section {
                     ListComposer(
-                        placeholder: Strings.Projects.add, text: $title, focused: $titleFocused, onSubmit: start
+                        placeholder: Strings.Projects.add, text: $title, focused: $titleFocused, onSubmit: titleReturn
                     ) {
-                        if !title.isEmpty {
+                        if ProjectComposer.showsFirstSteps(title: title, steps: steps) {
                             firstSteps
                         }
                     }
@@ -176,12 +176,20 @@ struct ProjectsScreen: View {
 
     // MARK: actions
 
+    /// Return on the title field: never creates, never clears the first-steps text. The Start button
+    /// is the only path that starts a project.
+    private func titleReturn() {
+        let next = ProjectComposer.afterTitleReturn(title: title, steps: steps)
+        title = next.title
+        steps = next.steps
+    }
+
     private func start() {
         let lines = steps.split(whereSeparator: \.isNewline).map(String.init)
         let project: ProjectRecord
         do {
             guard let started = try ListActions.startProject(title, steps: lines, in: context) else {
-                title = "" // blank: let Return put the keyboard away; the steps wait for a title
+                // Blank title: leave the first-steps field alone. Return on the title uses titleReturn.
                 return
             }
             project = started

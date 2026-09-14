@@ -140,12 +140,12 @@ final class TodayBoardTests: XCTestCase {
 
     func testEachStageWearsItsOwnRole() {
         XCTAssertEqual(EscalationStage.dueToday.role, .textPrimary)
-        XCTAssertEqual(EscalationStage.nudge.role, .notice)
+        XCTAssertEqual(EscalationStage.nudge.role, .nudge)
         XCTAssertEqual(EscalationStage.pointed.role, .warning)
         XCTAssertEqual(EscalationStage.alert.role, .danger)
 
         XCTAssertNil(EscalationStage.dueToday.fillRole, "a row that is only due today carries no colour")
-        XCTAssertEqual(EscalationStage.nudge.fillRole, .noticeSoft)
+        XCTAssertEqual(EscalationStage.nudge.fillRole, .nudgeSoft)
         XCTAssertEqual(EscalationStage.pointed.fillRole, .warningSoft)
         XCTAssertEqual(EscalationStage.alert.fillRole, .dangerSoft)
     }
@@ -270,6 +270,15 @@ final class TodayBoardTests: XCTestCase {
         XCTAssertTrue(never.text.hasPrefix(Strings.Sync.neverSynced), never.text)
     }
 
+
+    // MARK: - Column order
+
+    func testOwnColumnComesFirst() {
+        XCTAssertEqual(TodayBoard.columnPeople(me: .wes), [.wes, .anne])
+        XCTAssertEqual(TodayBoard.columnPeople(me: .anne), [.anne, .wes])
+        XCTAssertEqual(TodayBoard.columnPeople(me: nil), [.anne, .wes], "unpaired keeps Anne then Wes")
+    }
+
     // MARK: - The overdue badge
 
     func testDaysLateWordingIsSharedWithKitchenMode() {
@@ -278,5 +287,9 @@ final class TodayBoardTests: XCTestCase {
         XCTAssertEqual(Strings.Kitchen.daysLate(4), Strings.daysLate(4))
         XCTAssertEqual(Strings.Tasks.stateLate(1), "1 day late")
         XCTAssertEqual(Strings.Tasks.stateLate(5), "5 days late")
+        XCTAssertEqual(RoostCopy.daysLate(1), Strings.daysLate(1))
+        XCTAssertEqual(RoostCopy.daysLate(3), Strings.daysLate(3))
+        XCTAssertEqual(WidgetStrings.late(2), Strings.daysLate(2),
+                       "widget lateness uses the app wording, not a shorter dialect")
     }
 }

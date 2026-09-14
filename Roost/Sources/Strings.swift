@@ -6,9 +6,9 @@ enum Strings {
     /// The bar title on every tab.
     static let appTitle = "Roost"
 
-    /// "1 DAY LATE" / "3 DAYS LATE". The overdue badge, worded the same on the Tasks tab and in Kitchen mode.
+    /// "1 DAY LATE" / "3 DAYS LATE". Shared with the widget via `RoostCopy` in Shared/.
     static func daysLate(_ days: Int) -> String {
-        days == 1 ? "1 DAY LATE" : "\(days) DAYS LATE"
+        RoostCopy.daysLate(days)
     }
 
     enum Tabs {

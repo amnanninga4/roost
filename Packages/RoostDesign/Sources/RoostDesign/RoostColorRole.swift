@@ -4,9 +4,10 @@
 // is a *meaning* — "this got done". Screens name meanings, so a screen never has to decide
 // whether a finished chore is green, and re-tinting the app later is one edit here.
 //
-// Several roles deliberately share a token: Anne, cat care, and "done" are all the green.
-// That is the mockup's palette, not an accident, and it stays honest because the mapping is
-// written down. The one rule: a screen uses `Role`, never a raw `…Token` and never a hex.
+// Cat care and "done" still share the accent green — that is the mockup's palette. Anne, Wes,
+// and the 1–2 day nudge each have their *own* tokens (same hex as the roles they used to borrow),
+// so a screen can tint a person or a nudge without also recolouring notices or the primary action.
+// The one rule: a screen uses `Role`, never a raw `…Token` and never a hex.
 import SwiftUI
 
 public extension RoostColor {
@@ -73,16 +74,20 @@ public extension RoostColor {
         case notice
         /// Neutral notices, as a background. → `infoSoft`
         case noticeSoft
+        /// 1–2 days late. Own token (mockup info blue), not borrowed from `notice`. → `nudge`
+        case nudge
+        /// 1–2 days late, as a row background. → `nudgeSoft`
+        case nudgeSoft
 
         // MARK: People — the mockup's avatars and tally bars
 
-        /// Anne's colour: `.avatar-a` and `.tally-fill-a` in the mockup. → `accent`
+        /// Anne's colour: `.avatar-a` and `.tally-fill-a` in the mockup. → `anne`
         case anne
-        /// Anne's avatar background. → `accentSoft`
+        /// Anne's avatar background. → `anneSoft`
         case anneSoft
-        /// Wes's colour: `.avatar-p` and `.tally-fill-p` in the mockup. → `info`
+        /// Wes's colour: `.avatar-p` and `.tally-fill-p` in the mockup. → `wes`
         case wes
-        /// Wes's avatar background. → `infoSoft`
+        /// Wes's avatar background. → `wesSoft`
         case wesSoft
 
         // MARK: Categories — the mockup's .icon-badge family
@@ -118,8 +123,8 @@ public extension RoostColor {
             case .textPrimary: RoostColor.inkToken
             case .textSecondary: RoostColor.inkSoftToken
             case .separator: RoostColor.lineToken
-            case .accent, .success, .anne, .catCare: RoostColor.accentToken
-            case .accentSoft, .successSoft, .anneSoft, .catCareSoft: RoostColor.accentSoftToken
+            case .accent, .success, .catCare: RoostColor.accentToken
+            case .accentSoft, .successSoft, .catCareSoft: RoostColor.accentSoftToken
             case .onAccent: RoostColor.surfaceToken
             case .warning: RoostColor.teaseToken
             case .warningSoft: RoostColor.teaseSoftToken
@@ -129,8 +134,14 @@ public extension RoostColor {
             case .bonusSoft, .homeSoft: RoostColor.goldSoftToken
             case .assigned: RoostColor.assignToken
             case .assignedSoft: RoostColor.assignSoftToken
-            case .notice, .wes: RoostColor.infoToken
-            case .noticeSoft, .wesSoft: RoostColor.infoSoftToken
+            case .notice: RoostColor.infoToken
+            case .noticeSoft: RoostColor.infoSoftToken
+            case .nudge: RoostColor.nudgeToken
+            case .nudgeSoft: RoostColor.nudgeSoftToken
+            case .anne: RoostColor.anneToken
+            case .anneSoft: RoostColor.anneSoftToken
+            case .wes: RoostColor.wesToken
+            case .wesSoft: RoostColor.wesSoftToken
             case .meals: RoostColor.mealToken
             case .mealsSoft: RoostColor.mealSoftToken
             case .shadow: RoostColor.shadowToken
@@ -158,6 +169,7 @@ public extension RoostColor {
             case .bonus: .bonusSoft
             case .assigned: .assignedSoft
             case .notice: .noticeSoft
+            case .nudge: .nudgeSoft
             case .anne: .anneSoft
             case .wes: .wesSoft
             case .catCare: .catCareSoft

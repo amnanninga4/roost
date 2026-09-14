@@ -206,9 +206,9 @@ struct PersonAvatar: View {
         Text(String(person.displayName.prefix(1)))
             .roostType(.caption)
             .fontWeight(.bold)
-            .foregroundStyle(RoostColor.Role.assigned.color)
+            .foregroundStyle(person.design.color)
             .frame(width: side, height: side)
-            .background(RoostColor.Role.assignedSoft.color, in: Circle())
+            .background(person.design.softColor, in: Circle())
             .accessibilityLabel(Strings.Lists.addedBy(person.displayName))
     }
 }

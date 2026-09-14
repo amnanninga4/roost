@@ -110,7 +110,7 @@ private struct SmallView: View {
                         .foregroundStyle(RoostColor.Role.textSecondary.color)
                 }
                 if person.overdue > 0 {
-                    LateChip(count: person.overdue)
+                    LateChip(count: person.overdue, stage: person.loudestOverdueStage)
                 }
             }
 
@@ -235,17 +235,18 @@ private struct StreakLine: View {
     }
 }
 
-/// "2 late" in the danger role, so the one thing worth acting on is the one thing carrying red.
+/// App lateness wording in the stage's own colour — same ladder as a Tasks row, not always danger red.
 private struct LateChip: View {
     let count: Int
+    let stage: RoostSnapshot.Stage
 
     var body: some View {
         Text(WidgetStrings.late(count))
             .roostType(.monoLabel)
-            .foregroundStyle(RoostColor.Role.danger.color)
+            .foregroundStyle(stage.role.color)
             .padding(.horizontal, RoostSpacing.sm)
             .padding(.vertical, RoostSpacing.xxs)
-            .background(RoostColor.Role.dangerSoft.color, in: RoostRadius.pillShape)
+            .background((stage.role.soft ?? stage.role).color, in: RoostRadius.pillShape)
     }
 }
 

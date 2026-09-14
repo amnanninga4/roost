@@ -60,9 +60,9 @@ final class RoostColorTests: XCTestCase {
     }
 
     func testTokenCountAndUniqueNames() {
-        XCTAssertEqual(RoostColor.all.count, 21)
-        XCTAssertEqual(Set(RoostColor.all.map(\.name)).count, 21)
-        XCTAssertEqual(RoostColor.pairs.count, 7)
+        XCTAssertEqual(RoostColor.all.count, 27)
+        XCTAssertEqual(Set(RoostColor.all.map(\.name)).count, 27)
+        XCTAssertEqual(RoostColor.pairs.count, 10)
     }
 
     /// Resolves each dynamic color through the platform and checks it round-trips to the token hex.
