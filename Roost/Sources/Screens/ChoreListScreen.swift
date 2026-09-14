@@ -145,6 +145,8 @@ extension Cadence {
         case .weekly: Strings.Chores.weekly
         case .biweekly: Strings.Chores.biweekly
         case .monthly: Strings.Chores.monthly
+        case .bimonthly: Strings.Chores.bimonthly
+        case .quarterly: Strings.Chores.quarterly
         }
     }
 }

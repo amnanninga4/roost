@@ -255,6 +255,8 @@ enum Strings {
         static let periodToday = "today"
         static let periodWeek = "this week"
         static let periodMonth = "this month"
+        static let periodTwoMonths = "these two months"
+        static let periodQuarter = "this quarter"
     }
 
     /// Gear → All chores: the whole seeded list, grouped by cadence.
@@ -277,6 +279,8 @@ enum Strings {
         static let weekly = "Weekly"
         static let biweekly = "Biweekly"
         static let monthly = "Monthly"
+        static let bimonthly = "Every two months"
+        static let quarterly = "Every three months"
     }
 
     enum Streak {

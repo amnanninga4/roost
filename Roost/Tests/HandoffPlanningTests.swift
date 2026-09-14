@@ -261,5 +261,7 @@ final class HandoffPlanningTests: XCTestCase {
         XCTAssertEqual(Cadence.weekly.periodPhrase, "this week")
         XCTAssertEqual(Cadence.biweekly.periodPhrase, "this week")
         XCTAssertEqual(Cadence.monthly.periodPhrase, "this month")
+        XCTAssertEqual(Cadence.bimonthly.periodPhrase, "these two months")
+        XCTAssertEqual(Cadence.quarterly.periodPhrase, "this quarter")
     }
 }
