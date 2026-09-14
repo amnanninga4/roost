@@ -11,6 +11,10 @@ struct RoostApp: App {
     let container: ModelContainer
     @State private var sync: SyncCoordinator
     @Environment(\.scenePhase) private var scenePhase
+    /// Gear → Settings → Appearance, stored on this phone and nowhere else. The raw value rather than the
+    /// enum, so a string this build does not know reads as `.system` instead of taking the screen with it;
+    /// `Appearance.stored` is that read. See Models/Appearance.swift.
+    @AppStorage(Appearance.storageKey) private var storedAppearance = Appearance.system.rawValue
 
     init() {
         try? RoostFonts.register()
@@ -40,6 +44,10 @@ struct RoostApp: App {
         WindowGroup {
             RootGate()
                 .environment(sync)
+                // One override for the whole window, which is the only place it can go: the Settings sheet
+                // and Kitchen mode's full-screen cover are presented from inside it, so they turn over in
+                // the same frame as the screen behind them. `nil` hands the decision back to iOS.
+                .preferredColorScheme(Appearance.stored(storedAppearance).colorScheme)
                 // Launch and every return to the front: ask APNs for this phone's address again, because a
                 // token can rotate and there is no notification when it does. `PushService` only sends one
                 // the server does not already have.

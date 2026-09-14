@@ -22,7 +22,13 @@ struct SettingsScreen: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Query private var syncStates: [SyncState]
+
+    /// The same key `RoostApp` reads. Two `@AppStorage`s on one key are one value: writing it here moves
+    /// the window's `preferredColorScheme` in the same frame, so the sheet and the screen behind it change
+    /// together with nothing to relaunch.
+    @AppStorage(Appearance.storageKey) private var storedAppearance = Appearance.system.rawValue
 
     @State private var model: SettingsModel?
     @State private var confirmingUnpair = false
@@ -48,6 +54,7 @@ struct SettingsScreen: View {
         NavigationStack {
             Form {
                 phoneSection
+                appearanceSection
                 serverSection
                 syncSection
                 unpairSection
@@ -89,6 +96,12 @@ struct SettingsScreen: View {
             }
         }
         .tint(RoostColor.Role.accent.color)
+        // The same answer `RoostApp` gives the window, said again for this sheet. A sheet presented while
+        // the window already carries an override keeps the scheme it was born with — verified in the
+        // simulator: with Dark already on, picking Light repainted the Tasks screen behind and left this
+        // sheet dark until it was dismissed. One line here is what makes the picker turn its own screen
+        // over in the same frame as the rest of the app.
+        .preferredColorScheme(appearance.wrappedValue.colorScheme)
     }
 
     // MARK: this phone
@@ -113,6 +126,57 @@ struct SettingsScreen: View {
         } header: {
             SettingsHeader(Strings.Settings.phoneHeader)
         }
+    }
+
+    // MARK: appearance
+
+    /// Three words side by side, because the choice is one glance and one tap rather than a screen to
+    /// navigate into. The selection is the app's lightest haptic: the change is already visible everywhere,
+    /// so the feel only has to confirm which segment took the tap.
+    private var appearanceSection: some View {
+        Section {
+            appearancePicker
+                .accessibilityLabel(Strings.Settings.appearanceLabel)
+                .roostHaptic(.selection, trigger: appearance.wrappedValue)
+                .listRowBackground(RoostColor.Role.surface.color)
+        } header: {
+            SettingsHeader(Strings.Settings.appearanceHeader)
+        } footer: {
+            Text(Strings.Settings.appearanceFooter)
+                .roostType(.footnote)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+        }
+    }
+
+    /// Segments up to the accessibility sizes, a menu past them. A segmented control divides one row's
+    /// width between its choices, which is fine for three short words and unreadable once each word is
+    /// 50-odd points tall — at AX1 and up "System" and "Light" are both cut to a letter or two. The menu
+    /// style is the same `Picker` drawn as a row: the label leads, the choice sits on the trailing side,
+    /// and it grows with the text like every other row on this screen.
+    @ViewBuilder
+    private var appearancePicker: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            picker.pickerStyle(.menu)
+        } else {
+            picker.pickerStyle(.segmented)
+        }
+    }
+
+    private var picker: some View {
+        Picker(Strings.Settings.appearanceLabel, selection: appearance) {
+            ForEach(Appearance.allCases) { choice in
+                Text(choice.title).tag(choice)
+            }
+        }
+    }
+
+    /// The stored raw value, read as a choice. Anything unrecognised reads as `.system` rather than leaving
+    /// the picker with no selection.
+    private var appearance: Binding<Appearance> {
+        Binding(
+            get: { Appearance.stored(storedAppearance) },
+            set: { storedAppearance = $0.rawValue }
+        )
     }
 
     // MARK: server
