@@ -391,3 +391,18 @@ final class RoostPressStyleTests: XCTestCase {
         XCTAssertFalse(RoostButtonStyle(haptic: false).firesHaptic)
     }
 }
+
+final class RoostAvatarTests: XCTestCase {
+    /// The ceiling the app's `listGlyphCeiling` pinned before the component absorbed it: past this a
+    /// badge stops reading as decoration.
+    func testTheGlyphCeilingIsTheDocumentedValue() {
+        XCTAssertEqual(RoostAvatar.glyphCeiling, RoostSpacing.xxl + RoostSpacing.sm)
+    }
+
+    func testBothPeopleAreOffered() {
+        for person in RoostPerson.allCases {
+            let avatar = RoostAvatar(person: person)
+            XCTAssertEqual(avatar.person, person)
+        }
+    }
+}

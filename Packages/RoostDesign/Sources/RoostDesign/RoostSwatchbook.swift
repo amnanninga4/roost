@@ -21,6 +21,7 @@ public struct RoostSwatchbook: View {
                 SpacingSection()
                 RadiusSection()
                 ElevationSection()
+                ComponentsSection()
                 MotionSection()
                 GlassSection()
                 Text(fontStatus)

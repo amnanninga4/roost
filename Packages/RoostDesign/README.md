@@ -20,7 +20,7 @@ documented here.
 4. **One spring vocabulary.** `RoostMotion.Named` has four entries and does not need a fifth.
    Always pass animations through `reduceMotionAware(_:reduceMotion:)` or use `.roostAnimation(_:value:)`.
 5. **Glass is the floating layer only**, and exactly one tinted glass surface per screen.
-6. **Haptics are rare.** Five named moments, all user-initiated.
+6. **Haptics are rare.** Six named moments, all user-initiated.
 
 If a screen needs something this package doesn't have, add it here first.
 
@@ -242,6 +242,20 @@ the mockup's ink-based `--shadow`, never pure black. Dark mode keeps 60% of the 
 
 Pass the shape's corner radius so dark mode can draw its hairline in the right shape.
 
+## Components
+
+The rung above tokens: three pieces, each themed from the scales above and each on the swatchbook.
+
+- **`RoostButtonStyle`** (`.roostPress` / `.roostPressQuiet`) — the press vocabulary: scale 0.97 and
+  opacity 0.85 on touch-down with the `quick` spring, back on release, plus `RoostHaptic.press`
+  (light impact, touch-down only). The quiet variant skips the haptic for a row whose tap already
+  carries one. Put any background in the button's *label*, so the press scales it too.
+- **`.roostCard()`** — the surface fill, the `card` radius and the `card` elevation as one modifier.
+  Padding stays the caller's.
+- **`RoostAvatar(person:label:)`** — the initial on a soft circle in a `RoostPerson`'s colours,
+  capped at `glyphCeiling` so the largest text size cannot turn a marker into a button. The label
+  says what the avatar means ("Added by Anne"); it defaults to the person's name.
+
 ## Motion
 
 Four springs, and the Reduce Motion answer for each.
@@ -307,6 +321,7 @@ content behind it.
 | `error` | `.error` | the action failed |
 | `milestone` | `.levelChange` | a streak milestone, a week decided |
 | `selection` | `.selection` | tab, day, or person changed |
+| `press` | `.impact(weight: .light)` | touch-down on a button or row; `RoostButtonStyle` fires it, so no screen does |
 
 ```swift
 row.roostHaptic(trigger: isDone) { _, now in now ? .checkOff : .undo }
