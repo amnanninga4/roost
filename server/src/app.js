@@ -19,11 +19,11 @@
 //   POST   /meals                         { id, title, tag?, lastMadeAt?, nextUp? }
 //   PATCH  /meals/:id                     { title?, tag?, lastMadeAt?, nextUp? }; nextUp=true clears every other meal
 //   DELETE /meals/:id                     soft delete
-//   POST   /projects                      { id, title, subtasks?: [{ id, title }] } created in order
-//   PATCH  /projects/:id                  { title? }
+//   POST   /projects                      { id, title, dueOn?, subtasks?: [{ id, title }] } created in order
+//   PATCH  /projects/:id                  { title?, dueOn? }
 //   DELETE /projects/:id                  soft delete, cascades to its subtasks
-//   POST   /projects/:id/subtasks         { id, title, sortOrder? }
-//   PATCH  /subtasks/:id                  { title?, done?, sortOrder? }; done=true stamps doneBy/doneAt, false clears
+//   POST   /projects/:id/subtasks         { id, title, sortOrder?, assignee? }
+//   PATCH  /subtasks/:id                  { title?, done?, sortOrder?, assignee? }; done=true stamps doneBy/doneAt, false clears
 //   DELETE /subtasks/:id                  soft delete
 //   /bonus, /bonus/:id/{claim,complete}   first-to-claim bonus tasks; routes and rules live in bonus.js
 //   POST   /handoffs                     { id, choreId, to } -> 201 pending / 200 replay; handoffs.js
@@ -66,6 +66,7 @@ import {
   patchSubtask,
   deleteSubtask,
   listsAfter,
+  PEOPLE,
 } from "./db.js";
 import { createTokenStore, bearerFrom, hashToken } from "./auth.js";
 import { statusHandler, statusJsonHandler, fontsHandler, faviconHandler } from "./status.js";
@@ -97,6 +98,16 @@ const PRICE_MAX = 99_999_999;
 const PRICE_ERROR = `priceCents must be null or an integer 0-${PRICE_MAX}`;
 /** Whole cents, or null for "no price". */
 const validPrice = (v) => v === null || (Number.isInteger(v) && v >= 0 && v <= PRICE_MAX);
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DAY_ERROR = "dueOn must be null or a calendar day, YYYY-MM-DD";
+/** A real calendar day: the pattern, and a round trip through Date so 2026-02-30 does not roll into March. */
+const validDay = (v) => {
+  if (typeof v !== "string" || !DAY_RE.test(v)) return false;
+  const t = Date.parse(`${v}T00:00:00Z`);
+  return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === v;
+};
+const ASSIGNEE_ERROR = `assignee must be null or one of ${PEOPLE.join("|")}`;
+const validPerson = (v) => v === null || PEOPLE.includes(v);
 
 const ID_ERROR = "id required: 1-64 chars of [A-Za-z0-9._~:@+-], client-generated, stable across retries";
 const validId = (v) => typeof v === "string" && ID_RE.test(v);
@@ -214,7 +225,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
   }
 
   function shapeProject(row) {
-    return { id: row.id, title: row.title, ...stamp(row) };
+    return { id: row.id, title: row.title, dueOn: row.dueOn ?? null, ...stamp(row) };
   }
 
   /** Project plus its subtasks, so a cascade delete or a POST with subtasks shows every row that took a seq. */
@@ -228,6 +239,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
       projectId: row.projectId,
       title: row.title,
       sortOrder: row.sortOrder,
+      assignee: row.assignee ?? null,
       done: !!row.done,
       doneBy: row.doneBy,
       doneAt: row.doneAt,
@@ -460,6 +472,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
       const body = await readJson(req);
       if (!validId(body.id)) return send(res, 400, { error: ID_ERROR });
       if (!validTitle(body.title)) return send(res, 400, { error: `title required: 1-${TITLE_MAX} chars` });
+      if (has(body, "dueOn") && body.dueOn !== null && !validDay(body.dueOn)) return send(res, 400, { error: DAY_ERROR });
       const subtasks = body.subtasks ?? [];
       if (!Array.isArray(subtasks) || subtasks.length > SUBTASKS_MAX) {
         return send(res, 400, { error: `subtasks must be an array of at most ${SUBTASKS_MAX} { id, title }` });
@@ -476,7 +489,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
       }
       const { row, created } = insertProject(
         db,
-        { id: body.id, title: body.title, subtasks: subtasks.map((s) => ({ id: s.id, title: s.title })) },
+        { id: body.id, title: body.title, dueOn: body.dueOn ?? null, subtasks: subtasks.map((s) => ({ id: s.id, title: s.title })) },
         iso()
       );
       return send(res, created ? 201 : 200, shapeProjectWithSubtasks(row));
@@ -485,7 +498,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
     const project = PROJECT_RE.exec(path);
     if (req.method === "PATCH" && project) {
       const body = await readJson(req);
-      const patch = pickPatch(body, { title: validTitle });
+      const patch = pickPatch(body, { title: validTitle, dueOn: (v) => v === null || validDay(v) });
       const row = patchProject(db, project[1], patch, iso());
       if (!row) return send(res, 404, { error: "not found" });
       return send(res, 200, shapeProjectWithSubtasks(row));
@@ -503,9 +516,10 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
       if (!validId(body.id)) return send(res, 400, { error: ID_ERROR });
       if (!validTitle(body.title)) return send(res, 400, { error: `title required: 1-${TITLE_MAX} chars` });
       if (has(body, "sortOrder") && !validSort(body.sortOrder)) return send(res, 400, { error: "sortOrder must be a non-negative integer" });
+      if (has(body, "assignee") && !validPerson(body.assignee)) return send(res, 400, { error: ASSIGNEE_ERROR });
       const { row, created } = insertSubtask(
         db,
-        { id: body.id, projectId: projectSubtasks[1], title: body.title, sortOrder: body.sortOrder },
+        { id: body.id, projectId: projectSubtasks[1], title: body.title, sortOrder: body.sortOrder, assignee: body.assignee ?? null },
         iso()
       );
       return send(res, created ? 201 : 200, shapeSubtask(row));
@@ -514,7 +528,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
     const subtask = SUBTASK_RE.exec(path);
     if (req.method === "PATCH" && subtask) {
       const body = await readJson(req);
-      const patch = pickPatch(body, { title: validTitle, done: isBool, sortOrder: validSort });
+      const patch = pickPatch(body, { title: validTitle, done: isBool, sortOrder: validSort, assignee: validPerson });
       const row = patchSubtask(db, subtask[1], patch, device.person, iso());
       if (!row) return send(res, 404, { error: "not found" });
       return send(res, 200, shapeSubtask(row));

@@ -23,7 +23,7 @@ const CADENCES_SQL = CADENCES.map((c) => `'${c}'`).join(",");
  * Bumped when a table's shape changes in a way CREATE TABLE IF NOT EXISTS cannot apply to an existing
  * database (a CHECK, a new column). `migrate` brings an older database up to it, step by step.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** The chores columns, shared by the schema and the v2 rebuild so the two can never drift. */
 export const CHORES_COLUMNS = `
@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS meals (
 CREATE TABLE IF NOT EXISTS projects (
   id        TEXT PRIMARY KEY,
   title     TEXT NOT NULL,
+  dueOn     TEXT,
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL,
   deletedAt TEXT,
@@ -97,6 +98,7 @@ CREATE TABLE IF NOT EXISTS project_subtasks (
   projectId TEXT NOT NULL REFERENCES projects(id),
   title     TEXT NOT NULL,
   sortOrder INTEGER NOT NULL,
+  assignee  TEXT CHECK (assignee IN (${PEOPLE_SQL})),
   done      INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0,1)),
   doneBy    TEXT CHECK (doneBy IN (${PEOPLE_SQL})),
   doneAt    TEXT,
@@ -143,6 +145,7 @@ function migrate(db) {
   const current = Number(getMeta(db, "schemaVersion") ?? 1);
   if (current >= SCHEMA_VERSION) return;
   if (current < 2) migrateToV2(db);
+  if (current < 3) migrateToV3(db);
   setMeta(db, "schemaVersion", String(SCHEMA_VERSION));
 }
 
@@ -184,6 +187,19 @@ function migrateToV2(db) {
     throw err;
   } finally {
     db.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
+/**
+ * v3 (R-30): a due day on projects and an owner on subtasks. Both nullable, so ADD COLUMN is enough;
+ * each is guarded on the column list so a database built from the v3 schema string is left alone.
+ */
+function migrateToV3(db) {
+  if (!columnNames(db, "projects").includes("dueOn")) {
+    db.exec("ALTER TABLE projects ADD COLUMN dueOn TEXT");
+  }
+  if (!columnNames(db, "project_subtasks").includes("assignee")) {
+    db.exec(`ALTER TABLE project_subtasks ADD COLUMN assignee TEXT CHECK (assignee IN (${PEOPLE_SQL}))`);
   }
 }
 
@@ -538,23 +554,31 @@ export function subtasksOf(db, projectId) {
   return db.prepare(`SELECT * FROM ${SUBTASKS} WHERE projectId = ? ORDER BY sortOrder, seq`).all(projectId);
 }
 
-/** Creates the project and its `subtasks` [{ id, title }] in order, each row taking its own seq. */
-export function insertProject(db, { id, title, subtasks = [] }, now) {
+/** Creates the project and its `subtasks` [{ id, title }] in order, each row taking its own seq. Steps start unowned. */
+export function insertProject(db, { id, title, dueOn = null, subtasks = [] }, now) {
   const existing = getProject(db, id);
   if (existing) return { row: existing, created: false };
   const row = transact(db, () => {
-    const project = insertRowIn(db, PROJECTS, id, { title }, now);
+    const project = insertRowIn(db, PROJECTS, id, { title, dueOn }, now);
     subtasks.forEach((s, i) => {
-      insertRowIn(db, SUBTASKS, s.id, { projectId: id, title: s.title, sortOrder: i, done: 0, doneBy: null, doneAt: null }, now);
+      insertRowIn(
+        db,
+        SUBTASKS,
+        s.id,
+        { projectId: id, title: s.title, sortOrder: i, assignee: null, done: 0, doneBy: null, doneAt: null },
+        now
+      );
     });
     return project;
   });
   return { row, created: true };
 }
 
-export function patchProject(db, id, { title }, now) {
+/** { title?, dueOn? }. `dueOn: null` clears the day. */
+export function patchProject(db, id, { title, dueOn }, now) {
   const fields = {};
   if (title !== undefined) fields.title = title;
+  if (dueOn !== undefined) fields.dueOn = dueOn;
   return patchRow(db, PROJECTS, id, fields, now);
 }
 
@@ -569,7 +593,7 @@ export function deleteProject(db, id, now) {
 }
 
 /** sortOrder defaults to one past the highest live subtask in the project. Caller checks projectId. */
-export function insertSubtask(db, { id, projectId, title, sortOrder }, now) {
+export function insertSubtask(db, { id, projectId, title, sortOrder, assignee = null }, now) {
   const existing = getSubtask(db, id);
   if (existing) return { row: existing, created: false };
   const row = transact(db, () => {
@@ -580,18 +604,19 @@ export function insertSubtask(db, { id, projectId, title, sortOrder }, now) {
         .get(projectId).m;
       order = max == null ? 0 : max + 1;
     }
-    return insertRowIn(db, SUBTASKS, id, { projectId, title, sortOrder: order, done: 0, doneBy: null, doneAt: null }, now);
+    return insertRowIn(db, SUBTASKS, id, { projectId, title, sortOrder: order, assignee, done: 0, doneBy: null, doneAt: null }, now);
   });
   return { row, created: true };
 }
 
-/** { title?, done?, sortOrder? }. done=true stamps doneBy/doneAt on the false→true transition; done=false clears both. */
-export function patchSubtask(db, id, { title, done, sortOrder }, person, now) {
+/** { title?, done?, sortOrder?, assignee? }. done=true stamps doneBy/doneAt on the false→true transition; done=false clears both. */
+export function patchSubtask(db, id, { title, done, sortOrder, assignee }, person, now) {
   const existing = getSubtask(db, id);
   if (!existing || existing.deletedAt) return null;
   const fields = {};
   if (title !== undefined) fields.title = title;
   if (sortOrder !== undefined) fields.sortOrder = sortOrder;
+  if (assignee !== undefined) fields.assignee = assignee;
   if (done === true && !existing.done) Object.assign(fields, { done: 1, doneBy: person, doneAt: now });
   if (done === false) Object.assign(fields, { done: 0, doneBy: null, doneAt: null });
   return patchRow(db, SUBTASKS, id, fields, now);

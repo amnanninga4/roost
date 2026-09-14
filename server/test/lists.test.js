@@ -394,6 +394,51 @@ test("projects validation: bad ids, bad bodies, unknown projectId, duplicate or 
   assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
 });
 
+
+test("projects: dueOn is a calendar day, accepted on create and patch, cleared with null, rejected when malformed", async () => {
+  const created = await call("POST", "/projects", { token: ANNE, body: { id: "p-due", title: "Garage trash", dueOn: "2026-09-20" } });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.dueOn, "2026-09-20");
+  const undated = await call("POST", "/projects", { token: ANNE, body: { id: "p-nodue", title: "No date" } });
+  assert.equal(undated.body.dueOn, null);
+  const moved = await call("PATCH", "/projects/p-due", { token: WES, body: { dueOn: "2026-10-01" } });
+  assert.equal(moved.status, 200);
+  assert.equal(moved.body.dueOn, "2026-10-01");
+  assert.equal(moved.body.title, "Garage trash", "a date patch leaves the title alone");
+  const cleared = await call("PATCH", "/projects/p-due", { token: WES, body: { dueOn: null } });
+  assert.equal(cleared.body.dueOn, null);
+  for (const bad of ["2026-9-20", "20/09/2026", "2026-09-20T00:00:00Z", "2026-02-30", "2026-13-01", 20260920, ""]) {
+    assert.equal((await call("PATCH", "/projects/p-due", { token: WES, body: { dueOn: bad } })).status, 400, `patch ${bad}`);
+    assert.equal((await call("POST", "/projects", { token: WES, body: { id: "p-bad", title: "x", dueOn: bad } })).status, 400, `post ${bad}`);
+  }
+  assert.equal((await call("POST", "/projects", { token: WES, body: { id: "p-leap", title: "x", dueOn: "2028-02-29" } })).status, 201, "a real leap day");
+  const sync = await call("GET", "/sync?choresVersion=1", { token: ANNE });
+  assert.equal(sync.body.projects.find((p) => p.id === "p-leap").dueOn, "2028-02-29", "the /sync shape carries dueOn");
+  assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
+});
+
+test("subtasks: assignee is anne, wes or null, on create and patch; the owner and the doer are different facts", async () => {
+  const owned = await call("POST", "/projects/p-due/subtasks", { token: ANNE, body: { id: "st-owned", title: "Bag it", assignee: "wes" } });
+  assert.equal(owned.status, 201);
+  assert.equal(owned.body.assignee, "wes");
+  const unowned = await call("POST", "/projects/p-due/subtasks", { token: ANNE, body: { id: "st-nobody", title: "Haul it" } });
+  assert.equal(unowned.body.assignee, null);
+  const handed = await call("PATCH", "/subtasks/st-nobody", { token: WES, body: { assignee: "anne" } });
+  assert.equal(handed.status, 200);
+  assert.equal(handed.body.assignee, "anne");
+  const released = await call("PATCH", "/subtasks/st-nobody", { token: WES, body: { assignee: null } });
+  assert.equal(released.body.assignee, null);
+  const done = await call("PATCH", "/subtasks/st-owned", { token: ANNE, body: { done: true } });
+  assert.equal(done.body.assignee, "wes");
+  assert.equal(done.body.doneBy, "anne");
+  assert.equal((await call("PATCH", "/subtasks/st-owned", { token: WES, body: { assignee: "bob" } })).status, 400);
+  assert.equal((await call("PATCH", "/subtasks/st-owned", { token: WES, body: { assignee: 1 } })).status, 400);
+  assert.equal((await call("POST", "/projects/p-due/subtasks", { token: WES, body: { id: "st-bad", title: "x", assignee: "" } })).status, 400);
+  const withSteps = await call("POST", "/projects", { token: WES, body: { id: "p-steps", title: "x", subtasks: [{ id: "st-of-p", title: "y" }] } });
+  assert.equal(withSteps.body.subtasks[0].assignee, null, "steps created with a project start unowned");
+  assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
+});
+
 test("/sync carries all five list arrays, cursor is the max seq across tables, same-tick write after a sync is delivered", async () => {
   const full = await call("GET", "/sync?choresVersion=1", { token: ANNE });
   assert.equal(full.status, 200);

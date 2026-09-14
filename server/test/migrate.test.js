@@ -112,7 +112,7 @@ test("a version-1 database is rebuilt to version 2 with rows, seqs and foreign k
     db.close();
     const again = openDb(path);
     assert.equal(again.prepare("SELECT COUNT(*) AS n FROM chores").get().n, 3);
-    assert.equal(getMeta(again, "schemaVersion"), "2");
+    assert.equal(getMeta(again, "schemaVersion"), String(SCHEMA_VERSION));
     again.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -123,10 +123,52 @@ test("a fresh database gets the version-2 shape directly and records the version
   const dir = mkdtempSync(join(tmpdir(), "roost-migrate-fresh-"));
   try {
     const db = openDb(join(dir, "fresh.db"));
-    assert.equal(getMeta(db, "schemaVersion"), "2");
+    assert.equal(getMeta(db, "schemaVersion"), String(SCHEMA_VERSION));
     assert.ok(columns(db, "chores").includes("together"));
     assert.match(sqlOf(db, "chores"), /'bimonthly'/);
     db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a version-2 database gains projects.dueOn and project_subtasks.assignee and records version 3", () => {
+  const dir = mkdtempSync(join(tmpdir(), "roost-migrate-v3-"));
+  try {
+    const path = join(dir, "v2.db");
+    const raw = new DatabaseSync(path);
+    raw.exec(`
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO meta VALUES ('seq', '2'), ('schemaVersion', '2');
+      CREATE TABLE projects (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL,
+        deletedAt TEXT, seq INTEGER NOT NULL UNIQUE
+      );
+      CREATE TABLE project_subtasks (
+        id TEXT PRIMARY KEY, projectId TEXT NOT NULL REFERENCES projects(id), title TEXT NOT NULL,
+        sortOrder INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0,1)),
+        doneBy TEXT CHECK (doneBy IN ('anne','wes')), doneAt TEXT, createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL, deletedAt TEXT, seq INTEGER NOT NULL UNIQUE
+      );
+      INSERT INTO projects VALUES ('p1', 'Fence', 'x', 'x', NULL, 1);
+      INSERT INTO project_subtasks VALUES ('s1', 'p1', 'Posts', 0, 0, NULL, NULL, 'x', 'x', NULL, 2);
+    `);
+    raw.close();
+
+    const db = openDb(path);
+    assert.equal(getMeta(db, "schemaVersion"), "3");
+    assert.ok(columns(db, "projects").includes("dueOn"));
+    assert.ok(columns(db, "project_subtasks").includes("assignee"));
+    assert.equal(db.prepare("SELECT dueOn FROM projects WHERE id = 'p1'").get().dueOn, null);
+    assert.equal(db.prepare("SELECT assignee FROM project_subtasks WHERE id = 's1'").get().assignee, null);
+    db.prepare("UPDATE project_subtasks SET assignee = 'wes' WHERE id = 's1'").run();
+    assert.throws(() => db.prepare("UPDATE project_subtasks SET assignee = 'bob' WHERE id = 's1'").run(), /CHECK/);
+    assert.equal(db.prepare("SELECT seq FROM project_subtasks WHERE id = 's1'").get().seq, 2, "rows untouched");
+    db.close();
+
+    const again = openDb(path);
+    assert.equal(getMeta(again, "schemaVersion"), "3", "opening again is a no-op");
+    again.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
