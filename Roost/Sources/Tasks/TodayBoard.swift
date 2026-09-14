@@ -43,6 +43,16 @@ enum TodayBoard {
         return Double(anne) / Double(total)
     }
 
+
+    // MARK: - Column order
+
+    /// Whose column comes first on the Tasks tab. The paired person's own column leads, so what *you*
+    /// owe is at the top; the other person follows. Unpaired phones keep Anne then Wes.
+    static func columnPeople(me: Person?) -> [Person] {
+        guard let me else { return Array(Person.allCases) }
+        return [me] + Person.allCases.filter { $0 != me }
+    }
+
     // MARK: - Celebration
 
     /// Whether checking `row` off empties the list it came from. Un-checking never does.

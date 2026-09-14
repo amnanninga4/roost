@@ -270,6 +270,15 @@ final class TodayBoardTests: XCTestCase {
         XCTAssertTrue(never.text.hasPrefix(Strings.Sync.neverSynced), never.text)
     }
 
+
+    // MARK: - Column order
+
+    func testOwnColumnComesFirst() {
+        XCTAssertEqual(TodayBoard.columnPeople(me: .wes), [.wes, .anne])
+        XCTAssertEqual(TodayBoard.columnPeople(me: .anne), [.anne, .wes])
+        XCTAssertEqual(TodayBoard.columnPeople(me: nil), [.anne, .wes], "unpaired keeps Anne then Wes")
+    }
+
     // MARK: - The overdue badge
 
     func testDaysLateWordingIsSharedWithKitchenMode() {
