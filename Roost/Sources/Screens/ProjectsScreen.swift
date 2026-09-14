@@ -436,8 +436,7 @@ private struct SubtaskRow: View {
     @ViewBuilder
     private var ownerAvatar: some View {
         if let owner = Person(rawValue: step.assignee ?? "") {
-            PersonAvatar(person: owner)
-                .accessibilityLabel(Strings.Projects.ownedBy(owner.displayName))
+            RoostAvatar(person: owner.design, label: Strings.Projects.ownedBy(owner.displayName))
         }
     }
 
@@ -544,7 +543,7 @@ private struct SubtaskComposer: View {
             } label: {
                 Group {
                     if let person = Person(rawValue: owner ?? "") {
-                        PersonAvatar(person: person)
+                        RoostAvatar(person: person.design)
                     } else {
                         Image(systemName: "person.crop.circle")
                             .foregroundStyle(RoostColor.Role.textSecondary.color)

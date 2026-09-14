@@ -29,12 +29,35 @@ enum RootTab: String, CaseIterable, Identifiable {
     }
 }
 
+/// Cross-tab navigation, as state the tabs read rather than requests they must catch: a chore row's
+/// "Show in All chores" sets the More tab's path *and then* selects the tab, so the tab's
+/// `NavigationStack` is born already showing the list. (Pushing after the tab appears is the
+/// alternative, and on iOS 26 a push made during the tab transition either loops layout or is
+/// dropped — both seen in the simulator.)
+@Observable
+final class RootNavigation {
+    var selected: RootTab = .tasks
+    /// The More tab's navigation path. Empty is the More page itself.
+    var morePath: [MoreRoute] = []
+
+    func showAllChores() {
+        morePath = [.allChores]
+        selected = .more
+    }
+}
+
+/// What the More tab can push. Settings stays a plain link; only routes another tab needs to reach
+/// belong here.
+enum MoreRoute: Hashable {
+    case allChores
+}
+
 struct RootTabView: View {
-    @State private var selected: RootTab = .tasks
+    @State private var navigation = RootNavigation()
     @Environment(SyncCoordinator.self) private var sync
 
     var body: some View {
-        TabView(selection: $selected) {
+        TabView(selection: $navigation.selected) {
             ForEach(RootTab.allCases) { tab in
                 Tab(tab.title, systemImage: tab.symbol, value: tab) {
                     screen(for: tab)
@@ -42,10 +65,11 @@ struct RootTabView: View {
             }
         }
         .tint(RoostColor.accent)
+        .environment(navigation)
         // A tapped push lands on Tasks: everything the server pushes is about a chore. A counter rather
         // than a flag, so a second tap works even if the reader has moved to another tab since the first.
         .onChange(of: sync.push.openTasksRequests) {
-            selected = .tasks
+            navigation.selected = .tasks
         }
     }
 

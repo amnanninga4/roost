@@ -32,8 +32,7 @@ struct ChoreListScreen: View {
                         }
                         .padding(RoostSpacing.sm)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoostColor.Role.surface.color, in: RoostRadius.cardShape)
-                        .roostElevation(.card, cornerRadius: RoostRadius.card)
+                        .roostCard()
                     }
                 }
             }

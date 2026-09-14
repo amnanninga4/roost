@@ -24,6 +24,7 @@ struct PersonColumnView: View {
     /// Takes back an offer that has not synced yet.
     var withdraw: ((String) -> Void)?
     var answer: ((IncomingOffer, HandoffRules.Decision) -> Void)?
+    var showInAllChores: (() -> Void)?
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The dot that ties a column to its half of the week bar.
@@ -107,7 +108,8 @@ struct PersonColumnView: View {
                     ChoreRowView(
                         row: row,
                         onOffer: offerAction(for: row),
-                        onWithdraw: withdrawAction(for: row)
+                        onWithdraw: withdrawAction(for: row),
+                        onShowInAllChores: showInAllChores
                     ) { toggle(row) }
                         .roostTransition(.checkOff)
                 }
@@ -116,8 +118,7 @@ struct PersonColumnView: View {
         // Rows inset by sm inside a card-radius card land on the row radius: 22 - 8 = 14.
         .padding(RoostSpacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoostColor.Role.surface.color, in: RoostRadius.cardShape)
-        .roostElevation(.card, cornerRadius: RoostRadius.card)
+        .roostCard()
         .roostAnimation(.standard, value: rows.map(\.id))
         .roostAnimation(.standard, value: offers.map(\.id))
     }

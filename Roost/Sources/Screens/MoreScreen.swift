@@ -5,10 +5,12 @@ import SwiftUI
 
 struct MoreScreen: View {
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(RootNavigation.self) private var navigation
     @State private var showKitchen = false
 
     var body: some View {
-        NavigationStack {
+        @Bindable var navigation = navigation
+        NavigationStack(path: $navigation.morePath) {
             List {
                 Section {
                     Button { showKitchen = true } label: {
@@ -16,9 +18,7 @@ struct MoreScreen: View {
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(RoostColor.Role.surface.color)
-                    NavigationLink {
-                        ChoreListScreen()
-                    } label: {
+                    NavigationLink(value: MoreRoute.allChores) {
                         MoreRow(title: Strings.Tasks.allChores, symbol: "list.bullet")
                     }
                     .listRowBackground(RoostColor.Role.surface.color)
@@ -54,6 +54,11 @@ struct MoreScreen: View {
             .navigationTitle(Strings.Tabs.more)
             .toolbarTitleDisplayMode(.inline)
             .fullScreenCover(isPresented: $showKitchen) { KitchenScreen() }
+            .navigationDestination(for: MoreRoute.self) { route in
+                switch route {
+                case .allChores: ChoreListScreen()
+                }
+            }
         }
         .tint(RoostColor.Role.accent.color)
     }

@@ -131,8 +131,9 @@
                     cadence: Cadence.daily.rawValue,
                     state: offer.state.rawValue,
                     createdAt: day(offer.periodDaysAgo * -1),
-                    // Synced, so nothing is queued and the row offers no "take it back" it cannot honour.
-                    syncedAt: day(offer.periodDaysAgo * -1)
+                    // Unsynced for the one offer still on this phone, so the row can offer Withdraw;
+                    // synced for the rest, so nothing is queued that the fixture cannot honour.
+                    syncedAt: offer.synced ? day(offer.periodDaysAgo * -1) : nil
                 )
                 context.insert(record)
             }
@@ -250,6 +251,8 @@
                       fixedAssignee: .anne, category: .catCare),
                 Chore(id: "uitest-cat-water", title: "Refill the cat water", cadence: .daily,
                       fixedAssignee: .anne, category: .catCare),
+                Chore(id: "uitest-feed-cat", title: "Feed the cat", cadence: .daily,
+                      fixedAssignee: .anne, category: .catCare),
                 Chore(id: "uitest-dishwasher", title: "Run the dishwasher", cadence: .daily,
                       fixedAssignee: .anne, category: .chore),
                 Chore(id: "uitest-counters", title: "Wipe down the kitchen counters and the bathroom mirror",
@@ -281,6 +284,9 @@
             [
                 SeededCompletion(choreId: "uitest-litter", person: .anne, daysAgo: 6),
                 SeededCompletion(choreId: "uitest-cat-water", person: .anne, daysAgo: 4),
+                // Done yesterday, so today's period is open and nobody has offered it: the one row on
+                // Anne's card the menu and the trailing swipe can hand off.
+                SeededCompletion(choreId: "uitest-feed-cat", person: .anne, daysAgo: 1),
                 SeededCompletion(choreId: "uitest-dishwasher", person: .anne, daysAgo: 2),
                 SeededCompletion(choreId: "uitest-counters", person: .anne, daysAgo: 1),
                 SeededCompletion(choreId: "uitest-plants", person: .anne, daysAgo: 0),
@@ -300,9 +306,11 @@
             /// that is the period the row on screen is about.
             let periodDaysAgo: Int
             let state: Handoff.State
+            var synced = true
         }
 
-        /// One of each, all on daily chores so a period is a day:
+        /// One of each live state, all on daily chores so a period is a day, plus one unsynced pending
+        /// offer so the row menu can show Withdraw:
         ///
         ///  - `uitest-laundry` is Wes's and due today, so a pending offer to Anne is still inside its
         ///    period: Anne gets the card, and Wes's row reads "Asked Anne".
@@ -310,11 +318,17 @@
         ///    into Anne's column wearing the "FROM WES" chip.
         ///  - `uitest-cat-water` is Anne's and three days late; a declined offer never expires either, so
         ///    her row carries the "Wes said no" line.
+        ///  - `uitest-counters` is Anne's, due today, offered to Wes a moment ago and not yet synced: the
+        ///    one state that can still be taken back.
         static var handoffs: [SeededHandoff] {
             [
                 SeededHandoff(choreId: "uitest-laundry", from: .wes, to: .anne, periodDaysAgo: 0, state: .pending),
                 SeededHandoff(choreId: "uitest-trash", from: .wes, to: .anne, periodDaysAgo: 5, state: .accepted),
                 SeededHandoff(choreId: "uitest-cat-water", from: .anne, to: .wes, periodDaysAgo: 3, state: .declined),
+                // Anne's, due today, offered to Wes a moment ago and not yet synced: the one state
+                // that can still be taken back, so the row menu gets to show Withdraw.
+                SeededHandoff(choreId: "uitest-counters", from: .anne, to: .wes, periodDaysAgo: 0,
+                              state: .pending, synced: false),
             ]
         }
 

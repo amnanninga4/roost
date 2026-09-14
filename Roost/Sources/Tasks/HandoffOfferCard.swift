@@ -58,47 +58,36 @@ struct HandoffOfferCard: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.sm))
             : AnyLayout(HStackLayout(spacing: RoostSpacing.sm))
         layout {
-            Button(Strings.Handoffs.accept, action: accept)
-                .buttonStyle(OfferButtonStyle(prominent: true))
-            Button(Strings.Handoffs.decline, action: decline)
-                .buttonStyle(OfferButtonStyle(prominent: false))
+            offerButton(Strings.Handoffs.accept, prominent: true, action: accept)
+            offerButton(Strings.Handoffs.decline, prominent: false, action: decline)
         }
         // The whole card is one VoiceOver element with these two as actions, so the buttons themselves
         // must not also be stops in the rotor.
         .accessibilityHidden(true)
     }
-}
 
-/// The two answers: accent for taking it on, a plain outline for saying no. Both hold 44 pt and give a
-/// little under a finger on the quick spring, which Reduce Motion turns into no animation at all.
-private struct OfferButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let prominent: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            // `.headline`, the same rung the onboarding buttons use: one button voice in the app. The mono
-            // label rung is for eyebrows and chips, and its caps tracking makes a two-word button read as a tag.
-            .roostType(.headline)
-            .foregroundStyle(prominent ? RoostColor.Role.onAccent.color : RoostColor.Role.textPrimary.color)
-            .padding(.horizontal, RoostSpacing.lg)
-            .frame(minHeight: RoostSpacing.minTapTarget)
-            .frame(minWidth: RoostSpacing.xxxl)
-            .background(
-                prominent ? RoostColor.Role.accent.color : RoostColor.Role.surface.color,
-                in: RoostRadius.pillShape
-            )
-            .overlay(
-                RoostRadius.pillShape
-                    .stroke(RoostColor.Role.separator.color, lineWidth: prominent ? 0 : 1)
-            )
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(
-                RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion),
-                value: configuration.isPressed
-            )
-            .contentShape(RoostRadius.pillShape)
+    /// One answer: accent for taking it on, a plain outline for saying no. The pill styling lives in
+    /// the label so `.roostPress` scales background and all — a background set on the Button itself
+    /// would not scale. `.headline`, the same rung the onboarding buttons use: one button voice.
+    private func offerButton(_ title: String, prominent: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .roostType(.headline)
+                .foregroundStyle(prominent ? RoostColor.Role.onAccent.color : RoostColor.Role.textPrimary.color)
+                .padding(.horizontal, RoostSpacing.lg)
+                .frame(minHeight: RoostSpacing.minTapTarget)
+                .frame(minWidth: RoostSpacing.xxxl)
+                .background(
+                    prominent ? RoostColor.Role.accent.color : RoostColor.Role.surface.color,
+                    in: RoostRadius.pillShape
+                )
+                .overlay(
+                    RoostRadius.pillShape
+                        .stroke(RoostColor.Role.separator.color, lineWidth: prominent ? 0 : 1)
+                )
+                .contentShape(RoostRadius.pillShape)
+        }
+        .buttonStyle(.roostPress)
     }
 }
 

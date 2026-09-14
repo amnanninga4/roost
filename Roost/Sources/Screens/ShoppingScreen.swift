@@ -175,7 +175,7 @@ private struct ShoppingRow: View {
     @ViewBuilder
     private var avatar: some View {
         if let person = Person(rawValue: item.addedBy) {
-            PersonAvatar(person: person)
+            RoostAvatar(person: person.design, label: Strings.Lists.addedBy(person.displayName))
         }
     }
 
@@ -209,7 +209,8 @@ private struct ShoppingRow: View {
             .frame(minHeight: RoostSpacing.minTapTarget)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        // Quiet: the toggle already fires .checkOff / .undo on the same touch.
+        .buttonStyle(.roostPressQuiet)
         .accessibilityLabel(item.title)
         .accessibilityValue(value)
         .accessibilityHint(item.bought ? Strings.Shopping.markStillNeeded : Strings.Shopping.markBought)

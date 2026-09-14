@@ -2,8 +2,9 @@
 //
 // The whole row is the button (so there is no small target to miss), the check control holds 44 pt on
 // its own, and the row reads as one element to VoiceOver: the chore's title, then its state, then what
-// the tap will do. Everything that carries colour comes from the escalation stage, so a row that is
-// running late is obvious without reading it.
+// the tap will do. The stage reads through the title colour, the days-late chip, and a 3-pt bar along
+// the row's leading edge, so a row that is running late is obvious without reading it — and without
+// painting the card.
 import RoostCore
 import RoostDesign
 import SwiftUI
@@ -17,9 +18,14 @@ struct ChoreRowView: View {
     /// endpoint on the server (`POST /handoffs` and the two answer routes are all of it), so once an
     /// offer has synced the only honest answer is to wait for one.
     var onWithdraw: (() -> Void)?
+    /// Opens More → All chores from the long-press menu. Nil when the parent has not wired the route.
+    var onShowInAllChores: (() -> Void)?
     let onToggle: () -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// How far the row has slid left, 0 closed to `-revealWidth` open.
+    @State private var swipeOffset: CGFloat = 0
 
     private var category: RoostCategory {
         row.chore.category == .catCare ? .catCare : .home
@@ -30,13 +36,76 @@ struct ChoreRowView: View {
         row.isDone ? .textSecondary : row.stage.role
     }
 
-    private var fill: Color {
-        guard !row.isDone, let fillRole = row.stage.fillRole else { return .clear }
-        return fillRole.color
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            if let onOffer {
+                Button {
+                    closeSwipe()
+                    onOffer()
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .roostType(.headline)
+                        .foregroundStyle(RoostColor.Role.onAccent.color)
+                        .frame(width: handoffRevealWidth)
+                        .frame(maxHeight: .infinity)
+                        .background(RoostColor.Role.assigned.color, in: RoostRadius.rowShape)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.roostPressQuiet)
+                .accessibilityLabel(Strings.Handoffs.ask(other.displayName))
+                // The strip is only real once the row has moved; a due-today row has a clear
+                // background, so without this the button would peek through it at rest.
+                .opacity(swipeOffset < 0 ? 1 : 0)
+            }
+            swipeableRow
+        }
+        // The slid row would otherwise draw past the card's edge; the strip stays inside the row.
+        .clipped()
     }
 
-    var body: some View {
-        Button(action: onToggle) {
+    @ViewBuilder
+    private var swipeableRow: some View {
+        if onOffer != nil {
+            rowButton
+                .offset(x: swipeOffset)
+                .highPriorityGesture(swipe)
+                .onChange(of: row.id) { _, _ in swipeOffset = 0 } // a reused row snaps shut
+        } else {
+            rowButton
+        }
+    }
+
+    /// A horizontal-dominant drag slides the row; the ScrollView keeps the vertical ones. Open past
+    /// half the strip, or on a flick, closed otherwise.
+    private var swipe: some Gesture {
+        DragGesture(minimumDistance: RoostSpacing.lg)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                swipeOffset = min(0, max(-handoffRevealWidth, value.translation.width))
+            }
+            .onEnded { value in
+                let open = value.translation.width < -handoffRevealWidth / 2
+                    || value.predictedEndTranslation.width < -handoffRevealWidth
+                withAnimation(RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion)) {
+                    swipeOffset = open ? -handoffRevealWidth : 0
+                }
+            }
+    }
+
+    private func closeSwipe() {
+        withAnimation(RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion)) {
+            swipeOffset = 0
+        }
+    }
+
+    private var rowButton: some View {
+        Button {
+            if swipeOffset != 0 {
+                closeSwipe()
+            } else {
+                onToggle()
+            }
+        } label: {
             HStack(alignment: .top, spacing: RoostSpacing.xs) {
                 check
                 VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
@@ -58,15 +127,38 @@ struct ChoreRowView: View {
             .padding(.vertical, RoostSpacing.xs)
             .frame(minHeight: RoostSpacing.minTapTarget)
             .contentShape(Rectangle())
+            .overlay(alignment: .leading) {
+                if !row.isDone, row.stage.fillRole != nil {
+                    Capsule()
+                        .fill(row.stage.role.color)
+                        .frame(width: EdgeBar.width)
+                        .padding(.vertical, RoostSpacing.xxs)
+                        .accessibilityHidden(true)
+                }
+            }
         }
-        .buttonStyle(ChoreRowButtonStyle(fill: fill))
-        .contextMenu { handoffMenu }
+        // Quiet: the toggle already fires .checkOff / .undo on the same touch — the kit's press
+        // haptic on top of that would be two haptics for one finger.
+        .buttonStyle(.roostPressQuiet)
+        .contextMenu {
+            handoffMenu
+            if let onShowInAllChores {
+                Button(Strings.Tasks.showInAllChores, systemImage: "list.bullet", action: onShowInAllChores)
+            }
+        } preview: {
+            ChoreRowPreview(row: row)
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.chore.title)
         .accessibilityValue(accessibilityValue)
         .accessibilityHint(row.isDone ? Strings.Tasks.hintUncheck : Strings.Tasks.hintCheck)
         .accessibilityAddTraits(.isButton)
-        .accessibilityActions { handoffMenu }
+        .accessibilityActions {
+            handoffMenu
+            if let onShowInAllChores {
+                Button(Strings.Tasks.showInAllChores, action: onShowInAllChores)
+            }
+        }
     }
 
     /// The handoff actions, in the long-press menu and in VoiceOver's actions rotor. Empty for almost
@@ -122,60 +214,47 @@ struct ChoreRowView: View {
         }
     }
 
-    /// The line under the words: how late it is, who it is pinned to, who handed it over, and — once the
-    /// other phone is in on it — that it is not a private problem any more. Empty for a row that is
-    /// simply due today and nobody's business but this person's.
+    /// The line under the words: at most two elements, picked by `ChoreRowMeta` — how late it is,
+    /// then a handoff in motion, then whose it is. Everything else the row knows is one long-press
+    /// away, on the context menu's preview card.
     @ViewBuilder
     private var meta: some View {
-        let late = row.daysOverdue > 0
-        let pinned = row.chore.fixedAssignee
-        if late || pinned != nil || row.chore.together || row.handoff != nil {
+        let elements = ChoreRowMeta.elements(for: row)
+        if !elements.isEmpty {
             // One line normally. At accessibility sizes a 40-pt chip leaves the note beside it a column
             // two characters wide, so the meta line becomes a stack instead.
             let layout = typeSize.isAccessibilitySize
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
                 : AnyLayout(HStackLayout(spacing: RoostSpacing.sm))
             layout {
-                if late {
-                    // On a tinted row the chip sits on the card's own surface, so it reads as a chip
-                    // rather than a second wash of the same colour.
-                    RowBadge(text: Strings.daysLate(row.daysOverdue), tint: row.stage.role, fill: .surface)
-                }
-                if row.chore.together {
-                    RowBadge(text: Strings.Tasks.together, tint: .assigned, fill: .assignedSoft)
-                } else if let pinned {
-                    RowBadge(text: pinned.displayName.uppercased(), tint: .assigned, fill: .assignedSoft)
-                }
-                if case let .takenFrom(giver) = row.handoff {
-                    // A settled fact, so it gets a chip; the states still in motion below get a line of
-                    // words instead, because a chip for a thing that is about to change reads as a label.
-                    RowBadge(text: Strings.Handoffs.from(giver.displayName), tint: .accent, fill: .accentSoft)
-                }
-                if let note = handoffNote {
-                    Text(note)
-                        .roostType(.caption)
-                        .foregroundStyle(RoostColor.Role.textSecondary.color)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if !row.isDone, row.stage.isSharedWithTheOther {
-                    Text(Strings.Tasks.onTheOtherPhone)
-                        .roostType(.caption)
-                        .foregroundStyle(RoostColor.Role.textSecondary.color)
-                        .fixedSize(horizontal: false, vertical: true)
+                ForEach(elements, id: \.self) { element in
+                    switch element {
+                    case let .daysLate(days):
+                        // The stage's strong on its soft: the one chip that keeps a tinted fill.
+                        RowBadge(
+                            text: Strings.daysLate(days),
+                            tint: row.stage.role,
+                            fill: row.stage.fillRole ?? .surface
+                        )
+                    case let .handoffNote(note):
+                        Text(note)
+                            .roostType(.caption)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                            .fixedSize(horizontal: false, vertical: true)
+                    case .together:
+                        RowBadge(text: Strings.Tasks.together, tint: .assigned, fill: .assignedSoft)
+                    case let .pinned(person):
+                        RowBadge(text: person.displayName.uppercased(), tint: .assigned, fill: .assignedSoft)
+                    case let .taken(giver):
+                        RowBadge(
+                            text: giver.displayName.uppercased(),
+                            tint: giver.design.role,
+                            fill: giver.design.softRole
+                        )
+                    }
                 }
             }
             .padding(.top, RoostSpacing.xxs)
-        }
-    }
-
-    /// The one line a handoff in motion puts under the row. An expired offer has none: nobody answered,
-    /// and being told so days later helps no one.
-    private var handoffNote: String? {
-        switch row.handoff {
-        case let .waiting(asked, _, _): Strings.Handoffs.waiting(asked.displayName)
-        case let .declined(by): Strings.Handoffs.saidNo(by.displayName)
-        case .refused: Strings.Handoffs.refused
-        case .takenFrom, .none: nil
         }
     }
 
@@ -197,11 +276,31 @@ struct ChoreRowView: View {
         if case let .takenFrom(giver) = row.handoff {
             parts.append(Strings.Handoffs.from(giver.displayName))
         }
-        if let note = handoffNote {
+        if let note = ChoreRowMeta.handoffNote(for: row) {
             parts.append(note)
         }
         return parts.joined(separator: ", ")
     }
+}
+
+// MARK: - The trailing swipe
+
+//
+// The Today board is a ScrollView of cards, not a List, so the system's `.swipeActions` is not
+// available here — this reveal is the one gesture in the app built by hand. It exists for exactly
+// one action, Hand off, and only on rows where the context menu would offer it (`onOffer != nil`).
+// No leading swipe: tap already toggles done, and a second done gesture adds nothing.
+
+/// The strip the row uncovers. Two `xxxl` steps (96 pt): a comfortable thumb landing.
+private let handoffRevealWidth = RoostSpacing.xxxl * 2
+
+/// The escalation stage, as an edge rather than a wash: a rounded bar along the row's leading edge
+/// in the stage's colour. A bad day still reads at a glance, but the card is no longer painted
+/// wall to wall. Decorative — the days-late chip and the subtitle carry the meaning.
+private enum EdgeBar {
+    /// 3 pt, per the spec. Stroke geometry is the one thing RoostDesign has no scale for (the
+    /// precedent is `ComposerBorder` in ListParts), so the number lives here, named once.
+    static let width: CGFloat = 3
 }
 
 /// A mono chip: the days-late count, or the name a chore is pinned to.
@@ -227,27 +326,47 @@ private struct RowBadge: View {
     }
 }
 
-/// The press state: the fill steps up and the row gives a little, on the quick spring, which under
-/// Reduce Motion becomes no animation at all rather than a shortened one.
-private struct ChoreRowButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+/// The card a long-press lifts the row into: everything the two-slot meta line had to leave out —
+/// who the chore is for, its cadence, how late it is, and what a handoff is doing to it.
+private struct ChoreRowPreview: View {
+    let row: TodayRow
 
-    /// The row's resting fill: the stage's soft colour, or clear for a row that is only due today.
-    let fill: Color
+    var body: some View {
+        VStack(alignment: .leading, spacing: RoostSpacing.xs) {
+            Text(row.chore.title)
+                .roostType(.rowTitle)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(detail)
+                .roostType(.subheadline)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+            if let note = ChoreRowMeta.handoffNote(for: row) {
+                Text(note)
+                    .roostType(.caption)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+            }
+        }
+        .padding(RoostSpacing.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .roostCard()
+    }
 
-    /// A press is felt, not watched: two percent is enough to register under a finger.
-    private let pressedScale: CGFloat = 0.98
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                configuration.isPressed ? RoostColor.Role.surfaceElevated.color : fill,
-                in: RoostRadius.rowShape
-            )
-            .scaleEffect(configuration.isPressed ? pressedScale : 1)
-            .animation(
-                RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion),
-                value: configuration.isPressed
-            )
+    /// "For Anne · Daily · 3 days late" — the whole story, since the row only ever tells two slots of it.
+    private var detail: String {
+        var parts: [String] = [
+            row.chore.together ? Strings.Tasks.togetherValue : Strings.Tasks.forPerson(row.person.displayName),
+            row.chore.cadence.label,
+        ]
+        if row.isDone {
+            parts.append(Strings.Tasks.stateDone)
+        } else if row.daysOverdue > 0 {
+            parts.append(Strings.Tasks.stateLate(row.daysOverdue))
+        } else {
+            parts.append(Strings.Tasks.stateDueToday)
+        }
+        if case let .takenFrom(giver) = row.handoff {
+            parts.append(Strings.Handoffs.from(giver.displayName))
+        }
+        return parts.joined(separator: Strings.Lists.metaSeparator)
     }
 }

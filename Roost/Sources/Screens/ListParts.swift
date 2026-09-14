@@ -29,6 +29,9 @@ private enum ComposerBorder {
 ///
 /// `alignment` is where the words sit inside the taller band — trailing for a button on the right of a
 /// section header, leading for one under a paragraph.
+///
+/// The press is the kit's vocabulary — `RoostButtonStyle`'s opacity and the `press` haptic — so a text
+/// action and a pill button feel the same under a finger.
 struct RoostTextActionStyle: ButtonStyle {
     var alignment: Alignment = .leading
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -37,10 +40,15 @@ struct RoostTextActionStyle: ButtonStyle {
         configuration.label
             .frame(minHeight: RoostSpacing.minTapTarget, alignment: alignment)
             .contentShape(Rectangle())
-            .opacity(configuration.isPressed ? 0.6 : 1)
+            .opacity(configuration.isPressed ? RoostButtonStyle.pressedOpacity : 1)
             .animation(
                 RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion),
                 value: configuration.isPressed
+            )
+            .sensoryFeedback(
+                RoostHaptic.press.feedback,
+                trigger: configuration.isPressed,
+                condition: { _, now in now }
             )
     }
 }
@@ -151,19 +159,18 @@ struct ListComposer<Extra: View>: View {
     }
 }
 
-/// The badges and glyphs grow with the reader's text size, but not without limit: past this they
-/// would push the row's words off the screen, and a 24-pt circle at three times the size is a
-/// button, not a decoration.
-let listGlyphCeiling = RoostSpacing.xxl + RoostSpacing.sm
-
 /// The composer's affordance: an outline while the field is empty, a filled accent circle once
 /// there is something Return would add.
+///
+/// The badges and glyphs grow with the reader's text size, but not without limit: past
+/// `RoostAvatar.glyphCeiling` they would push the row's words off the screen, and a 24-pt circle at
+/// three times the size is a button, not a decoration.
 struct PlusBadge: View {
     var isActive = false
     @ScaledMetric(relativeTo: .body) private var scaled: CGFloat = RoostSpacing.xl
 
     private var side: CGFloat {
-        min(scaled, listGlyphCeiling)
+        min(scaled, RoostAvatar.glyphCeiling)
     }
 
     var body: some View {
@@ -190,26 +197,6 @@ struct CheckCircle: View {
             .contentTransition(.symbolEffect(.replace))
             .roostAnimation(.quick, value: isOn)
             .accessibilityAddTraits(.isButton)
-    }
-}
-
-/// "A" or "W" in a small circle: who added the row.
-struct PersonAvatar: View {
-    let person: Person
-    @ScaledMetric(relativeTo: .caption) private var scaled: CGFloat = RoostSpacing.xl
-
-    private var side: CGFloat {
-        min(scaled, listGlyphCeiling)
-    }
-
-    var body: some View {
-        Text(String(person.displayName.prefix(1)))
-            .roostType(.caption)
-            .fontWeight(.bold)
-            .foregroundStyle(person.design.color)
-            .frame(width: side, height: side)
-            .background(person.design.softColor, in: Circle())
-            .accessibilityLabel(Strings.Lists.addedBy(person.displayName))
     }
 }
 
