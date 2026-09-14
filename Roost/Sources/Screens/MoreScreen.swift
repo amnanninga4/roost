@@ -7,13 +7,10 @@ struct MoreScreen: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(RootNavigation.self) private var navigation
     @State private var showKitchen = false
-    @State private var showAllChores = false
-    /// The last request this tab answered, so a request that arrived before the tab first appeared is
-    /// still honoured on appearance and no request is answered twice.
-    @State private var handledAllChoresRequests = 0
 
     var body: some View {
-        NavigationStack {
+        @Bindable var navigation = navigation
+        NavigationStack(path: $navigation.morePath) {
             List {
                 Section {
                     Button { showKitchen = true } label: {
@@ -21,9 +18,7 @@ struct MoreScreen: View {
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(RoostColor.Role.surface.color)
-                    NavigationLink {
-                        ChoreListScreen()
-                    } label: {
+                    NavigationLink(value: MoreRoute.allChores) {
                         MoreRow(title: Strings.Tasks.allChores, symbol: "list.bullet")
                     }
                     .listRowBackground(RoostColor.Role.surface.color)
@@ -59,17 +54,13 @@ struct MoreScreen: View {
             .navigationTitle(Strings.Tabs.more)
             .toolbarTitleDisplayMode(.inline)
             .fullScreenCover(isPresented: $showKitchen) { KitchenScreen() }
-            .navigationDestination(isPresented: $showAllChores) { ChoreListScreen() }
-            .onAppear(perform: answerAllChoresRequest)
-            .onChange(of: navigation.allChoresRequests) { _, _ in answerAllChoresRequest() }
+            .navigationDestination(for: MoreRoute.self) { route in
+                switch route {
+                case .allChores: ChoreListScreen()
+                }
+            }
         }
         .tint(RoostColor.Role.accent.color)
-    }
-
-    private func answerAllChoresRequest() {
-        guard navigation.allChoresRequests > handledAllChoresRequests else { return }
-        handledAllChoresRequests = navigation.allChoresRequests
-        showAllChores = true
     }
 }
 

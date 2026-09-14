@@ -29,19 +29,27 @@ enum RootTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// Cross-tab navigation requests, on the counter pattern a tapped push already uses
-/// (`PushService.openTasksRequests`): a counter rather than a Bool, so two asks in a row both land
-/// even if the reader wandered off between them. The one request today is a chore row's "Show in
-/// All chores".
+/// Cross-tab navigation, as state the tabs read rather than requests they must catch: a chore row's
+/// "Show in All chores" sets the More tab's path *and then* selects the tab, so the tab's
+/// `NavigationStack` is born already showing the list. (Pushing after the tab appears is the
+/// alternative, and on iOS 26 a push made during the tab transition either loops layout or is
+/// dropped — both seen in the simulator.)
 @Observable
 final class RootNavigation {
     var selected: RootTab = .tasks
-    private(set) var allChoresRequests = 0
+    /// The More tab's navigation path. Empty is the More page itself.
+    var morePath: [MoreRoute] = []
 
     func showAllChores() {
+        morePath = [.allChores]
         selected = .more
-        allChoresRequests += 1
     }
+}
+
+/// What the More tab can push. Settings stays a plain link; only routes another tab needs to reach
+/// belong here.
+enum MoreRoute: Hashable {
+    case allChores
 }
 
 struct RootTabView: View {
