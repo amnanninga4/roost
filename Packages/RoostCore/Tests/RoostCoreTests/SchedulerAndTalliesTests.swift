@@ -187,8 +187,9 @@ final class SchedulerTests: XCTestCase {
         XCTAssertEqual(s.dueItems(for: pantry, on: wed, completions: [done(pantry, .wes, wed)]), [])
 
         // An ordinary chore's id is what it always was.
-        let day = cal.periodIndex(.daily, containing: wed)
-        XCTAssertEqual(s.dueItem(for: litter, on: wed, completions: [])?.id, "scoop-litter#\(day)")
+        // never done, so the oldest incomplete period is day one
+        let first = cal.periodIndex(.daily, containing: activeFrom)
+        XCTAssertEqual(s.dueItem(for: litter, on: wed, completions: [])?.id, "scoop-litter#\(first)")
         XCTAssertEqual(s.dueItems(for: litter, on: wed, completions: []).count, 1)
     }
 
