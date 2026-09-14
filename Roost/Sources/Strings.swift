@@ -181,6 +181,21 @@ enum Strings {
         static let stepNotDone = "Not done"
         static let markDone = "Marks it done"
         static let markNotDone = "Marks it not done"
+
+        /// On a card with a due day: "Due Sep 20".
+        static func due(_ day: String) -> String {
+            "Due \(day)"
+        }
+
+        /// The card's menu.
+        static let setDueDay = "Set a due day"
+        static let changeDueDay = "Change the due day"
+        static let clearDueDay = "Clear the due day"
+        /// The picker sheet's title and its confirming button.
+        static let dueDayPicker = "Due day"
+        static let dueDayDone = "Done"
+        /// VoiceOver, on a card whose day has passed.
+        static let pastDue = "Past due"
     }
 
     /// The two people. Reached through `Person.displayName`, never spelled out in a screen.

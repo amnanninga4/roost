@@ -61,6 +61,8 @@ extension SyncAPI {
     struct ProjectDTO: Codable, Sendable, Equatable {
         let id: String
         let title: String
+        /// Absent from a server older than R-30, which decodes as nil.
+        let dueOn: String?
         let createdAt: String
         let updatedAt: String
         let deleted: Bool

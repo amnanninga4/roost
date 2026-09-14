@@ -24,6 +24,7 @@ struct ProjectsScreen: View {
     @State private var steps = ""
     @FocusState private var titleFocused: Bool
     @State private var open: Set<String> = []
+    @State private var editingDue: ProjectRecord?
     @State private var openedFirst = false
     @State private var undo = ListUndo()
     /// Counters the taps bump, so nothing buzzes for a step the other phone ticked.
@@ -77,6 +78,11 @@ struct ProjectsScreen: View {
         .roostHaptic(.undo, trigger: uncheckedOff)
         .roostHaptic(.milestone, trigger: milestones)
         .undoBar(undo)
+        .sheet(item: $editingDue) { project in
+            DueDaySheet(initial: project.dueOn.flatMap { ProjectDates.day(from: $0) } ?? Date()) { picked in
+                setDueOn(project, ProjectDates.dayString(picked))
+            }
+        }
         .onChange(of: projects.map(\.id), initial: true) { _, ids in
             // The mockup opens the first card; do that once, then leave the choice to the user.
             if !openedFirst, let first = ids.first {
@@ -108,8 +114,13 @@ struct ProjectsScreen: View {
         let projectSteps = stepsByProject[project.id] ?? []
         let progress = ProjectProgress(steps: projectSteps, isDone: \.done)
         let isOpen = open.contains(project.id)
+        let now = Date()
+        let dueLabel = project.dueOn.flatMap { ProjectDates.label($0, now: now) }
+        let pastDue = !progress.isFinished && (project.dueOn.map { ProjectDates.isPast($0, now: now) } ?? false)
         Section {
-            ProjectRow(project: project, progress: progress, isOpen: isOpen) { toggleOpen(project) }
+            ProjectRow(project: project, progress: progress, isOpen: isOpen, dueLabel: dueLabel, pastDue: pastDue) {
+                toggleOpen(project)
+            }
                 .listRowBackground(RoostColor.Role.surface.color)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) { remove(project) } label: {
@@ -118,6 +129,11 @@ struct ProjectsScreen: View {
                     .tint(RoostColor.Role.danger.color)
                 }
                 .contextMenu {
+                    Button(project.dueOn == nil ? Strings.Projects.setDueDay : Strings.Projects.changeDueDay,
+                           systemImage: "calendar") { editingDue = project }
+                    if project.dueOn != nil {
+                        Button(Strings.Projects.clearDueDay, systemImage: "calendar.badge.minus") { setDueOn(project, nil) }
+                    }
                     Button(role: .destructive) { remove(project) } label: {
                         Label(
                             progress.isFinished ? Strings.Projects.archive : Strings.Projects.deleteProject,
@@ -218,6 +234,11 @@ struct ProjectsScreen: View {
         sync.syncSoon()
     }
 
+    private func setDueOn(_ project: ProjectRecord, _ day: String?) {
+        try? ListActions.setDueOn(project, day, in: context)
+        sync.syncSoon()
+    }
+
     /// The removal is in the store at once; its sync waits for the undo window (see `ListUndo`).
     private func remove(_ step: SubtaskRecord) {
         let title = step.title
@@ -248,6 +269,8 @@ private struct ProjectRow: View {
     let project: ProjectRecord
     let progress: ProjectProgress
     let isOpen: Bool
+    let dueLabel: String?
+    let pastDue: Bool
     let onToggle: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -257,6 +280,12 @@ private struct ProjectRow: View {
             parts.append(Strings.Projects.finished)
         }
         parts.append(Strings.Projects.stepsDone(done: progress.done, total: progress.total))
+        if pastDue {
+            parts.append(Strings.Projects.pastDue)
+        }
+        if let dueLabel {
+            parts.append(dueLabel)
+        }
         if project.rejected {
             parts.append(Strings.Lists.didNotSyncValue)
         }
@@ -305,6 +334,12 @@ private struct ProjectRow: View {
                         .roostType(.monoTally)
                         .foregroundStyle(RoostColor.Role.textSecondary.color)
                         .contentTransition(.numericText(value: Double(progress.done)))
+                    if let dueLabel {
+                        Text(dueLabel)
+                            .roostType(.caption)
+                            .foregroundStyle(pastDue ? RoostColor.Role.danger.color : RoostColor.Role.textSecondary.color)
+                            .fixedSize()
+                    }
                 }
             }
             .padding(.vertical, RoostSpacing.xs)
@@ -470,5 +505,43 @@ private struct SubtaskComposer: View {
         guard onAdd(draft) else { return } // the store refused; the line stays in the field
         draft = ""
         refocus($focused) // keep the keyboard up: steps come in batches too
+    }
+}
+
+
+/// The date picker behind "Set a due day". Graphical, in the household's time zone, so the day picked is
+/// the day stored whatever zone the phone is in.
+private struct DueDaySheet: View {
+    let onPick: (Date) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var day: Date
+
+    init(initial: Date, onPick: @escaping (Date) -> Void) {
+        self.onPick = onPick
+        _day = State(initialValue: initial)
+    }
+
+    var body: some View {
+        NavigationStack {
+            DatePicker(Strings.Projects.dueDayPicker, selection: $day, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .environment(\.timeZone, HouseholdCalendar().calendar.timeZone)
+                .tint(RoostColor.Role.accent.color)
+                .padding(RoostSpacing.lg)
+                .navigationTitle(Strings.Projects.dueDayPicker)
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(Strings.Settings.cancel) { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(Strings.Projects.dueDayDone) {
+                            onPick(day)
+                            dismiss()
+                        }
+                    }
+                }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

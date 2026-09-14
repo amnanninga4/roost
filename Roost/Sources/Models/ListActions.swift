@@ -172,6 +172,13 @@ enum ListActions {
         return project
     }
 
+    /// `dueOn` is a Chicago calendar day ("2026-09-20"), or nil to clear the day.
+    static func setDueOn(_ project: ProjectRecord, _ dueOn: String?, in context: ModelContext, now: Date = Date()) throws {
+        project.dueOn = dueOn
+        project.markEdited(.dueOn, at: now)
+        try context.save()
+    }
+
     /// Appends after the project's highest live step, the same default the server uses.
     @discardableResult
     static func addSubtask(_ title: String, to project: ProjectRecord, in context: ModelContext,
@@ -294,7 +301,11 @@ enum ListActions {
             try context.save()
             return project
         }
-        let copy = ProjectRecord(id: newId(), title: project.title, createdAt: project.createdAt, updatedAt: now)
+        let copy = ProjectRecord(id: newId(), title: project.title, dueOn: project.dueOn, createdAt: project.createdAt, updatedAt: now)
+        // A create does not carry the day, so flag it for the PATCH that follows.
+        if copy.dueOn != nil {
+            copy.pendingFields = .dueOn
+        }
         context.insert(copy)
         for step in steps.sorted(by: { $0.sortOrder < $1.sortOrder }) {
             let stepCopy = SubtaskRecord(

@@ -51,10 +51,10 @@ func mealJSON(
 }
 
 func projectJSON(
-    id: String, title: String, seq: Int, deleted: Bool = false, subtasks: [[String: Any]]? = nil
+    id: String, title: String, dueOn: String? = nil, seq: Int, deleted: Bool = false, subtasks: [[String: Any]]? = nil
 ) -> [String: Any] {
     var row: [String: Any] = [
-        "id": id, "title": title, "createdAt": listStamp, "updatedAt": listStamp, "deleted": deleted, "seq": seq,
+        "id": id, "title": title, "dueOn": orNull(dueOn), "createdAt": listStamp, "updatedAt": listStamp, "deleted": deleted, "seq": seq,
     ]
     if let subtasks {
         row["subtasks"] = subtasks

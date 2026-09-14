@@ -429,6 +429,37 @@ final class ListCraftTests: XCTestCase {
             predicate: #Predicate { !$0.removed }, sortBy: [SortDescriptor(\.createdAt)]
         ))
     }
+
+    // MARK: project due days
+
+    func testDueDayReadsAsDueMonthDayAndKnowsWhenItHasPassed() throws {
+        let cal = HouseholdCalendar()
+        let us = Locale(identifier: "en_US")
+        let sep10 = cal.date(year: 2026, month: 9, day: 10, hour: 9)
+        XCTAssertEqual(ProjectDates.label("2026-09-20", now: sep10, locale: us, calendar: cal), "Due Sep 20")
+        XCTAssertEqual(ProjectDates.label("2027-01-05", now: sep10, locale: us, calendar: cal), "Due Jan 5, 2027", "another year says so")
+        XCTAssertNil(ProjectDates.label("next tuesday", now: sep10, locale: us, calendar: cal))
+        XCTAssertFalse(ProjectDates.isPast("2026-09-20", now: sep10, calendar: cal))
+        XCTAssertFalse(ProjectDates.isPast("2026-09-20", now: cal.date(year: 2026, month: 9, day: 20, hour: 23), calendar: cal), "the day itself is not past")
+        XCTAssertTrue(ProjectDates.isPast("2026-09-20", now: cal.date(year: 2026, month: 9, day: 21, hour: 0), calendar: cal))
+        XCTAssertFalse(ProjectDates.isPast("garbage", now: sep10, calendar: cal))
+        XCTAssertEqual(ProjectDates.dayString(cal.date(year: 2026, month: 9, day: 20, hour: 23), calendar: cal), "2026-09-20")
+        XCTAssertEqual(ProjectDates.day(from: "2026-09-20", calendar: cal), cal.startOfDay(cal.date(year: 2026, month: 9, day: 20)))
+    }
+
+    func testSettingAndClearingTheDueDayFlagsOnlyThatField() throws {
+        let project = ProjectRecord(id: "p-1", title: "Garage trash", createdAt: clock, syncedAt: clock)
+        context.insert(project)
+        try context.save()
+        try ListActions.setDueOn(project, "2026-09-20", in: context, now: clock)
+        XCTAssertEqual(project.dueOn, "2026-09-20")
+        XCTAssertEqual(project.pendingFields, [.dueOn])
+        try ListActions.setDueOn(project, nil, in: context, now: clock)
+        XCTAssertNil(project.dueOn)
+        XCTAssertEqual(project.pendingFields, [.dueOn])
+    }
+
+
 }
 
 /// The other half of undo: what a real sync pass does with the store the undo left behind.
