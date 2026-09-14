@@ -261,6 +261,19 @@ final class KitchenModelTests: XCTestCase {
         XCTAssertTrue(others.allSatisfy { $0.handedOverBy == nil })
     }
 
+    func testATogetherAlertIsInBothColumnsAndOnceInTheBanner() throws {
+        let pantry = Chore(id: "clean-out-fridge-pantry", title: "Clean out fridge and pantry",
+                           cadence: .daily, category: .chore, together: true)
+        try seed(chores + [pantry], completions: [("c1", "scoop-litter", .anne, 4)])
+        // Sep 1 never done → 5 days late on Sep 6 for both of them.
+        let m = try model(asOf: sep6)
+        XCTAssertTrue(m.column(for: .anne).overdue.contains { $0.chore.id == pantry.id })
+        XCTAssertTrue(m.column(for: .wes).overdue.contains { $0.chore.id == pantry.id })
+        XCTAssertEqual(m.alerts.filter { $0.chore.id == pantry.id }.count, 1, "the banner says it once")
+        XCTAssertEqual(m.alerts.first { $0.chore.id == pantry.id }?.person, .anne)
+        XCTAssertEqual(m.alerts.first { $0.chore.id == pantry.id }?.copy, "Clean out fridge and pantry emergency")
+    }
+
     func testSyncedLine() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         XCTAssertEqual(KitchenModel.syncedLine(lastSyncAt: nil, now: now), "Not synced yet")

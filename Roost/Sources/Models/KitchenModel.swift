@@ -79,13 +79,15 @@ struct KitchenModel: Equatable {
                 .map(\.item)
             return Column(person: person, dueCount: plan.dueCount(for: person), overdue: overdue)
         }
-        alerts = columns
+        // A together chore sits in both columns; the banner is one shout, so it is listed once (Anne's copy).
+        var togetherSeen: Set<String> = []
+        let loud = columns
             .flatMap { $0.overdue.filter { $0.stage == .alert } }
+            .filter { item in !item.chore.together || togetherSeen.insert(item.chore.id).inserted }
+        alerts = loud
             .enumerated()
             .sorted { a, b in
-                if a.element.daysOverdue != b.element
-                    .daysOverdue
-                {
+                if a.element.daysOverdue != b.element.daysOverdue {
                     return a.element.daysOverdue > b.element.daysOverdue
                 }
                 return a.offset < b.offset

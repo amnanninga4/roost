@@ -255,6 +255,15 @@ final class HandoffPlanningTests: XCTestCase {
         XCTAssertTrue(p.offers(for: .wes).isEmpty)
     }
 
+    func testATogetherRowIsNeverOfferable() {
+        let pantry = Chore(id: "pantry", title: "Clean out fridge and pantry", cadence: .weekly,
+                           category: .chore, together: true)
+        let plan = TodayPlanner.plan(chores: [pantry], completions: [], asOf: monday,
+                                     activeFrom: cal.startOfDay(monday), calendar: cal)
+        XCTAssertEqual(plan.rows(for: .anne).first?.canOffer, false)
+        XCTAssertEqual(plan.rows(for: .wes).first?.canOffer, false)
+    }
+
     /// The period phrase is the server's, so the card and the push that arrived before it agree.
     func testThePeriodPhraseMatchesTheServers() {
         XCTAssertEqual(Cadence.daily.periodPhrase, "today")
