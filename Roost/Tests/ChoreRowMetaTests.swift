@@ -35,7 +35,7 @@ final class ChoreRowMetaTests: XCTestCase {
     }
 
     func testDueTodayWithNothingElseIsAnEmptyLine() throws {
-        XCTAssertEqual(ChoreRowMeta.elements(for: try row()), [])
+        XCTAssertEqual(try ChoreRowMeta.elements(for: row()), [])
     }
 
     func testTheCapIsTwoAndTheOrderIsLateNoteChip() throws {
@@ -56,13 +56,13 @@ final class ChoreRowMetaTests: XCTestCase {
     }
 
     func testTheChipSlotIsTogetherThenTheGiverThenThePin() throws {
-        XCTAssertEqual(ChoreRowMeta.elements(for: try row(together: true)), [.together])
+        XCTAssertEqual(try ChoreRowMeta.elements(for: row(together: true)), [.together])
         XCTAssertEqual(
-            ChoreRowMeta.elements(for: try row(pinned: .wes, handoff: .takenFrom(.wes))),
+            try ChoreRowMeta.elements(for: row(pinned: .wes, handoff: .takenFrom(.wes))),
             [.taken(.wes)],
             "the giver's chip says what the pin would, so the pin never reaches the line"
         )
-        XCTAssertEqual(ChoreRowMeta.elements(for: try row(pinned: .anne)), [.pinned(.anne)])
+        XCTAssertEqual(try ChoreRowMeta.elements(for: row(pinned: .anne)), [.pinned(.anne)])
     }
 
     func testASettledHandoffIsTheGiversChipNotFromText() throws {
@@ -71,7 +71,7 @@ final class ChoreRowMetaTests: XCTestCase {
     }
 
     func testADoneRowKeepsItsChipButHasNoLateCount() throws {
-        XCTAssertEqual(ChoreRowMeta.elements(for: try row(pinned: .anne, done: true)), [.pinned(.anne)])
+        XCTAssertEqual(try ChoreRowMeta.elements(for: row(pinned: .anne, done: true)), [.pinned(.anne)])
     }
 
     func testARefusedOfferStillGetsItsNote() throws {

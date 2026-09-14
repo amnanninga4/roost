@@ -1,5 +1,5 @@
-// The first-run copy, split out of Strings.swift only because that file hit swiftlint's body-length
-// cap; it is still `Strings.Onboarding` to every caller.
+/// The first-run copy, split out of Strings.swift only because that file hit swiftlint's body-length
+/// cap; it is still `Strings.Onboarding` to every caller.
 extension Strings {
     /// First run: what this is, the pairing code, who the server says you are, notifications.
     /// Four screens, one job each. Sentence case in the body, no terminal period on a button.
