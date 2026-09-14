@@ -102,7 +102,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
     func testShoppingAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openTab("Shopping", in: app)
+        openList("Shopping", in: app)
         try audit(app, allowing: [
             customFontScales("BOUGHT"),
             customFontScales("Clear bought"),
@@ -113,14 +113,14 @@ final class AccessibilityAuditTests: RoostUITestCase {
     func testMealsAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openTab("Meals", in: app)
+        openList("Meals", in: app)
         try audit(app, allowing: [textFieldScrolls("Add an idea…")])
     }
 
     func testProjectsAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openTab("Projects", in: app)
+        openList("Projects", in: app)
         // The finished card opens itself; open the other one too, so the audit sees a step row, the step
         // composer, and a bar that is not full.
         let second = app.buttons["Clear out the garage"]
@@ -128,7 +128,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
         second.tap()
         // A List only builds the rows it is about to draw, so the second card's steps are not in the
         // accessibility tree until they are on screen. One flick brings them up.
-        app.collectionViews.firstMatch.swipeUp()
+        app.collectionViews["projectsList"].swipeUp()
         XCTAssertTrue(
             app.buttons["Shelve what stays"].waitForExistence(timeout: Self.timeout),
             "the steps never appeared"
@@ -136,6 +136,18 @@ final class AccessibilityAuditTests: RoostUITestCase {
         try audit(app, allowing: [
             customFontScales("Archive"),
             textFieldScrolls("Start a project…"),
+        ])
+    }
+
+
+    func testWishlistAudit() throws {
+        let app = launch(.paired)
+        waitForTasks(in: app)
+        openList("Wishlist", in: app)
+        XCTAssertTrue(app.buttons["Bigger TV"].waitForExistence(timeout: Self.timeout), "the wishlist rows never appeared")
+        try audit(app, allowing: [
+            customFontScales("$599"),
+            textFieldScrolls("Add something you'd like…"),
         ])
     }
 

@@ -47,6 +47,22 @@ class RoostUITestCase: XCTestCase {
         )
     }
 
+
+    /// Opens the Lists tab and picks one of its pages by the segment's name, then waits for the page's
+    /// own header. The remembered page persists between launches, so this always taps the segment.
+    func openList(_ title: String, in app: XCUIApplication) {
+        let tab = app.tabBars.buttons["Lists"]
+        XCTAssertTrue(tab.waitForExistence(timeout: Self.timeout), "the Lists tab never appeared")
+        tab.tap()
+        let segment = app.segmentedControls["listsPicker"].buttons[title]
+        XCTAssertTrue(segment.waitForExistence(timeout: Self.timeout), "the \(title) segment never appeared")
+        segment.tap()
+        XCTAssertTrue(
+            app.staticTexts[title].waitForExistence(timeout: Self.timeout),
+            "the \(title) page never appeared"
+        )
+    }
+
     /// Opens the Tasks tab's gear menu and taps one of its items.
     func openFromGearMenu(_ item: String, in app: XCUIApplication) {
         let gear = app.buttons["More"]

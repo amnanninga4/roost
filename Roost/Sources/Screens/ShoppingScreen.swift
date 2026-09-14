@@ -1,4 +1,4 @@
-// Shopping tab: the running list. Type at the top, tick what was bought and it sinks into the Bought
+// Shopping page: the running list. Hosted by ListsScreen, which owns the NavigationStack and chrome. Type at the top, tick what was bought and it sinks into the Bought
 // section, clear that section when the trip is over, swipe a row away with five seconds to take it
 // back. Every write goes to the store first, then kicks a sync, so a tap is on screen before the
 // network is involved and works the same offline.
@@ -33,9 +33,8 @@ struct ShoppingScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            let rows = split
-            List {
+        let rows = split
+        List {
                 Section {
                     ListScreenHeader(
                         title: Strings.Tabs.shopping,
@@ -68,15 +67,13 @@ struct ShoppingScreen: View {
                         boughtHeader
                     }
                 }
-            }
-            .listTabChrome()
-            .roostAnimation(.standard, value: items.map(\.bought))
-            .roostHaptic(.selection, trigger: added)
-            .roostHaptic(.checkOff, trigger: checkedOff)
-            .roostHaptic(.undo, trigger: uncheckedOff)
-            .undoBar(undo)
         }
-        .tint(RoostColor.Role.accent.color)
+        .accessibilityIdentifier("shoppingList")
+        .roostAnimation(.standard, value: items.map(\.bought))
+        .roostHaptic(.selection, trigger: added)
+        .roostHaptic(.checkOff, trigger: checkedOff)
+        .roostHaptic(.undo, trigger: uncheckedOff)
+        .undoBar(undo)
     }
 
     /// "Bought" over the action that empties it. The button is the only chrome in a section header,

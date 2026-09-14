@@ -13,9 +13,13 @@ enum Strings {
 
     enum Tabs {
         static let tasks = "Tasks"
+        static let lists = "Lists"
+        static let more = "More"
+        /// The four pages under Lists; each page's header prints its own name.
         static let shopping = "Shopping"
         static let meals = "Meals"
         static let projects = "Projects"
+        static let wishlist = "Wishlist"
     }
 
     /// Shared by the four list pages.

@@ -1,4 +1,4 @@
-// Meals tab: the bank of ideas. Add a title and, if you like, a tag; mark one NEXT UP so the badge
+// Meals page: the bank of ideas. Hosted by ListsScreen, which owns the NavigationStack and chrome. Add a title and, if you like, a tag; mark one NEXT UP so the badge
 // moves to it; say "Made it" and the row remembers when. Swipe a row away with five seconds to take
 // it back. Writes go to the store first, then kick a sync.
 import RoostCore
@@ -29,8 +29,7 @@ struct MealsScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section {
                     ListScreenHeader(
                         title: Strings.Tabs.meals,
@@ -62,14 +61,11 @@ struct MealsScreen: View {
                         row(meal)
                     }
                 }
-            }
-            .listTabChrome()
-            .roostAnimation(.standard, value: ordered.map(\.id))
-            .roostHaptic(.selection, trigger: added)
-            .roostHaptic(.checkOff, trigger: marked)
-            .undoBar(undo)
         }
-        .tint(RoostColor.Role.accent.color)
+        .roostAnimation(.standard, value: ordered.map(\.id))
+        .roostHaptic(.selection, trigger: added)
+        .roostHaptic(.checkOff, trigger: marked)
+        .undoBar(undo)
     }
 
     private func row(_ meal: MealRecord) -> some View {

@@ -1,4 +1,4 @@
-// Projects tab: bigger jobs broken into steps. Each project is a card that opens on tap — a progress
+// Projects page: bigger jobs broken into steps. Hosted by ListsScreen, which owns the NavigationStack and chrome. Each project is a card that opens on tap — a progress
 // bar, the steps with check-off, and a composer for the next one. Steps can be dragged into a new
 // order; the card that runs out of steps gets a DONE chip and can be archived. Swipe a step away with
 // five seconds to take it back. Writes go to the store first, then kick a sync.
@@ -41,8 +41,7 @@ struct ProjectsScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section {
                     ListScreenHeader(
                         title: Strings.Tabs.projects,
@@ -70,23 +69,21 @@ struct ProjectsScreen: View {
                 ForEach(projects) { project in
                     card(project)
                 }
-            }
-            .listTabChrome()
-            .roostAnimation(.standard, value: open)
-            .roostHaptic(.selection, trigger: added)
-            .roostHaptic(.checkOff, trigger: checkedOff)
-            .roostHaptic(.undo, trigger: uncheckedOff)
-            .roostHaptic(.milestone, trigger: milestones)
-            .undoBar(undo)
-            .onChange(of: projects.map(\.id), initial: true) { _, ids in
-                // The mockup opens the first card; do that once, then leave the choice to the user.
-                if !openedFirst, let first = ids.first {
-                    open.insert(first)
-                    openedFirst = true
-                }
+        }
+        .accessibilityIdentifier("projectsList")
+        .roostAnimation(.standard, value: open)
+        .roostHaptic(.selection, trigger: added)
+        .roostHaptic(.checkOff, trigger: checkedOff)
+        .roostHaptic(.undo, trigger: uncheckedOff)
+        .roostHaptic(.milestone, trigger: milestones)
+        .undoBar(undo)
+        .onChange(of: projects.map(\.id), initial: true) { _, ids in
+            // The mockup opens the first card; do that once, then leave the choice to the user.
+            if !openedFirst, let first = ids.first {
+                open.insert(first)
+                openedFirst = true
             }
         }
-        .tint(RoostColor.Role.accent.color)
     }
 
     /// The composer's second field: the steps to start with, one per line, and the button that starts.
