@@ -2,7 +2,7 @@
 // Chicago-time logic (due today, streaks, escalation) lives in the app / RoostCore, not here.
 //
 // Sync cursor: every insert, update and soft-delete of a synced row (completions, shopping items,
-// meals, projects, subtasks, handoffs) takes the next value of ONE monotonic `seq` counter shared by every
+// meals, projects, subtasks, wishlist items, handoffs) takes the next value of ONE monotonic `seq` counter shared by every
 // table, so a single /sync call carries every delta. Clients sync with `cursor=<last seq seen>`; wall-clock time is
 // never used as a cursor, so same-millisecond writes and clock steps cannot lose rows.
 import { DatabaseSync } from "node:sqlite";
@@ -106,6 +106,19 @@ CREATE TABLE IF NOT EXISTS project_subtasks (
   seq       INTEGER NOT NULL UNIQUE
 );
 CREATE INDEX IF NOT EXISTS project_subtasks_project ON project_subtasks(projectId);
+CREATE TABLE IF NOT EXISTS wishlist_items (
+  id         TEXT PRIMARY KEY,
+  title      TEXT NOT NULL,
+  priceCents INTEGER CHECK (priceCents IS NULL OR priceCents BETWEEN 0 AND 99999999),
+  addedBy    TEXT NOT NULL CHECK (addedBy IN (${PEOPLE_SQL})),
+  bought     INTEGER NOT NULL DEFAULT 0 CHECK (bought IN (0,1)),
+  boughtBy   TEXT CHECK (boughtBy IN (${PEOPLE_SQL})),
+  boughtAt   TEXT,
+  createdAt  TEXT NOT NULL,
+  updatedAt  TEXT NOT NULL,
+  deletedAt  TEXT,
+  seq        INTEGER NOT NULL UNIQUE
+);
 INSERT OR IGNORE INTO meta (key, value) VALUES ('seq', '0');
 `;
 
@@ -340,6 +353,7 @@ const SHOPPING = "shopping_items";
 const MEALS = "meals";
 const PROJECTS = "projects";
 const SUBTASKS = "project_subtasks";
+const WISHLIST = "wishlist_items";
 
 function transact(db, fn) {
   db.exec("BEGIN");
@@ -431,6 +445,37 @@ export function patchShoppingItem(db, id, { title, bought }, person, now) {
 
 export function deleteShoppingItem(db, id, now) {
   return deleteRow(db, SHOPPING, id, now);
+}
+
+
+// --- wishlist ---
+
+export function getWishlistItem(db, id) {
+  return rowById(db, WISHLIST, id);
+}
+
+/** `priceCents` is null or 0..99,999,999 (the route validates; the CHECK is the backstop). */
+export function insertWishlistItem(db, { id, title, priceCents = null, addedBy }, now) {
+  return insertRow(db, WISHLIST, id, { title, priceCents, addedBy, bought: 0, boughtBy: null, boughtAt: null }, now);
+}
+
+/**
+ * { title?, priceCents?, bought? }. `priceCents: null` clears the price. `bought` stamps and clears
+ * exactly as a shopping item does.
+ */
+export function patchWishlistItem(db, id, { title, priceCents, bought }, person, now) {
+  const existing = getWishlistItem(db, id);
+  if (!existing || existing.deletedAt) return null;
+  const fields = {};
+  if (title !== undefined) fields.title = title;
+  if (priceCents !== undefined) fields.priceCents = priceCents;
+  if (bought === true && !existing.bought) Object.assign(fields, { bought: 1, boughtBy: person, boughtAt: now });
+  if (bought === false) Object.assign(fields, { bought: 0, boughtBy: null, boughtAt: null });
+  return patchRow(db, WISHLIST, id, fields, now);
+}
+
+export function deleteWishlistItem(db, id, now) {
+  return deleteRow(db, WISHLIST, id, now);
 }
 
 // --- meals ---
@@ -561,5 +606,11 @@ export function deleteSubtask(db, id, now) {
 /** Every list row with seq > cursor, per table, ordered by seq. Deleted rows included. */
 export function listsAfter(db, cursor) {
   const after = (table) => db.prepare(`SELECT * FROM ${table} WHERE seq > ? ORDER BY seq`).all(cursor);
-  return { shopping: after(SHOPPING), meals: after(MEALS), projects: after(PROJECTS), subtasks: after(SUBTASKS) };
+  return {
+    shopping: after(SHOPPING),
+    meals: after(MEALS),
+    projects: after(PROJECTS),
+    subtasks: after(SUBTASKS),
+    wishlist: after(WISHLIST),
+  };
 }

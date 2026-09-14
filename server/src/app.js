@@ -13,6 +13,9 @@
 //   POST   /shopping                      { id, title } -> 201 new / 200 replay; addedBy from token
 //   PATCH  /shopping/:id                  { title?, bought? }; bought=true stamps boughtBy/boughtAt, false clears
 //   DELETE /shopping/:id                  soft delete -> 200 (idempotent)
+//   POST   /wishlist                      { id, title, priceCents? } -> 201 new / 200 replay; addedBy from token
+//   PATCH  /wishlist/:id                  { title?, priceCents?, bought? }; priceCents=null clears it; bought as /shopping
+//   DELETE /wishlist/:id                  soft delete -> 200 (idempotent)
 //   POST   /meals                         { id, title, tag?, lastMadeAt?, nextUp? }
 //   PATCH  /meals/:id                     { title?, tag?, lastMadeAt?, nextUp? }; nextUp=true clears every other meal
 //   DELETE /meals/:id                     soft delete
@@ -30,7 +33,7 @@
 //   POST|DELETE /push/token               APNs device token register/unregister; sender in push.js
 //   GET    /sync?cursor=<n>&choresVersion=<v>
 //          one call for the app: cursor, choresVersion, chores (only when version differs), and the
-//          completions / shopping / meals / projects / subtasks / bonus / handoffs deltas (every row with seq > cursor)
+//          completions / shopping / meals / projects / subtasks / wishlist / bonus / handoffs deltas (every row with seq > cursor)
 import http from "node:http";
 import { readFileSync } from "node:fs";
 import {
@@ -47,6 +50,9 @@ import {
   insertShoppingItem,
   patchShoppingItem,
   deleteShoppingItem,
+  insertWishlistItem,
+  patchWishlistItem,
+  deleteWishlistItem,
   insertMeal,
   patchMeal,
   deleteMeal,
@@ -86,6 +92,11 @@ const TITLE_MAX = 200;
 const TAG_MAX = 40;
 const SUBTASKS_MAX = 100;
 const SORT_MAX = 1_000_000;
+const WISHLIST_RE = new RegExp(`^/wishlist/${ID_PART}$`);
+const PRICE_MAX = 99_999_999;
+const PRICE_ERROR = `priceCents must be null or an integer 0-${PRICE_MAX}`;
+/** Whole cents, or null for "no price". */
+const validPrice = (v) => v === null || (Number.isInteger(v) && v >= 0 && v <= PRICE_MAX);
 
 const ID_ERROR = "id required: 1-64 chars of [A-Za-z0-9._~:@+-], client-generated, stable across retries";
 const validId = (v) => typeof v === "string" && ID_RE.test(v);
@@ -183,6 +194,19 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
 
   function shapeShopping(row) {
     return { id: row.id, title: row.title, addedBy: row.addedBy, bought: !!row.bought, boughtBy: row.boughtBy, boughtAt: row.boughtAt, ...stamp(row) };
+  }
+
+  function shapeWishlist(row) {
+    return {
+      id: row.id,
+      title: row.title,
+      priceCents: row.priceCents ?? null,
+      addedBy: row.addedBy,
+      bought: !!row.bought,
+      boughtBy: row.boughtBy,
+      boughtAt: row.boughtAt,
+      ...stamp(row),
+    };
   }
 
   function shapeMeal(row) {
@@ -363,6 +387,35 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
       return send(res, 200, shapeShopping(row));
     }
 
+    // --- wishlist ---
+
+    if (req.method === "POST" && path === "/wishlist") {
+      const body = await readJson(req);
+      if (!validId(body.id)) return send(res, 400, { error: ID_ERROR });
+      if (!validTitle(body.title)) return send(res, 400, { error: `title required: 1-${TITLE_MAX} chars` });
+      if (has(body, "priceCents") && !validPrice(body.priceCents)) return send(res, 400, { error: PRICE_ERROR });
+      const { row, created } = insertWishlistItem(
+        db,
+        { id: body.id, title: body.title, priceCents: body.priceCents ?? null, addedBy: device.person },
+        iso()
+      );
+      return send(res, created ? 201 : 200, shapeWishlist(row));
+    }
+
+    const wishlist = WISHLIST_RE.exec(path);
+    if (req.method === "PATCH" && wishlist) {
+      const body = await readJson(req);
+      const patch = pickPatch(body, { title: validTitle, priceCents: validPrice, bought: isBool });
+      const row = patchWishlistItem(db, wishlist[1], patch, device.person, iso());
+      if (!row) return send(res, 404, { error: "not found" });
+      return send(res, 200, shapeWishlist(row));
+    }
+    if (req.method === "DELETE" && wishlist) {
+      const row = deleteWishlistItem(db, wishlist[1], iso());
+      if (!row) return send(res, 404, { error: "not found" });
+      return send(res, 200, shapeWishlist(row));
+    }
+
     // --- meals ---
 
     if (req.method === "POST" && path === "/meals") {
@@ -479,7 +532,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
       const rows = completionsAfter(db, cursor);
       const lists = listsAfter(db, cursor);
       // Cursor = the highest seq handed out in this response, across every table; unchanged when nothing changed.
-      const maxSeq = [rows, lists.shopping, lists.meals, lists.projects, lists.subtasks]
+      const maxSeq = [rows, lists.shopping, lists.meals, lists.projects, lists.subtasks, lists.wishlist]
         .filter((r) => r.length)
         .reduce((m, r) => Math.max(m, r[r.length - 1].seq), 0);
       const out = {
@@ -493,6 +546,7 @@ export function createApp({ dbPath, choresPath, tokensPath, apnsPath, pushSender
         meals: lists.meals.map(shapeMeal),
         projects: lists.projects.map(shapeProject),
         subtasks: lists.subtasks.map(shapeSubtask),
+        wishlist: lists.wishlist.map(shapeWishlist),
       };
       if (clientVersion == null || Number(clientVersion) !== version) out.chores = listChores(db);
       bonusSync(db, out, cursor, now()); // auto-assigns expired bonus tasks, adds out.bonus, folds its seqs into out.cursor
