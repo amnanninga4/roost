@@ -45,6 +45,7 @@
 		47641B203590A9E1117FB6F1 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437D3C9DA2143287D04065E3 /* RootTabView.swift */; };
 		4798048D31F0170904D22EFE /* NotificationCenterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942C42CA2EA09654B4A81C62 /* NotificationCenterClient.swift */; };
 		482F3F523C9CB57C640A68FA /* MealsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A097437EB479AA01D6F9E7E8 /* MealsScreen.swift */; };
+		4AEB7C87DB9D887D01AF8168 /* ListActions+Wishlist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B4F24B76FC332F357199931 /* ListActions+Wishlist.swift */; };
 		4C25971AEC9CDF6ACC9626E7 /* PersonColumnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48A55826328A91D661A3B83 /* PersonColumnView.swift */; };
 		4E249EBF76630E883E798BB8 /* RoostAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08D23A2D3FFCC9B7EDDDA809 /* RoostAppDelegate.swift */; };
 		4EBFF4F44A18F066B0E62638 /* HandoffActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC8A96DE8278AB9B883E7B09 /* HandoffActions.swift */; };
@@ -176,6 +177,7 @@
 		06641AAFA324A99E75897A98 /* HandoffSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffSyncTests.swift; sourceTree = "<group>"; };
 		080ACA808436919384EF6875 /* TodayPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlanner.swift; sourceTree = "<group>"; };
 		08D23A2D3FFCC9B7EDDDA809 /* RoostAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostAppDelegate.swift; sourceTree = "<group>"; };
+		0B4F24B76FC332F357199931 /* ListActions+Wishlist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ListActions+Wishlist.swift"; sourceTree = "<group>"; };
 		0D07271A0DB7B2161F47FEC0 /* StreakHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakHeaderView.swift; sourceTree = "<group>"; };
 		103C16FCB5D256A44FC78EEB /* NotificationPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPlanner.swift; sourceTree = "<group>"; };
 		1C968E6FA3FA75A1861CBDC5 /* RoostWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostWidgetBundle.swift; sourceTree = "<group>"; };
@@ -494,6 +496,7 @@
 				59D8308455A41EC775A156EE /* HandoffRecords.swift */,
 				70EEA3303FF22CD208D77A66 /* KitchenModel.swift */,
 				714F89110CAB1289D39246BC /* ListActions.swift */,
+				0B4F24B76FC332F357199931 /* ListActions+Wishlist.swift */,
 				7450DA745986794A3E6746CA /* ListPresentation.swift */,
 				E343A40CD3BE9DD30C5E0C8C /* ListRecords.swift */,
 				A7168ED6D6C114A915763462 /* Records.swift */,
@@ -773,6 +776,7 @@
 				BA23590F33F0011174D3858E /* HandoffSync.swift in Sources */,
 				7F0E2E2319A89428BAB50AF0 /* KitchenModel.swift in Sources */,
 				5C48CC0675271C9AB0A796C0 /* KitchenScreen.swift in Sources */,
+				4AEB7C87DB9D887D01AF8168 /* ListActions+Wishlist.swift in Sources */,
 				89B3EFA6CFC290DFD1BD0062 /* ListActions.swift in Sources */,
 				84BFE7D41C21D8B41E3B2F0B /* ListParts.swift in Sources */,
 				DC04BB3F6E4538144F8E1AE0 /* ListPresentation.swift in Sources */,
