@@ -377,3 +377,17 @@ final class RoostGlassTests: XCTestCase {
         XCTAssertEqual(Double(tint?.green ?? -1), Double(accent.green), accuracy: 0.01)
     }
 }
+
+
+final class RoostPressStyleTests: XCTestCase {
+    /// The numbers the spec sets for a touch-down: 0.97 scale, 0.85 opacity.
+    func testThePressVocabularyIsTheDocumentedNumbers() {
+        XCTAssertEqual(RoostButtonStyle.pressedScale, 0.97)
+        XCTAssertEqual(RoostButtonStyle.pressedOpacity, 0.85)
+    }
+
+    func testTheQuietVariantOnlySkipsTheHaptic() {
+        XCTAssertTrue(RoostButtonStyle().firesHaptic)
+        XCTAssertFalse(RoostButtonStyle(haptic: false).firesHaptic)
+    }
+}
