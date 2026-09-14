@@ -19,7 +19,7 @@ struct ChoreRowView: View {
     /// offer has synced the only honest answer is to wait for one.
     var onWithdraw: (() -> Void)?
     /// Opens More → All chores from the long-press menu. Nil when the parent has not wired the route.
-    var onShowInAllChores: (() -> Void)? = nil
+    var onShowInAllChores: (() -> Void)?
     let onToggle: () -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -229,7 +229,11 @@ struct ChoreRowView: View {
                     switch element {
                     case let .daysLate(days):
                         // The stage's strong on its soft: the one chip that keeps a tinted fill.
-                        RowBadge(text: Strings.daysLate(days), tint: row.stage.role, fill: row.stage.fillRole ?? .surface)
+                        RowBadge(
+                            text: Strings.daysLate(days),
+                            tint: row.stage.role,
+                            fill: row.stage.fillRole ?? .surface
+                        )
                     case let .handoffNote(note):
                         Text(note)
                             .roostType(.caption)
@@ -240,7 +244,11 @@ struct ChoreRowView: View {
                     case let .pinned(person):
                         RowBadge(text: person.displayName.uppercased(), tint: .assigned, fill: .assignedSoft)
                     case let .taken(giver):
-                        RowBadge(text: giver.displayName.uppercased(), tint: giver.design.role, fill: giver.design.softRole)
+                        RowBadge(
+                            text: giver.displayName.uppercased(),
+                            tint: giver.design.role,
+                            fill: giver.design.softRole
+                        )
                     }
                 }
             }
@@ -274,6 +282,7 @@ struct ChoreRowView: View {
 }
 
 // MARK: - The trailing swipe
+
 //
 // The Today board is a ScrollView of cards, not a List, so the system's `.swipeActions` is not
 // available here — this reveal is the one gesture in the app built by hand. It exists for exactly

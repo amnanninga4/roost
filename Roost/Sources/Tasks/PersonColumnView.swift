@@ -24,7 +24,7 @@ struct PersonColumnView: View {
     /// Takes back an offer that has not synced yet.
     var withdraw: ((String) -> Void)?
     var answer: ((IncomingOffer, HandoffRules.Decision) -> Void)?
-    var showInAllChores: (() -> Void)? = nil
+    var showInAllChores: (() -> Void)?
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The dot that ties a column to its half of the week bar.
