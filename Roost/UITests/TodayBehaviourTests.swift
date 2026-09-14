@@ -3,12 +3,24 @@
 import XCTest
 
 final class TodayBehaviourTests: RoostUITestCase {
+    /// Anne's due-today rows sit below the fold on a 17 Pro, and XCUITest will not press or swipe an
+    /// element whose visible frame is empty: scroll the board until the row is on screen.
+    private func scrollIntoView(_ element: XCUIElement, in app: XCUIApplication) {
+        var attempts = 0
+        while !element.isHittable, attempts < 6 {
+            app.swipeUp()
+            attempts += 1
+        }
+        XCTAssertTrue(element.isHittable, "\(element.label) never scrolled into view")
+    }
+
     /// Long-press a row: the menu offers the handoff, the way into All chores, and the preview card.
     func testTheRowMenuHandsOffAndShowsInAllChores() {
         let app = launch(.paired)
         waitForTasks(in: app)
         let row = app.buttons["Feed the cat"]
         XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "the chore rows never appeared")
+        scrollIntoView(row, in: app)
         row.press(forDuration: 1.2)
         let ask = app.buttons["Ask Wes to take this"]
         XCTAssertTrue(ask.waitForExistence(timeout: Self.timeout), "no Hand off in the menu")
@@ -45,6 +57,7 @@ final class TodayBehaviourTests: RoostUITestCase {
         waitForTasks(in: app)
         let row = app.buttons["Feed the cat"]
         XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "the chore rows never appeared")
+        scrollIntoView(row, in: app)
         row.swipeLeft()
         let ask = app.buttons["Ask Wes to take this"]
         XCTAssertTrue(ask.waitForExistence(timeout: Self.timeout), "the swipe revealed no Hand off")
@@ -53,6 +66,5 @@ final class TodayBehaviourTests: RoostUITestCase {
             app.buttons["Ask Wes"].waitForExistence(timeout: Self.timeout),
             "the handoff confirmation never appeared"
         )
-        app.buttons["Cancel"].tap()
     }
 }
