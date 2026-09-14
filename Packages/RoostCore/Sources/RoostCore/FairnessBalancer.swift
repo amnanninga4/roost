@@ -11,16 +11,27 @@ public struct FairnessWeights: Codable, Sendable, Hashable {
     public var weekly: Int
     public var biweekly: Int
     public var monthly: Int
+    public var bimonthly: Int
+    public var quarterly: Int
 
-    public init(daily: Int, weekly: Int, biweekly: Int, monthly: Int) {
+    public init(daily: Int, weekly: Int, biweekly: Int, monthly: Int, bimonthly: Int, quarterly: Int) {
         self.daily = daily
         self.weekly = weekly
         self.biweekly = biweekly
         self.monthly = monthly
+        self.bimonthly = bimonthly
+        self.quarterly = quarterly
     }
 
-    /// daily 1, weekly 3, biweekly 5, monthly 8.
-    public static let provisional = FairnessWeights(daily: 1, weekly: 3, biweekly: 5, monthly: 8)
+    /// daily 1, weekly 3, biweekly 5, monthly 8, bimonthly 10, quarterly 13.
+    public static let provisional = FairnessWeights(
+        daily: 1,
+        weekly: 3,
+        biweekly: 5,
+        monthly: 8,
+        bimonthly: 10,
+        quarterly: 13
+    )
 
     public func weight(for cadence: Cadence) -> Int {
         switch cadence {
@@ -28,6 +39,8 @@ public struct FairnessWeights: Codable, Sendable, Hashable {
         case .weekly: weekly
         case .biweekly: biweekly
         case .monthly: monthly
+        case .bimonthly: bimonthly
+        case .quarterly: quarterly
         }
     }
 }

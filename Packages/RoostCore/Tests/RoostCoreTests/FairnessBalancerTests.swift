@@ -286,6 +286,8 @@ final class FairnessLoadTests: XCTestCase {
         XCTAssertEqual(weights.weight(for: .weekly), 3)
         XCTAssertEqual(weights.weight(for: .biweekly), 5)
         XCTAssertEqual(weights.weight(for: .monthly), 8)
+        XCTAssertEqual(weights.weight(for: .bimonthly), 10)
+        XCTAssertEqual(weights.weight(for: .quarterly), 13)
 
         let chores = [toilet] + dailies
         let completions = [

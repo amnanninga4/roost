@@ -11,6 +11,18 @@ public enum Cadence: String, Codable, CaseIterable, Sendable, Hashable {
     case weekly
     case biweekly
     case monthly
+    case bimonthly
+    case quarterly
+
+    /// How many calendar months one period spans, for the month-based cadences; nil for the day-based ones.
+    public var monthsPerPeriod: Int? {
+        switch self {
+        case .daily, .weekly, .biweekly: nil
+        case .monthly: 1
+        case .bimonthly: 2
+        case .quarterly: 3
+        }
+    }
 }
 
 public enum ChoreCategory: String, Codable, CaseIterable, Sendable, Hashable {

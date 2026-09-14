@@ -13,6 +13,12 @@ final class SchedulerTests: XCTestCase {
         category: .chore
     )
     let oven = Chore(id: "clean-inside-ovens", title: "Clean inside ovens", cadence: .monthly, category: .chore)
+    let fridge = Chore(
+        id: "clean-out-fridge-pantry",
+        title: "Clean out fridge and pantry",
+        cadence: .quarterly,
+        category: .chore
+    )
 
     // Household starts Monday 2026-09-07. "Today" is Wednesday 2026-09-16 unless a test says otherwise.
     lazy var activeFrom = cal.date(year: 2026, month: 9, day: 7, hour: 0)
@@ -89,6 +95,17 @@ final class SchedulerTests: XCTestCase {
         // On Oct 3 with nothing done: September ended Sep 30 → 3 days late.
         let oct3 = cal.date(year: 2026, month: 10, day: 3, hour: 9)
         XCTAssertEqual(scheduler.dueItem(for: oven, on: oct3, completions: [])?.daysOverdue, 3)
+    }
+
+    func testQuarterlyChoreIsOneDayLateOnTheFirstDayOfTheNextQuarter() {
+        // Household started Sep 7, so Jul–Sep 2026 (quarter 2) is the first period; due all quarter.
+        let s = Scheduler(chores: [fridge], activeFrom: activeFrom, calendar: cal)
+        XCTAssertEqual(s.dueItem(for: fridge, on: wed, completions: [])?.daysOverdue, 0)
+        XCTAssertEqual(s.dueItem(for: fridge, on: wed, completions: [])?.periodIndex, 2)
+        // Oct 1 with nothing done: the quarter ended Sep 30 → 1 day late, like a daily the morning after.
+        let oct1 = cal.date(year: 2026, month: 10, day: 1, hour: 9)
+        XCTAssertEqual(s.dueItem(for: fridge, on: oct1, completions: [])?.daysOverdue, 1)
+        XCTAssertEqual(s.dueItem(for: fridge, on: oct1, completions: [])?.stage, .nudge)
     }
 
     func testDueByPersonRespectsPinsAndSortsMostOverdueFirst() {
