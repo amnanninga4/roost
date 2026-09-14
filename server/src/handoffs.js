@@ -6,27 +6,35 @@
 // the next seq so /sync carries every delta. Expiry runs at the start of /sync (and on
 // accept/decline), same pattern as bonus auto-assign — no timer required.
 import { PEOPLE } from "./db.js";
-import { periodIndex as calendarPeriodIndex, assigneeFor } from "./rules.js";
+import { periodIndex as calendarPeriodIndex, assigneeFor, CADENCES } from "./rules.js";
 
 // No people CHECK here: same module-cycle reason as bonus.js. Writers take the person from
 // an authenticated token or from PEOPLE, validated at call time.
-export const HANDOFFS_SCHEMA = `
-CREATE TABLE IF NOT EXISTS handoffs (
+const CADENCES_SQL = CADENCES.map((c) => `'${c}'`).join(",");
+
+/** The handoffs columns, shared by the schema and db.js's v2 rebuild so the two cannot drift. */
+export const HANDOFFS_COLUMNS = `
   id          TEXT PRIMARY KEY,
   choreId     TEXT NOT NULL REFERENCES chores(id),
   fromPerson  TEXT NOT NULL,
   toPerson    TEXT NOT NULL,
   periodIndex INTEGER NOT NULL,
-  cadence     TEXT NOT NULL CHECK (cadence IN ('daily','weekly','biweekly','monthly')),
+  cadence     TEXT NOT NULL CHECK (cadence IN (${CADENCES_SQL})),
   state       TEXT NOT NULL CHECK (state IN ('pending','accepted','declined','expired')),
   createdAt   TEXT NOT NULL,
   updatedAt   TEXT NOT NULL,
   deletedAt   TEXT,
-  seq         INTEGER NOT NULL UNIQUE
-);
+  seq         INTEGER NOT NULL UNIQUE`;
+
+export const HANDOFFS_INDEXES = `
 CREATE INDEX IF NOT EXISTS handoffs_seq ON handoffs(seq);
 CREATE INDEX IF NOT EXISTS handoffs_chore_period ON handoffs(choreId, periodIndex);
 `;
+
+export const HANDOFFS_SCHEMA = `
+CREATE TABLE IF NOT EXISTS handoffs (${HANDOFFS_COLUMNS}
+);
+${HANDOFFS_INDEXES}`;
 
 const STATES = new Set(["pending", "accepted", "declined", "expired"]);
 const OPEN = new Set(["pending", "accepted"]);
