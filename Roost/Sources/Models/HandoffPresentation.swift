@@ -60,6 +60,8 @@ extension Cadence {
         case .daily: Strings.Handoffs.periodToday
         case .weekly, .biweekly: Strings.Handoffs.periodWeek
         case .monthly: Strings.Handoffs.periodMonth
+        case .bimonthly: Strings.Handoffs.periodTwoMonths
+        case .quarterly: Strings.Handoffs.periodQuarter
         }
     }
 }

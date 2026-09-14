@@ -7,10 +7,48 @@ final class CalendarTests: XCTestCase {
     func testAnchorIsAMondayAndPeriodZero() {
         let weekday = cal.calendar.component(.weekday, from: cal.anchor)
         XCTAssertEqual(weekday, 2, "anchor is Monday")
-        XCTAssertEqual(cal.periodIndex(.daily, containing: cal.anchor), 0)
-        XCTAssertEqual(cal.periodIndex(.weekly, containing: cal.anchor), 0)
-        XCTAssertEqual(cal.periodIndex(.biweekly, containing: cal.anchor), 0)
-        XCTAssertEqual(cal.periodIndex(.monthly, containing: cal.anchor), 0)
+        for cadence in Cadence.allCases {
+            XCTAssertEqual(cal.periodIndex(cadence, containing: cal.anchor), 0, "\(cadence) period 0 holds the anchor")
+        }
+    }
+
+    func testBimonthlyAndQuarterlyPeriodsAcrossAYearBoundary() {
+        // September 2026 is monthIndex 8: bimonthly 4 (Sep–Oct), quarterly 2 (Jul–Sep).
+        let sep = cal.date(year: 2026, month: 9, day: 13)
+        XCTAssertEqual(cal.monthIndex(sep), 8)
+        XCTAssertEqual(cal.periodIndex(.bimonthly, containing: sep), 4)
+        XCTAssertEqual(cal.periodIndex(.quarterly, containing: sep), 2)
+        let bi = cal.periodBounds(.bimonthly, index: 4)
+        XCTAssertEqual(bi.firstDay, cal.date(year: 2026, month: 9, day: 1, hour: 0))
+        XCTAssertEqual(bi.lastDay, cal.date(year: 2026, month: 10, day: 31, hour: 0))
+        let quarter = cal.periodBounds(.quarterly, index: 2)
+        XCTAssertEqual(quarter.firstDay, cal.date(year: 2026, month: 7, day: 1, hour: 0))
+        XCTAssertEqual(quarter.lastDay, cal.date(year: 2026, month: 9, day: 30, hour: 0))
+
+        // Across New Year: Nov–Dec 2026 is bimonthly 5, Jan–Feb 2027 is 6; Oct–Dec is quarterly 3, Jan–Mar 2027 is 4.
+        let dec31 = cal.date(year: 2026, month: 12, day: 31)
+        let jan1 = cal.date(year: 2027, month: 1, day: 1)
+        XCTAssertEqual(cal.periodIndex(.bimonthly, containing: dec31), 5)
+        XCTAssertEqual(cal.periodIndex(.bimonthly, containing: jan1), 6)
+        XCTAssertEqual(cal.periodIndex(.quarterly, containing: dec31), 3)
+        XCTAssertEqual(cal.periodIndex(.quarterly, containing: jan1), 4)
+        let q4 = cal.periodBounds(.quarterly, index: 4)
+        XCTAssertEqual(q4.firstDay, cal.date(year: 2027, month: 1, day: 1, hour: 0))
+        XCTAssertEqual(q4.lastDay, cal.date(year: 2027, month: 3, day: 31, hour: 0))
+
+        // Before the anchor the index goes negative and the bounds still land on month starts.
+        let dec2025 = cal.date(year: 2025, month: 12, day: 15)
+        XCTAssertEqual(cal.periodIndex(.bimonthly, containing: dec2025), -1)
+        XCTAssertEqual(cal.periodIndex(.quarterly, containing: dec2025), -1)
+        XCTAssertEqual(
+            cal.periodBounds(.bimonthly, index: -1).firstDay,
+            cal.date(year: 2025, month: 11, day: 1, hour: 0)
+        )
+        XCTAssertEqual(
+            cal.periodBounds(.quarterly, index: -1).firstDay,
+            cal.date(year: 2025, month: 10, day: 1, hour: 0)
+        )
+        XCTAssertEqual(cal.month(of: dec2025), 12)
     }
 
     func testWeekBoundsStartMondayChicago() {

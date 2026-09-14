@@ -4,10 +4,10 @@ Pure-logic Swift package for Roost. No UI, no SwiftData, no networking. The app 
 
 ## What's in it
 
-- **Models** — `Chore`, `Cadence`, `ChoreCategory`, `Person` (anne, wes), `Completion`. `Chore` decodes straight from `data/chores.json`; `ChoreList.load(from:)` reads the file.
+- **Models** — `Chore`, `Cadence`, `ChoreCategory`, `Person` (anne, wes), `Completion`, `Season`. `Chore` carries optional `season` and `together` (both default when absent) and decodes straight from `data/chores.json`; `ChoreList.load(from:)` reads the file.
 - **HouseholdCalendar** — all day/week/month arithmetic in America/Chicago, weeks start Monday. Every cadence gets an integer period index counted from an anchor Monday (2026-01-05), so both phones compute identical periods.
 - **Rotation** — protocol deciding who an unpinned chore belongs to in a period. `RoundRobinRotation` (the default) alternates every period; the starting person comes from a stable FNV-1a hash of the chore id. Pinned chores never consult it.
-- **Scheduler** — `plan(on:completions:handoffs:)` returns `[Person: [DueItem]]` (`due(on:completions:)` is the older name for the same call). Each `DueItem` carries the chore, the assignee, the period, `daysOverdue`, and an `EscalationStage`.
+- **Scheduler** — `plan(on:completions:handoffs:)` returns `[Person: [DueItem]]` (`due(on:completions:)` is the older name for the same call); `dueItems(for:…)` is the per-chore answer (`dueItem` is the one-row view). A together chore is one row per person. Each `DueItem` carries the chore, the assignee, the period, `daysOverdue`, and an `EscalationStage`.
 - **FairnessBalancer** — optional pass inside `plan`, off unless you hand one to `Scheduler(balancer:)`. It spreads a period's *reassignable* work across the two of them instead of deciding chore by chore — see [How balancing works](#how-balancing-works). `FairnessWeights` is what a chore counts for.
 - **Handoff** — one person offering their turn at a chore to the other for a single period: `{ id, choreId, from, to, periodIndex, cadence, createdAt, state }`, state `pending | accepted | declined | expired`. Accepted outranks the pin and the rotation, for that period only — but for that period permanently, since only a pending offer expires.
 - **HandoffRules** — `canOffer(chore, from:on:)`, `offer(...)`, and the `resolve(...)` pair: answer one offer, or sweep the set and expire the offers nobody answered.
@@ -18,8 +18,10 @@ Pure-logic Swift package for Roost. No UI, no SwiftData, no networking. The app 
 
 These are defaults so the app can be built. None of them are confirmed by Anne or Wes yet; change them here and everything downstream follows.
 
-- **Periods.** Daily = each Chicago day. Weekly = Monday–Sunday. Biweekly = two of those, counted from the anchor. Monthly = calendar month.
+- **Periods.** Daily = each Chicago day. Weekly = Monday–Sunday. Biweekly = two of those, counted from the anchor. Monthly = calendar month. Bimonthly = two calendar months, quarterly = three, both counted from January 2026 (Jan–Feb, Mar–Apr, …; Jan–Mar, Apr–Jun, …).
 - **Due / overdue.** A chore is complete for a period if any completion falls inside it. The scheduler shows the *oldest* incomplete period on or after `activeFrom` (the day the household started using Roost). `daysOverdue` is 0 while that period is still open, otherwise whole days past its last day. Completing the chore now clears all older missed periods: one nag, not a backlog.
+- **Season.** A chore with a `season` is due only in periods whose first day falls in one of its months; outside the season it is neither due nor overdue, and the season's first period is the floor, so last year's misses do not carry into spring.
+- **Together.** A together chore is owed by both people at once: two rows (one per person), one completion clears both, credit for both, no handoffs, and not balanced or weighed.
 - **Assignment.** Three layers, in order: an accepted handoff for that exact period wins; otherwise the chore's pin; otherwise the rotation. Pinned chores never reach the rotation, and a handoff is the only thing that can move a pinned chore. With a balancer, a fourth step runs over the finished list: see below.
 - **Balancing weights.** A chore counts for the weight of its cadence, and the load that matters is the trailing 14 Chicago days (today plus the 13 before it).
 
@@ -29,6 +31,8 @@ These are defaults so the app can be built. None of them are confirmed by Anne o
   | weekly | 3 |
   | biweekly | 5 |
   | monthly | 8 |
+  | bimonthly | 10 |
+  | quarterly | 13 |
 
   The weights are a guess at effort — cleaning inside the ovens is most of an evening, scooping the litter is two minutes — and so is the 14-day window. Both live in `FairnessWeights.provisional` and `FairnessBalancer.windowDays`; change them there and everything downstream follows. A weekly is worth more than two dailies today, and nobody has argued about whether it should be.
 - **Handoffs.** Only the person who owes the chore for the current period can offer it, and there can be one open offer (pending or accepted) per chore per period. Accepting moves that one period, and it moves it permanently: **an accepted handoff never expires.** The next period reverts to the pin or the rotation because it is a different period, not because the handoff died — and anything that reads the past still gets the right answer, so a streak knows the chore was not the offerer's that day and an overdue item from a handed-off period stays with the person who took it. Declining changes nothing and lets the offerer ask again. Only a pending offer expires, when its period ends, and that is all `resolve(on:)` sweeps; answering after the period ended expires the offer instead of accepting it.

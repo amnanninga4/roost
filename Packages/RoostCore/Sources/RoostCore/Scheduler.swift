@@ -2,8 +2,10 @@ import Foundation
 
 /// One thing someone should do today.
 public struct DueItem: Sendable, Hashable, Identifiable {
+    /// `"<choreId>#<periodIndex>"`, and for a together chore `"<choreId>#<periodIndex>#<person>"`, so its two
+    /// rows are two ids and every other id is unchanged.
     public var id: String {
-        "\(chore.id)#\(periodIndex)"
+        chore.together ? "\(chore.id)#\(periodIndex)#\(person.rawValue)" : "\(chore.id)#\(periodIndex)"
     }
 
     public let chore: Chore
@@ -99,10 +101,7 @@ public struct Scheduler: Sendable {
         var items: [DueItem] = []
         for chore in chores {
             let forChore = byChore[chore.id] ?? []
-            guard let item = dueItem(for: chore, on: date, completions: forChore, handoffs: handoffs) else {
-                continue
-            }
-            items.append(item)
+            items += dueItems(for: chore, on: date, completions: forChore, handoffs: handoffs)
         }
         if let balancer {
             items = balancer.balance(
@@ -134,7 +133,24 @@ public struct Scheduler: Sendable {
         plan(on: date, completions: completions, handoffs: handoffs)
     }
 
-    /// The oldest incomplete period for `chore` as of `date`, or nil if it is done for the current period.
+    /// Every row `chore` puts on the day: none when it is done for the period or out of season, one for an
+    /// ordinary chore, and one per person — Anne's then Wes's, same period, same days overdue — for a
+    /// together chore. `plan` reads this; `dueItem` is the one-row view of the same answer.
+    public func dueItems(
+        for chore: Chore,
+        on date: Date,
+        completions: [Completion],
+        handoffs: [Handoff] = []
+    ) -> [DueItem] {
+        guard let item = dueItem(for: chore, on: date, completions: completions, handoffs: handoffs) else { return [] }
+        guard chore.together else { return [item] }
+        return Person.allCases.map { item.with(person: $0) }
+    }
+
+    /// The oldest incomplete period for `chore` as of `date`, or nil if it is done for the current period —
+    /// or, for a chore with a season, if the current period started out of season. Inside a season the
+    /// floor is the season's first period, so last year's missed weeks never carry into this spring.
+    /// For a together chore the row comes back as Anne's; `dueItems` is the call that knows there are two.
     public func dueItem(
         for chore: Chore,
         on date: Date,
@@ -142,7 +158,12 @@ public struct Scheduler: Sendable {
         handoffs: [Handoff] = []
     ) -> DueItem? {
         let current = calendar.periodIndex(chore.cadence, containing: date)
-        let floor = calendar.periodIndex(chore.cadence, containing: activeFrom)
+        var floor = calendar.periodIndex(chore.cadence, containing: activeFrom)
+        if let season = chore.season {
+            guard let start = firstPeriod(inSeason: season, endingAt: current, notBefore: floor, cadence: chore.cadence)
+            else { return nil }
+            floor = max(floor, start)
+        }
         let lastDone = completions
             .filter { $0.choreId == chore.id }
             .map { calendar.periodIndex(chore.cadence, containing: $0.completedAt) }
@@ -154,11 +175,29 @@ public struct Scheduler: Sendable {
         let daysOverdue = max(0, calendar.dayIndex(date) - calendar.dayIndex(bounds.lastDay))
         return DueItem(
             chore: chore,
-            person: assignee(for: chore, periodIndex: oldestIncomplete, on: date, handoffs: handoffs),
+            person: chore.together
+                ? .anne // both of them owe it; `dueItems` hands out the second row
+                : assignee(for: chore, periodIndex: oldestIncomplete, on: date, handoffs: handoffs),
             periodIndex: oldestIncomplete,
             periodStart: bounds.firstDay,
             periodLastDay: bounds.lastDay,
             daysOverdue: daysOverdue
         )
+    }
+
+    /// The first period of the run of in-season periods that ends at `current`: `current` itself when the
+    /// period before it started out of season, earlier when the season has been running. Nil when `current`
+    /// started out of season. The walk stops at `floor`, so a season that never ends still starts where the
+    /// household did.
+    func firstPeriod(inSeason season: Season, endingAt current: Int, notBefore floor: Int, cadence: Cadence) -> Int? {
+        func inSeason(_ index: Int) -> Bool {
+            season.contains(month: calendar.month(of: calendar.periodBounds(cadence, index: index).firstDay))
+        }
+        guard inSeason(current) else { return nil }
+        var start = current
+        while start - 1 >= floor, inSeason(start - 1) {
+            start -= 1
+        }
+        return start
     }
 }

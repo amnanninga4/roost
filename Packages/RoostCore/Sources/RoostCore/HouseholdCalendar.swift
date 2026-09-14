@@ -3,6 +3,8 @@ import Foundation
 /// All day / week / month arithmetic for Roost happens in America/Chicago with weeks starting Monday.
 /// Period indexes count from an anchor Monday (2026-01-05) so every cadence has a stable integer period
 /// that both phones compute identically.
+/// Bimonthly and quarterly periods are two and three calendar months, counted from January 2026
+/// (period 0 of each holds the anchor).
 public struct HouseholdCalendar: Sendable {
     public static let timeZoneIdentifier = "America/Chicago"
 
@@ -48,21 +50,32 @@ public struct HouseholdCalendar: Sendable {
         calendar.date(byAdding: .day, value: index, to: anchor)!
     }
 
+    /// Whole calendar months from January 2026 to the month containing `date`. Negative before it.
+    public func monthIndex(_ date: Date) -> Int {
+        let c = calendar.dateComponents([.year, .month], from: date)
+        return (c.year! - 2026) * 12 + (c.month! - 1)
+    }
+
+    /// The calendar month containing `date`, 1...12.
+    public func month(of date: Date) -> Int {
+        calendar.component(.month, from: date)
+    }
+
     public func periodIndex(_ cadence: Cadence, containing date: Date) -> Int {
         switch cadence {
         case .daily:
-            return dayIndex(date)
+            dayIndex(date)
         case .weekly:
-            return floorDiv(dayIndex(date), 7)
+            floorDiv(dayIndex(date), 7)
         case .biweekly:
-            return floorDiv(dayIndex(date), 14)
-        case .monthly:
-            let c = calendar.dateComponents([.year, .month], from: date)
-            return (c.year! - 2026) * 12 + (c.month! - 1)
+            floorDiv(dayIndex(date), 14)
+        case .monthly, .bimonthly, .quarterly:
+            floorDiv(monthIndex(date), cadence.monthsPerPeriod!)
         }
     }
 
-    /// Start of the first day and start of the last day of a period.
+    /// Start of the first day and start of the last day of a period. The month-based cadences share one
+    /// path: a period is `monthsPerPeriod` whole months starting at month index `index * monthsPerPeriod`.
     public func periodBounds(_ cadence: Cadence, index: Int) -> (firstDay: Date, lastDay: Date) {
         switch cadence {
         case .daily:
@@ -72,11 +85,13 @@ public struct HouseholdCalendar: Sendable {
             return (day(at: index * 7), day(at: index * 7 + 6))
         case .biweekly:
             return (day(at: index * 14), day(at: index * 14 + 13))
-        case .monthly:
-            let year = 2026 + floorDiv(index, 12)
-            let month = mod(index, 12) + 1
+        case .monthly, .bimonthly, .quarterly:
+            let months = cadence.monthsPerPeriod!
+            let firstMonth = index * months
+            let year = 2026 + floorDiv(firstMonth, 12)
+            let month = mod(firstMonth, 12) + 1
             let first = calendar.date(from: DateComponents(year: year, month: month, day: 1))!
-            let nextFirst = calendar.date(byAdding: .month, value: 1, to: first)!
+            let nextFirst = calendar.date(byAdding: .month, value: months, to: first)!
             return (first, calendar.date(byAdding: .day, value: -1, to: nextFirst)!)
         }
     }

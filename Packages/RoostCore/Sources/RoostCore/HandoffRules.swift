@@ -36,8 +36,9 @@ public struct HandoffRules: Sendable {
     /// Only the person who owes the chore for the current period may offer it, and only if no offer for that
     /// chore and period is already open. An accepted handoff makes `to` the owner, so they are the one who
     /// could offer it onward — except that the accepted handoff is itself still open, so nobody can stack a
-    /// second offer on the same period.
+    /// second offer on the same period. A together chore is never offerable.
     public func canOffer(_ chore: Chore, from person: Person, on date: Date) -> Bool {
+        guard !chore.together else { return false } // nothing to hand over: it is already both of theirs
         let period = currentPeriod(for: chore, on: date)
         guard scheduler.assignee(for: chore, periodIndex: period, on: date, handoffs: handoffs) == person else {
             return false

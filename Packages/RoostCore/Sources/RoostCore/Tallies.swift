@@ -11,12 +11,20 @@ public struct Tallies: Sendable {
         self.scheduler = scheduler
     }
 
-    /// Completions per person in the Monday-to-Sunday (Chicago) week containing `date`.
+    /// Completions per person in the Monday-to-Sunday (Chicago) week containing `date`. A together chore's
+    /// completion is one row credited to both of them: it was both their turn.
     public func doneThisWeek(asOf date: Date, completions: [Completion]) -> [Person: Int] {
         let week = calendar.weekBounds(containing: date)
+        let together = Set(scheduler.chores.filter(\.together).map(\.id))
         var counts: [Person: Int] = [.anne: 0, .wes: 0]
         for c in completions where c.completedAt >= week.start && c.completedAt < week.end {
-            counts[c.person, default: 0] += 1
+            if together.contains(c.choreId) {
+                for person in Person.allCases {
+                    counts[person, default: 0] += 1
+                }
+            } else {
+                counts[c.person, default: 0] += 1
+            }
         }
         return counts
     }
@@ -72,8 +80,9 @@ public struct Tallies: Sendable {
         // The walk asks who owed the chore *on that day*, so Tuesday's accepted handoff counts on Tuesday
         // however long ago Tuesday was: an accepted turn never expires and the sweep leaves it alone. `start`
         // is still the date passed down, so a pending offer is judged against its own day rather than today.
+        // A together daily is everybody's; the completion check below is already credit-blind.
         let mine = dailies.filter {
-            scheduler.assignee(for: $0, periodIndex: dayIndex, on: start, handoffs: handoffs) == person
+            $0.together || scheduler.assignee(for: $0, periodIndex: dayIndex, on: start, handoffs: handoffs) == person
         }
         for chore in mine {
             let done = completions.contains {
