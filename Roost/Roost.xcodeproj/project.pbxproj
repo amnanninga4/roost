@@ -67,6 +67,7 @@
 		686D3006E30A60C9E1BA6FCB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D6EC4C5A9BC124144A54F309 /* Assets.xcassets */; };
 		69ABA499AC16E169D237F1CC /* NotificationsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B62EB6553B1FB18A2AC5B0 /* NotificationsStep.swift */; };
 		6CDDED92F97B6061266FEBAF /* RoostCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4F04D4416C0FDE8B1AA930 /* RoostCopy.swift */; };
+		6F52FABDA34337C7FFC4199D /* RoostSegmentedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E663527CC81BACD2C0116B /* RoostSegmentedControl.swift */; };
 		70F202A0221F1E136998D85D /* ListsBehaviourTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29E5825B310A3BD8F8FD479 /* ListsBehaviourTests.swift */; };
 		72C16F1BBAC8648DC934A967 /* RoostWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 231ABF1630AD2D0B8F297B07 /* RoostWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		748829EBDAC41D5A4E8C8936 /* PushToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CB968BFEF0E317AC131B49E /* PushToken.swift */; };
@@ -221,6 +222,7 @@
 		59D8308455A41EC775A156EE /* HandoffRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffRecords.swift; sourceTree = "<group>"; };
 		5BA7D9CFBDE2D59E17D85996 /* SyncAPI+Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Lists.swift"; sourceTree = "<group>"; };
 		6297B456DD7EB7A1202308B9 /* TodayBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayBoard.swift; sourceTree = "<group>"; };
+		63E663527CC81BACD2C0116B /* RoostSegmentedControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostSegmentedControl.swift; sourceTree = "<group>"; };
 		681283D1E95BBDF68BC6BFF0 /* RoostWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RoostWidget.entitlements; sourceTree = "<group>"; };
 		6A61A06C665B3EA1D63BBC4F /* PushService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushService.swift; sourceTree = "<group>"; };
 		6A9D18E18A848E75999983A1 /* RoostDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoostDesign; path = ../Packages/RoostDesign; sourceTree = SOURCE_ROOT; };
@@ -441,6 +443,7 @@
 				A097437EB479AA01D6F9E7E8 /* MealsScreen.swift */,
 				EEDF75AC96744713A84DB202 /* MoreScreen.swift */,
 				79E4669DED3552DB44B02B0D /* ProjectsScreen.swift */,
+				63E663527CC81BACD2C0116B /* RoostSegmentedControl.swift */,
 				C56F18DF87B379A6F7A5447A /* SettingsModel.swift */,
 				9F91BCDBE7D063EBBAE6D91B /* SettingsScreen.swift */,
 				41A208594856956F7ED982DE /* ShoppingScreen.swift */,
@@ -837,6 +840,7 @@
 				4E249EBF76630E883E798BB8 /* RoostAppDelegate.swift in Sources */,
 				3BD71332F35529FC3CEA0964 /* RoostAppMarker.swift in Sources */,
 				2BA002E37E9AF2F8A7378B3C /* RoostCopy.swift in Sources */,
+				6F52FABDA34337C7FFC4199D /* RoostSegmentedControl.swift in Sources */,
 				3E3B14F1F50EB593606F7052 /* RoostSnapshot.swift in Sources */,
 				F18798BB95C2A24FC9CB0894 /* RootGate.swift in Sources */,
 				47641B203590A9E1117FB6F1 /* RootTabView.swift in Sources */,
