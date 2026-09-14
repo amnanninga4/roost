@@ -204,7 +204,7 @@ private struct WishlistRow: View {
     @ViewBuilder
     private var avatar: some View {
         if let person = Person(rawValue: item.addedBy) {
-            PersonAvatar(person: person)
+            RoostAvatar(person: person.design, label: Strings.Lists.addedBy(person.displayName))
         }
     }
 

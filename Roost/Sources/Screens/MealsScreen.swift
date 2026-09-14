@@ -228,7 +228,7 @@ private struct MealGlyph: View {
     @ScaledMetric(relativeTo: .body) private var scaled: CGFloat = RoostSpacing.xl
 
     private var side: CGFloat {
-        min(scaled, listGlyphCeiling)
+        min(scaled, RoostAvatar.glyphCeiling)
     }
 
     var body: some View {

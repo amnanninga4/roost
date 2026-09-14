@@ -116,8 +116,7 @@ struct PersonColumnView: View {
         // Rows inset by sm inside a card-radius card land on the row radius: 22 - 8 = 14.
         .padding(RoostSpacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoostColor.Role.surface.color, in: RoostRadius.cardShape)
-        .roostElevation(.card, cornerRadius: RoostRadius.card)
+        .roostCard()
         .roostAnimation(.standard, value: rows.map(\.id))
         .roostAnimation(.standard, value: offers.map(\.id))
     }
