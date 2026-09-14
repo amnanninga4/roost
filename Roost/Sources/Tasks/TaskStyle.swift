@@ -18,8 +18,9 @@ extension EscalationStage {
         }
     }
 
-    /// The fill behind an overdue row. `nil` for a row that is only due today: it sits on the card with
-    /// no fill, so anything carrying colour on the card is something that is running late.
+    /// The soft partner for the stage: the days-late chip's fill on the Tasks tab, the overdue card's
+    /// fill in Kitchen mode. `nil` for a row that is only due today. (The Tasks row itself is no
+    /// longer washed — the stage there is the leading edge bar in `role`.)
     var fillRole: RoostColor.Role? {
         switch self {
         case .dueToday: nil

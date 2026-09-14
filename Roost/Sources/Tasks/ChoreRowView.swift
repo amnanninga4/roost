@@ -2,8 +2,9 @@
 //
 // The whole row is the button (so there is no small target to miss), the check control holds 44 pt on
 // its own, and the row reads as one element to VoiceOver: the chore's title, then its state, then what
-// the tap will do. Everything that carries colour comes from the escalation stage, so a row that is
-// running late is obvious without reading it.
+// the tap will do. The stage reads through the title colour, the days-late chip, and a 3-pt bar along
+// the row's leading edge, so a row that is running late is obvious without reading it — and without
+// painting the card.
 import RoostCore
 import RoostDesign
 import SwiftUI
@@ -30,11 +31,6 @@ struct ChoreRowView: View {
         row.isDone ? .textSecondary : row.stage.role
     }
 
-    private var fill: Color {
-        guard !row.isDone, let fillRole = row.stage.fillRole else { return .clear }
-        return fillRole.color
-    }
-
     var body: some View {
         Button(action: onToggle) {
             HStack(alignment: .top, spacing: RoostSpacing.xs) {
@@ -57,8 +53,16 @@ struct ChoreRowView: View {
             .padding(.trailing, RoostSpacing.md)
             .padding(.vertical, RoostSpacing.xs)
             .frame(minHeight: RoostSpacing.minTapTarget)
-            .background(fill, in: RoostRadius.rowShape)
             .contentShape(Rectangle())
+            .overlay(alignment: .leading) {
+                if !row.isDone, row.stage.fillRole != nil {
+                    Capsule()
+                        .fill(row.stage.role.color)
+                        .frame(width: EdgeBar.width)
+                        .padding(.vertical, RoostSpacing.xxs)
+                        .accessibilityHidden(true)
+                }
+            }
         }
         // Quiet: the toggle already fires .checkOff / .undo on the same touch — the kit's press
         // haptic on top of that would be two haptics for one finger.
@@ -184,6 +188,15 @@ struct ChoreRowView: View {
         }
         return parts.joined(separator: ", ")
     }
+}
+
+/// The escalation stage, as an edge rather than a wash: a rounded bar along the row's leading edge
+/// in the stage's colour. A bad day still reads at a glance, but the card is no longer painted
+/// wall to wall. Decorative — the days-late chip and the subtitle carry the meaning.
+private enum EdgeBar {
+    /// 3 pt, per the spec. Stroke geometry is the one thing RoostDesign has no scale for (the
+    /// precedent is `ComposerBorder` in ListParts), so the number lives here, named once.
+    static let width: CGFloat = 3
 }
 
 /// A mono chip: the days-late count, or the name a chore is pinned to.
