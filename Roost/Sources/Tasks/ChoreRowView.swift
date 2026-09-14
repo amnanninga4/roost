@@ -26,6 +26,8 @@ struct ChoreRowView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// How far the row has slid left, 0 closed to `-revealWidth` open.
     @State private var swipeOffset: CGFloat = 0
+    /// The check-off beat's position: 1 at rest, peaking for one `quick` spring when the row is done.
+    @State private var checkBeat: CGFloat = CheckBeat.rest
 
     private var category: RoostCategory {
         row.chore.category == .catCare ? .catCare : .home
@@ -185,8 +187,19 @@ struct ChoreRowView: View {
             .font(RoostType.title)
             .foregroundStyle(row.isDone ? RoostColor.Role.success.color : checkRing.color)
             .contentTransition(.symbolEffect(.replace))
+            .scaleEffect(checkBeat)
+            .roostAnimation(.quick, value: checkBeat)
             .frame(minWidth: RoostSpacing.minTapTarget, minHeight: RoostSpacing.minTapTarget)
             .accessibilityHidden(true)
+            .onChange(of: row.isDone) { _, isDone in
+                // The beat is a check-off's, not an un-check's — and under Reduce Motion there is
+                // no beat at all, rather than a shortened one.
+                guard isDone, RoostMotion.kind(.quick, reduceMotion: reduceMotion) == .spring else { return }
+                checkBeat = CheckBeat.peak
+                DispatchQueue.main.asyncAfter(deadline: .now() + RoostMotion.Named.quick.duration) {
+                    checkBeat = CheckBeat.rest
+                }
+            }
     }
 
     /// An empty circle is the separator colour until the row is late, when it picks up the stage.
@@ -293,6 +306,13 @@ struct ChoreRowView: View {
 
 /// The strip the row uncovers. Two `xxxl` steps (96 pt): a comfortable thumb landing.
 private let handoffRevealWidth = RoostSpacing.xxxl * 2
+
+/// The check circle's little celebration: 1.0 → 1.15 → 1.0 on the `quick` spring, next to the
+/// symbol replace it decorates. Two named numbers, the one flourish the check control is allowed.
+private enum CheckBeat {
+    static let rest: CGFloat = 1
+    static let peak: CGFloat = 1.15
+}
 
 /// The escalation stage, as an edge rather than a wash: a rounded bar along the row's leading edge
 /// in the stage's colour. A bad day still reads at a glance, but the card is no longer painted
