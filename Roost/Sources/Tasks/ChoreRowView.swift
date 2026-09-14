@@ -59,6 +59,8 @@ struct ChoreRowView: View {
             }
             swipeableRow
         }
+        // The slid row would otherwise draw past the card's edge; the strip stays inside the row.
+        .clipped()
     }
 
     @ViewBuilder
@@ -66,7 +68,7 @@ struct ChoreRowView: View {
         if onOffer != nil {
             rowButton
                 .offset(x: swipeOffset)
-                .gesture(swipe)
+                .highPriorityGesture(swipe)
                 .onChange(of: row.id) { _, _ in swipeOffset = 0 } // a reused row snaps shut
         } else {
             rowButton
