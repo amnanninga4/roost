@@ -26,7 +26,26 @@ final class ListsBehaviourTests: RoostUITestCase {
         again.tabBars.buttons["Lists"].tap()
         XCTAssertTrue(again.staticTexts["Nothing on the wishlist."].waitForExistence(timeout: Self.timeout)
             || again.staticTexts["Wishlist"].waitForExistence(timeout: Self.timeout), "Wishlist came back")
-        XCTAssertTrue(again.segmentedControls["listsPicker"].buttons["Wishlist"].isSelected)
+        XCTAssertTrue(again.buttons["listsPicker.wishlist"].isSelected, "the Wishlist segment is the selected one")
         openList("Shopping", in: again) // leave the default for the next test
+    }
+
+    /// At the largest text sizes the segments show their symbols only; the word lives on as the
+    /// segment's VoiceOver name, which is what the audits reach for.
+    func testSegmentsAreSymbolsOnlyAtAccessibilitySizes() {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-roostUITestState", "paired",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ]
+        app.launch()
+        waitForTasks(in: app)
+        app.tabBars.buttons["Lists"].tap()
+        let segment = app.buttons["listsPicker.meals"]
+        XCTAssertTrue(segment.waitForExistence(timeout: Self.timeout), "the symbol segment never appeared")
+        XCTAssertEqual(segment.label, "Meals", "the word lives on as the segment's VoiceOver name")
+        // Leave the remembered page on Shopping for the next test.
+        app.buttons["listsPicker.shopping"].tap()
+        app.terminate()
     }
 }
