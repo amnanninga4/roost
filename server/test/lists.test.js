@@ -52,13 +52,14 @@ const count = (table) => app.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).ge
 const seqOf = () => Number(app.db.prepare("SELECT value FROM meta WHERE key = 'seq'").get().value);
 
 test("lists start empty and need auth", async () => {
-  for (const t of ["shopping_items", "meals", "projects", "project_subtasks"]) assert.equal(count(t), 0, t);
+  for (const t of ["shopping_items", "meals", "projects", "project_subtasks", "wishlist_items"]) assert.equal(count(t), 0, t);
   assert.equal((await call("POST", "/shopping", { body: { id: "s", title: "x" } })).status, 401);
+  assert.equal((await call("POST", "/wishlist", { body: { id: "w", title: "x" } })).status, 401);
   assert.equal((await call("PATCH", "/meals/m", { body: { title: "x" } })).status, 401);
   assert.equal((await call("DELETE", "/projects/p")).status, 401);
   const sync = await call("GET", "/sync?choresVersion=1", { token: ANNE });
   assert.equal(sync.status, 200);
-  assert.deepEqual([sync.body.shopping, sync.body.meals, sync.body.projects, sync.body.subtasks], [[], [], [], []]);
+  assert.deepEqual([sync.body.shopping, sync.body.meals, sync.body.projects, sync.body.subtasks, sync.body.wishlist], [[], [], [], [], []]);
   assert.equal(sync.body.cursor, 0);
 });
 
@@ -219,6 +220,66 @@ test("meals validation", async () => {
   assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
 });
 
+
+test("wishlist: create with and without a price, replay, price patch and clear, bought stamps, delete, validation", async () => {
+  tick();
+  const tv = await call("POST", "/wishlist", { token: ANNE, body: { id: "w-1", title: "Bigger TV", priceCents: 59900 } });
+  assert.equal(tv.status, 201);
+  assert.equal(tv.body.priceCents, 59900);
+  assert.equal(tv.body.addedBy, "anne");
+  assert.equal(tv.body.bought, false);
+  assert.equal(tv.body.boughtBy, null);
+  assert.equal(tv.body.deleted, false);
+  const trip = await call("POST", "/wishlist", { token: WES, body: { id: "w-2", title: "A weekend away" } });
+  assert.equal(trip.status, 201);
+  assert.equal(trip.body.priceCents, null, "no price is null, not zero");
+  const replay = await call("POST", "/wishlist", { token: WES, body: { id: "w-1", title: "Changed", priceCents: 1 } });
+  assert.equal(replay.status, 200);
+  assert.deepEqual(replay.body, tv.body, "replay returns the original row unchanged");
+
+  tick();
+  const repriced = await call("PATCH", "/wishlist/w-1", { token: WES, body: { priceCents: 54999 } });
+  assert.equal(repriced.status, 200);
+  assert.equal(repriced.body.priceCents, 54999);
+  assert.equal(repriced.body.title, "Bigger TV", "a price patch leaves the title alone");
+  const cleared = await call("PATCH", "/wishlist/w-1", { token: WES, body: { priceCents: null } });
+  assert.equal(cleared.body.priceCents, null, "a price can be cleared");
+  const bought = await call("PATCH", "/wishlist/w-1", { token: WES, body: { bought: true } });
+  assert.equal(bought.body.bought, true);
+  assert.equal(bought.body.boughtBy, "wes");
+  assert.equal(bought.body.boughtAt, clock.toISOString());
+  const again = await call("PATCH", "/wishlist/w-1", { token: ANNE, body: { bought: true } });
+  assert.equal(again.body.boughtBy, "wes", "re-sending bought=true keeps the first stamp");
+  const unbought = await call("PATCH", "/wishlist/w-1", { token: ANNE, body: { bought: false } });
+  assert.deepEqual([unbought.body.bought, unbought.body.boughtBy, unbought.body.boughtAt], [false, null, null]);
+
+  const post = (body) => call("POST", "/wishlist", { token: WES, body });
+  assert.equal((await post({ id: "w-bad", title: "x", priceCents: -1 })).status, 400);
+  assert.equal((await post({ id: "w-bad", title: "x", priceCents: 100_000_000 })).status, 400);
+  assert.equal((await post({ id: "w-bad", title: "x", priceCents: 12.5 })).status, 400);
+  assert.equal((await post({ id: "w-bad", title: "x", priceCents: "599" })).status, 400);
+  assert.equal((await post({ id: "w-bad", title: "" })).status, 400);
+  assert.equal((await post({ title: "no id" })).status, 400);
+  assert.equal((await post({ id: "w-max", title: "x", priceCents: 99_999_999 })).status, 201, "the ceiling is allowed");
+  assert.equal((await post({ id: "w-zero", title: "free", priceCents: 0 })).status, 201, "zero is a price");
+  const patch = (body) => call("PATCH", "/wishlist/w-1", { token: WES, body });
+  assert.equal((await patch({})).status, 400, "empty patch");
+  assert.equal((await patch({ priceCents: "x" })).status, 400);
+  assert.equal((await patch({ bought: "yes" })).status, 400);
+  assert.equal((await patch({ title: "" })).status, 400);
+  assert.equal((await call("PATCH", "/wishlist/never", { token: WES, body: { title: "x" } })).status, 404);
+  assert.equal((await call("DELETE", "/wishlist/never", { token: WES })).status, 404);
+  assert.equal(count("wishlist_items"), 4, "nothing created by the rejected requests");
+
+  const del = await call("DELETE", "/wishlist/w-2", { token: WES });
+  assert.equal(del.status, 200);
+  assert.equal(del.body.deleted, true);
+  assert.equal((await call("DELETE", "/wishlist/w-2", { token: WES })).body.seq, del.body.seq, "delete is idempotent");
+  assert.equal((await call("PATCH", "/wishlist/w-2", { token: WES, body: { title: "x" } })).status, 404, "deleted row is gone for PATCH");
+  assert.equal((await call("POST", "/wishlist", { token: WES, body: { id: "w-2", title: "back?" } })).body.deleted, true, "no resurrection");
+  assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
+});
+
 test("projects: create with subtasks in order, replay, patch, add/patch/delete subtasks, cascade delete with distinct seqs", async () => {
   tick();
   const seq0 = seqOf();
@@ -333,23 +394,69 @@ test("projects validation: bad ids, bad bodies, unknown projectId, duplicate or 
   assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
 });
 
-test("/sync carries all four arrays, cursor is the max seq across tables, same-tick write after a sync is delivered", async () => {
+
+test("projects: dueOn is a calendar day, accepted on create and patch, cleared with null, rejected when malformed", async () => {
+  const created = await call("POST", "/projects", { token: ANNE, body: { id: "p-due", title: "Garage trash", dueOn: "2026-09-20" } });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.dueOn, "2026-09-20");
+  const undated = await call("POST", "/projects", { token: ANNE, body: { id: "p-nodue", title: "No date" } });
+  assert.equal(undated.body.dueOn, null);
+  const moved = await call("PATCH", "/projects/p-due", { token: WES, body: { dueOn: "2026-10-01" } });
+  assert.equal(moved.status, 200);
+  assert.equal(moved.body.dueOn, "2026-10-01");
+  assert.equal(moved.body.title, "Garage trash", "a date patch leaves the title alone");
+  const cleared = await call("PATCH", "/projects/p-due", { token: WES, body: { dueOn: null } });
+  assert.equal(cleared.body.dueOn, null);
+  for (const bad of ["2026-9-20", "20/09/2026", "2026-09-20T00:00:00Z", "2026-02-30", "2026-13-01", 20260920, ""]) {
+    assert.equal((await call("PATCH", "/projects/p-due", { token: WES, body: { dueOn: bad } })).status, 400, `patch ${bad}`);
+    assert.equal((await call("POST", "/projects", { token: WES, body: { id: "p-bad", title: "x", dueOn: bad } })).status, 400, `post ${bad}`);
+  }
+  assert.equal((await call("POST", "/projects", { token: WES, body: { id: "p-leap", title: "x", dueOn: "2028-02-29" } })).status, 201, "a real leap day");
+  const sync = await call("GET", "/sync?choresVersion=1", { token: ANNE });
+  assert.equal(sync.body.projects.find((p) => p.id === "p-leap").dueOn, "2028-02-29", "the /sync shape carries dueOn");
+  assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
+});
+
+test("subtasks: assignee is anne, wes or null, on create and patch; the owner and the doer are different facts", async () => {
+  const owned = await call("POST", "/projects/p-due/subtasks", { token: ANNE, body: { id: "st-owned", title: "Bag it", assignee: "wes" } });
+  assert.equal(owned.status, 201);
+  assert.equal(owned.body.assignee, "wes");
+  const unowned = await call("POST", "/projects/p-due/subtasks", { token: ANNE, body: { id: "st-nobody", title: "Haul it" } });
+  assert.equal(unowned.body.assignee, null);
+  const handed = await call("PATCH", "/subtasks/st-nobody", { token: WES, body: { assignee: "anne" } });
+  assert.equal(handed.status, 200);
+  assert.equal(handed.body.assignee, "anne");
+  const released = await call("PATCH", "/subtasks/st-nobody", { token: WES, body: { assignee: null } });
+  assert.equal(released.body.assignee, null);
+  const done = await call("PATCH", "/subtasks/st-owned", { token: ANNE, body: { done: true } });
+  assert.equal(done.body.assignee, "wes");
+  assert.equal(done.body.doneBy, "anne");
+  assert.equal((await call("PATCH", "/subtasks/st-owned", { token: WES, body: { assignee: "bob" } })).status, 400);
+  assert.equal((await call("PATCH", "/subtasks/st-owned", { token: WES, body: { assignee: 1 } })).status, 400);
+  assert.equal((await call("POST", "/projects/p-due/subtasks", { token: WES, body: { id: "st-bad", title: "x", assignee: "" } })).status, 400);
+  const withSteps = await call("POST", "/projects", { token: WES, body: { id: "p-steps", title: "x", subtasks: [{ id: "st-of-p", title: "y" }] } });
+  assert.equal(withSteps.body.subtasks[0].assignee, null, "steps created with a project start unowned");
+  assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
+});
+
+test("/sync carries all five list arrays, cursor is the max seq across tables, same-tick write after a sync is delivered", async () => {
   const full = await call("GET", "/sync?choresVersion=1", { token: ANNE });
   assert.equal(full.status, 200);
-  for (const key of ["completions", "shopping", "meals", "projects", "subtasks"]) assert.ok(Array.isArray(full.body[key]), key);
+  for (const key of ["completions", "shopping", "meals", "projects", "subtasks", "wishlist"]) assert.ok(Array.isArray(full.body[key]), key);
   assert.equal(full.body.cursor, seqOf(), "cursor equals the max seq across every table");
   assert.equal(full.body.shopping.length, count("shopping_items"), "deleted shopping rows included");
   assert.ok(full.body.shopping.some((s) => s.deleted));
   assert.ok(full.body.projects.some((p) => p.deleted));
   assert.ok(full.body.subtasks.some((s) => s.deleted));
   assert.ok(full.body.meals.some((m) => m.deleted));
+  assert.ok(full.body.wishlist.some((w) => w.deleted));
   assert.deepEqual(full.body.completions, [], "no completions were made in this suite");
-  const allSeqs = ["shopping", "meals", "projects", "subtasks"].flatMap((k) => full.body[k]).map((r) => r.seq);
+  const allSeqs = ["shopping", "meals", "projects", "subtasks", "wishlist"].flatMap((k) => full.body[k]).map((r) => r.seq);
   assert.equal(Math.max(...allSeqs), full.body.cursor);
   assert.equal(new Set(allSeqs).size, allSeqs.length, "no seq is shared between tables");
 
   const idle = await call("GET", `/sync?cursor=${full.body.cursor}&choresVersion=1`, { token: ANNE });
-  assert.deepEqual([idle.body.shopping, idle.body.meals, idle.body.projects, idle.body.subtasks, idle.body.completions], [[], [], [], [], []]);
+  assert.deepEqual([idle.body.shopping, idle.body.meals, idle.body.projects, idle.body.subtasks, idle.body.wishlist, idle.body.completions], [[], [], [], [], [], []]);
   assert.equal(idle.body.cursor, full.body.cursor, "cursor holds when nothing changed");
 
   // Client syncs, then a write lands in the SAME clock tick (no tick()). A time cursor would drop it.
@@ -359,7 +466,7 @@ test("/sync carries all four arrays, cursor is the max seq across tables, same-t
   assert.equal(write.body.seq, cursor + 1);
   const delta = await call("GET", `/sync?cursor=${cursor}&choresVersion=1`, { token: ANNE });
   assert.deepEqual(delta.body.shopping.map((s) => s.id), ["sh-same-tick"], "same-tick write is not lost");
-  assert.deepEqual([delta.body.meals, delta.body.projects, delta.body.subtasks, delta.body.completions], [[], [], [], []]);
+  assert.deepEqual([delta.body.meals, delta.body.projects, delta.body.subtasks, delta.body.wishlist, delta.body.completions], [[], [], [], [], []]);
   assert.equal(delta.body.cursor, cursor + 1);
 
   // A delta touching every table at once, from one cursor, with the cursor advancing to the newest row.
@@ -367,6 +474,7 @@ test("/sync carries all four arrays, cursor is the max seq across tables, same-t
   await call("POST", "/meals", { token: WES, body: { id: "m-sync", title: "Soup" } });
   await call("POST", "/projects", { token: WES, body: { id: "p-sync", title: "Garage", subtasks: [{ id: "st-sync", title: "Sort boxes" }] } });
   await call("POST", "/completions", { token: WES, body: { id: "c-sync", choreId: "laundry", completedAt: "2026-09-14T13:00:00.000Z" } });
+  await call("POST", "/wishlist", { token: WES, body: { id: "w-sync", title: "Kayak", priceCents: 89900 } });
   const mixed = await call("GET", `/sync?cursor=${c2}&choresVersion=1`, { token: ANNE });
   assert.deepEqual(
     {
@@ -375,10 +483,11 @@ test("/sync carries all four arrays, cursor is the max seq across tables, same-t
       projects: mixed.body.projects.map((r) => r.id),
       subtasks: mixed.body.subtasks.map((r) => r.id),
       completions: mixed.body.completions.map((r) => r.id),
+      wishlist: mixed.body.wishlist.map((r) => r.id),
     },
-    { shopping: [], meals: ["m-sync"], projects: ["p-sync"], subtasks: ["st-sync"], completions: ["c-sync"] }
+    { shopping: [], meals: ["m-sync"], projects: ["p-sync"], subtasks: ["st-sync"], completions: ["c-sync"], wishlist: ["w-sync"] }
   );
-  assert.equal(mixed.body.cursor, c2 + 4);
+  assert.equal(mixed.body.cursor, c2 + 5);
   assert.equal(mixed.body.cursor, seqOf());
   assert.equal(mixed.body.chores, undefined, "matching choresVersion → chores omitted");
   assert.equal((await call("GET", "/health")).body.cursor, seqOf(), "health cursor tracks the shared counter");
