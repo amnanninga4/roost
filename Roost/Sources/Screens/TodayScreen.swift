@@ -103,7 +103,7 @@ struct TodayScreen: View {
         let plan = plan(asOf: now)
         return ScrollView {
             VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
-                TodayHeaderView(date: now, streaks: StreakHeaderModel(plan: plan), notice: notice(asOf: now))
+                TodayHeaderView(date: now, streaks: StreakHeaderModel(plan: plan), notice: notice(asOf: now), me: me)
                 ForEach(TodayBoard.columnPeople(me: me), id: \.self) { person in
                     let rows = TodayBoard.ordered(plan.rows(for: person))
                     let isMine = person == me

@@ -368,6 +368,18 @@ enum Strings {
         /// "Anne · 14   Wes · 11"
         static let tallySeparator = " · "
         static let tallyGap = "   "
+        /// The collapsed line's word for this phone's person.
+        static let lineYou = "You"
+        /// Between the two scores on the collapsed line.
+        static let scoreSeparator = " — "
+        /// The collapsed line's trailing clause: "12-day streak".
+        static func lineStreak(_ days: Int) -> String {
+            "\(days)-day streak"
+        }
+
+        /// VoiceOver hints on the collapsed line.
+        static let expandHint = "Shows the full streak card"
+        static let collapseHint = "Hides the streak card"
     }
 
     /// Subtitle under an overdue row. Stage and category come from RoostCore; dueToday shows nothing.
