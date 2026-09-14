@@ -134,7 +134,8 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
         var older = subtaskJSON(id: "st-old", projectId: "p-5", title: "Old server", seq: 11)
         older.removeValue(forKey: "assignee")
         StubURLProtocol.reset { _ in (200, listsSyncJSON(cursor: 11, subtasks: [older])) }
-        XCTAssertEqual(await client.syncNow(), .synced(posted: 0, deleted: 0, received: 1))
+        let syncResult = await client.syncNow()
+        XCTAssertEqual(syncResult, .synced(posted: 0, deleted: 0, received: 1))
         XCTAssertNil(try subtaskRow("st-old")?.assignee)
     }
 }
