@@ -27,6 +27,9 @@ struct PersonColumnView: View {
     var showInAllChores: (() -> Void)?
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Set once, on the card's first appearance: the rows' entrance stagger never repeats.
+    @State private var entered = false
     /// The dot that ties a column to its half of the week bar.
     @ScaledMetric(relativeTo: .title2) private var dot = RoostSpacing.sm
 
@@ -104,7 +107,7 @@ struct PersonColumnView: View {
                     clearLine(Strings.Tasks.nothingLeft)
                         .roostTransition(.row)
                 }
-                ForEach(rows) { row in
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                     ChoreRowView(
                         row: row,
                         onOffer: offerAction(for: row),
@@ -112,6 +115,13 @@ struct PersonColumnView: View {
                         onShowInAllChores: showInAllChores
                     ) { toggle(row) }
                         .roostTransition(.checkOff)
+                        .opacity(entered ? 1 : 0)
+                        .offset(y: entered ? 0 : RoostSpacing.xs)
+                        .animation(
+                            RoostMotion.reduceMotionAware(.standard, reduceMotion: reduceMotion)
+                                .delay(RoostMotion.staggerDelay(index: index, reduceMotion: reduceMotion)),
+                            value: entered
+                        )
                 }
             }
         }
@@ -121,6 +131,11 @@ struct PersonColumnView: View {
         .roostCard()
         .roostAnimation(.standard, value: rows.map(\.id))
         .roostAnimation(.standard, value: offers.map(\.id))
+        .onAppear {
+            // First appearance per launch only: `entered` never goes back to false, so a tab switch,
+            // a scroll, or a re-render never staggers the card again.
+            entered = true
+        }
     }
 
     /// Whether this row may be offered is `row.canOffer` — `RoostCore.HandoffRules.canOffer`, decided in
