@@ -219,6 +219,7 @@ extension SubtaskRecord {
             projectId: dto.projectId,
             title: dto.title,
             sortOrder: dto.sortOrder,
+            assignee: dto.assignee,
             done: dto.done,
             doneBy: dto.doneBy,
             doneAt: dto.doneAt.flatMap(SyncAPI.parseDate),
@@ -240,6 +241,9 @@ extension SubtaskRecord {
         if !dirty.contains(.sortOrder) {
             sortOrder = dto.sortOrder
         }
+        if !dirty.contains(.assignee) {
+            assignee = dto.assignee
+        }
         if !dirty.contains(.done) {
             done = dto.done
             doneBy = dto.doneBy
@@ -258,6 +262,9 @@ extension SubtaskRecord {
         }
         if pendingFields.contains(.sortOrder) {
             body["sortOrder"] = .int(sortOrder)
+        }
+        if pendingFields.contains(.assignee) {
+            body["assignee"] = assignee.map { .string($0) } ?? .null
         }
         return body
     }

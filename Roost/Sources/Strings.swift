@@ -196,6 +196,14 @@ enum Strings {
         static let dueDayDone = "Done"
         /// VoiceOver, on a card whose day has passed.
         static let pastDue = "Past due"
+
+        /// The owner picker on a step and in the step composer.
+        static let owner = "Owner"
+        static let nobody = "Nobody"
+        /// VoiceOver, on an owned step: "For Wes".
+        static func ownedBy(_ name: String) -> String {
+            "For \(name)"
+        }
     }
 
     /// The two people. Reached through `Person.displayName`, never spelled out in a screen.

@@ -189,10 +189,11 @@ extension SyncClient {
             guard project.syncedAt != nil, !project.removed else { continue } // waits for the project, or goes with it
             let sent = try await outbound(step) {
                 let reply = try await api.postSubtask(
-                    projectId: projectId, id: step.id, title: step.title, sortOrder: step.sortOrder
+                    projectId: projectId, id: step.id, title: step.title, sortOrder: step.sortOrder,
+                    assignee: step.assignee
                 )
                 if reply.isNew {
-                    step.pendingFields.subtract([.title, .sortOrder])
+                    step.pendingFields.subtract([.title, .sortOrder, .assignee])
                 }
                 step.apply(reply.row, now: now)
             }

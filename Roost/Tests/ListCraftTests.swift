@@ -460,6 +460,36 @@ final class ListCraftTests: XCTestCase {
     }
 
 
+
+    // MARK: step owners
+
+    func testAddingAStepWithAnOwnerFlagsTheOwnerAndSettingItLaterFlagsOnlyThat() throws {
+        let project = try XCTUnwrap(try ListActions.startProject("Garage", in: context, now: clock))
+        let owned = try XCTUnwrap(try ListActions.addSubtask("Bag it", to: project, assignee: "wes", in: context, now: clock))
+        XCTAssertEqual(owned.assignee, "wes")
+        XCTAssertEqual(owned.pendingFields, [.assignee], "flagged, so it reaches the server whichever create carries the step")
+        let plain = try XCTUnwrap(try ListActions.addSubtask("Haul it", to: project, in: context, now: clock))
+        XCTAssertNil(plain.assignee)
+        XCTAssertEqual(plain.pendingFields, [])
+        plain.syncedAt = clock
+        try ListActions.setAssignee(plain, "anne", in: context, now: clock)
+        XCTAssertEqual(plain.pendingFields, [.assignee])
+        try ListActions.setAssignee(plain, nil, in: context, now: clock)
+        XCTAssertNil(plain.assignee)
+    }
+
+    func testUndoOfAnOwnedStepAfterTheDeleteWentOutKeepsTheOwnerAndFlagsIt() throws {
+        let step = SubtaskRecord(id: "st-1", projectId: "p", title: "Bag it", sortOrder: 0, assignee: "wes",
+                                 done: true, doneBy: "anne", doneAt: clock, createdAt: clock, syncedAt: clock)
+        context.insert(step)
+        try context.save()
+        try ListActions.removeSubtask(step, in: context, now: clock)
+        step.deleteSynced = true
+        let copy = try ListActions.restoreSubtask(step, in: context, now: clock)
+        XCTAssertEqual(copy.assignee, "wes")
+        XCTAssertEqual(copy.pendingFields, [.done, .assignee])
+    }
+
 }
 
 /// The other half of undo: what a real sync pass does with the store the undo left behind.

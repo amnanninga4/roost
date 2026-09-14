@@ -74,4 +74,67 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
         XCTAssertEqual(try projectRow("p-4")?.dueOn, "2026-09-30", "the local edit wins until it is sent")
         XCTAssertEqual(try projectRow("p-4")?.pendingFields, [.dueOn])
     }
+
+    func testAStepAddedWithAnOwnerPostsTheOwnerAndA201ClearsIt() async throws {
+        try await pairAsAnne()
+        let ctx = fresh()
+        let project = ProjectRecord(id: "p-5", title: "Garage", createdAt: listClock, syncedAt: listClock)
+        project.seq = 3
+        ctx.insert(project)
+        try ctx.save()
+        let step = try XCTUnwrap(try ListActions.addSubtask("Bag it", to: project, assignee: "wes", in: ctx, now: listClock))
+        let id = step.id
+        StubURLProtocol.reset { req in
+            let row = subtaskJSON(id: id, projectId: "p-5", title: "Bag it", assignee: "wes", seq: 7)
+            if req.httpMethod == "POST" {
+                return (201, json(row))
+            }
+            return (200, listsSyncJSON(cursor: 7, subtasks: [row]))
+        }
+        _ = await client.syncNow()
+        let post = try XCTUnwrap(StubURLProtocol.requests("POST").first)
+        XCTAssertEqual(post.path, "/projects/p-5/subtasks")
+        XCTAssertEqual(post.body?["assignee"] as? String, "wes")
+        XCTAssertEqual(StubURLProtocol.requests("PATCH").count, 0, "the create carried the owner")
+        XCTAssertEqual(try subtaskRow(id)?.pendingPatch, 0)
+    }
+
+    func testOwnerPatchSendsOnlyTheOwnerAndTheDoerStaysWhoeverTapped() async throws {
+        try await pairAsAnne()
+        let ctx = fresh()
+        let step = SubtaskRecord(id: "st-9", projectId: "p-5", title: "Haul it", sortOrder: 1, createdAt: listClock, syncedAt: listClock)
+        step.seq = 8
+        ctx.insert(step)
+        try ctx.save()
+        try ListActions.setAssignee(step, "wes", in: ctx, now: listClock)
+        StubURLProtocol.reset { req in
+            let row = subtaskJSON(id: "st-9", projectId: "p-5", title: "Haul it", sortOrder: 1, assignee: "wes", seq: 9)
+            if req.httpMethod == "PATCH" {
+                return (200, json(row))
+            }
+            return (200, listsSyncJSON(cursor: 9, subtasks: [row]))
+        }
+        _ = await client.syncNow()
+        let patch = try XCTUnwrap(StubURLProtocol.requests("PATCH").first)
+        XCTAssertEqual(patch.path, "/subtasks/st-9")
+        XCTAssertEqual(patch.body?["assignee"] as? String, "wes")
+        XCTAssertNil(patch.body?["done"])
+        XCTAssertNil(patch.body?["title"])
+
+        StubURLProtocol.reset { _ in
+            (200, listsSyncJSON(cursor: 10, subtasks: [
+                subtaskJSON(id: "st-9", projectId: "p-5", title: "Haul it", sortOrder: 1, done: true, doneBy: "anne", doneAt: listStamp, assignee: "wes", seq: 10),
+            ]))
+        }
+        _ = await client.syncNow()
+        let row = try XCTUnwrap(try subtaskRow("st-9"))
+        XCTAssertEqual(row.assignee, "wes")
+        XCTAssertEqual(row.doneBy, "anne", "the owner and the doer are two facts")
+
+        var older = subtaskJSON(id: "st-old", projectId: "p-5", title: "Old server", seq: 11)
+        older.removeValue(forKey: "assignee")
+        StubURLProtocol.reset { _ in (200, listsSyncJSON(cursor: 11, subtasks: [older])) }
+        XCTAssertEqual(await client.syncNow(), .synced(posted: 0, deleted: 0, received: 1))
+        XCTAssertNil(try subtaskRow("st-old")?.assignee)
+    }
 }

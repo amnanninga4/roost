@@ -150,7 +150,8 @@ struct ProjectsScreen: View {
                         moveUp: index > 0 ? { reorder(project, move: [index], to: index - 1) } : nil,
                         moveDown: index < projectSteps.count - 1
                             ? { reorder(project, move: [index], to: index + 2) } : nil,
-                        onToggle: { toggle(step) }
+                        onToggle: { toggle(step) },
+                        onAssign: { setAssignee(step, $0) }
                     )
                     .listRowBackground(RoostColor.Role.surface.color)
                     .roostTransition(.checkOff)
@@ -159,7 +160,7 @@ struct ProjectsScreen: View {
                 .onMove { source, destination in
                     reorder(project, move: source, to: destination)
                 }
-                SubtaskComposer { text in add(text, to: project) }
+                SubtaskComposer { text, owner in add(text, owner: owner, to: project) }
                     .listRowBackground(RoostColor.Role.surface.color)
                 if progress.isFinished {
                     ArchiveRow { remove(project) }
@@ -204,11 +205,16 @@ struct ProjectsScreen: View {
     }
 
     /// True when the step went into the store; the composer clears itself and keeps the keyboard.
-    private func add(_ text: String, to project: ProjectRecord) -> Bool {
-        guard (try? ListActions.addSubtask(text, to: project, in: context)) != nil else { return false }
+    private func add(_ text: String, owner: String?, to project: ProjectRecord) -> Bool {
+        guard (try? ListActions.addSubtask(text, to: project, assignee: owner, in: context)) != nil else { return false }
         added += 1
         sync.syncSoon()
         return true
+    }
+
+    private func setAssignee(_ step: SubtaskRecord, _ person: String?) {
+        try? ListActions.setAssignee(step, person, in: context)
+        sync.syncSoon()
     }
 
     private func toggle(_ step: SubtaskRecord) {
@@ -397,12 +403,18 @@ private struct SubtaskRow: View {
     let moveUp: (() -> Void)?
     let moveDown: (() -> Void)?
     let onToggle: () -> Void
+    let onAssign: (String?) -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var value: String {
-        let state = step.done ? Strings.Projects.stepDone : Strings.Projects.stepNotDone
-        guard step.rejected else { return state }
-        return state + Strings.Lists.metaSeparator + Strings.Lists.didNotSyncValue
+        var parts: [String] = [step.done ? Strings.Projects.stepDone : Strings.Projects.stepNotDone]
+        if let person = Person(rawValue: step.assignee ?? "") {
+            parts.append(Strings.Projects.ownedBy(person.displayName))
+        }
+        if step.rejected {
+            parts.append(Strings.Lists.didNotSyncValue)
+        }
+        return parts.joined(separator: Strings.Lists.metaSeparator)
     }
 
     private var title: some View {
@@ -411,6 +423,14 @@ private struct SubtaskRow: View {
             .foregroundStyle(step.done ? RoostColor.Role.textSecondary.color : RoostColor.Role.textPrimary.color)
             .strikethrough(step.done, color: RoostColor.Role.textSecondary.color)
             .multilineTextAlignment(.leading)
+    }
+
+    @ViewBuilder
+    private var ownerAvatar: some View {
+        if let owner = Person(rawValue: step.assignee ?? "") {
+            PersonAvatar(person: owner)
+                .accessibilityLabel(Strings.Projects.ownedBy(owner.displayName))
+        }
     }
 
     var body: some View {
@@ -425,12 +445,14 @@ private struct SubtaskRow: View {
                         }
                     }
                     Spacer(minLength: 0)
+                    ownerAvatar
                 } else {
                     title
                     Spacer(minLength: RoostSpacing.sm)
                     if step.rejected {
                         NotSyncedMarker()
                     }
+                    ownerAvatar
                 }
             }
             .padding(.vertical, RoostSpacing.xxs)
@@ -438,6 +460,14 @@ private struct SubtaskRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Picker(Strings.Projects.owner, selection: Binding(get: { step.assignee }, set: onAssign)) {
+                Text(Strings.Projects.nobody).tag(String?.none)
+                ForEach(Person.allCases, id: \.self) { person in
+                    Text(person.displayName).tag(Optional(person.rawValue))
+                }
+            }
+        }
         .accessibilityLabel(step.title)
         .accessibilityValue(value)
         .accessibilityHint(step.done ? Strings.Projects.markNotDone : Strings.Projects.markDone)
@@ -448,11 +478,14 @@ private struct SubtaskRow: View {
             if let moveDown {
                 Button(Strings.Projects.moveDown, action: moveDown)
             }
+            Button(Strings.Projects.nobody) { onAssign(nil) }
+            ForEach(Person.allCases, id: \.self) { person in
+                Button(person.displayName) { onAssign(person.rawValue) }
+            }
         }
     }
 }
 
-/// The one row a finished card adds: it leaves the list without losing what was done.
 private struct ArchiveRow: View {
     let onArchive: () -> Void
 
@@ -477,8 +510,9 @@ private struct ArchiveRow: View {
 
 private struct SubtaskComposer: View {
     /// Returns whether the step was added.
-    let onAdd: (String) -> Bool
+    let onAdd: (String, String?) -> Bool
     @State private var draft = ""
+    @State private var owner: String?
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -492,6 +526,22 @@ private struct SubtaskComposer: View {
                 .onSubmit(submit)
                 .accessibilityLabel(Strings.Projects.addStep)
                 .accessibilityHint(Strings.Lists.composerHint)
+            Menu {
+                Picker(Strings.Projects.owner, selection: $owner) {
+                    Text(Strings.Projects.nobody).tag(String?.none)
+                    ForEach(Person.allCases, id: \.self) { person in
+                        Text(person.displayName).tag(Optional(person.rawValue))
+                    }
+                }
+            } label: {
+                if let person = Person(rawValue: owner ?? "") {
+                    PersonAvatar(person: person)
+                } else {
+                    Image(systemName: "person.crop.circle")
+                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                }
+            }
+            .accessibilityLabel(Strings.Projects.owner)
         }
         .padding(.vertical, RoostSpacing.xxs)
         .frame(minHeight: RoostSpacing.minTapTarget)
@@ -502,12 +552,12 @@ private struct SubtaskComposer: View {
             draft = "" // blank: let Return put the keyboard away, and take the stray spaces with it
             return
         }
-        guard onAdd(draft) else { return } // the store refused; the line stays in the field
+        guard onAdd(draft, owner) else { return } // the store refused; the line stays in the field
         draft = ""
+        owner = nil
         refocus($focused) // keep the keyboard up: steps come in batches too
     }
 }
-
 
 /// The date picker behind "Set a due day". Graphical, in the household's time zone, so the day picked is
 /// the day stored whatever zone the phone is in.

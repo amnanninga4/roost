@@ -64,11 +64,11 @@ func projectJSON(
 
 func subtaskJSON(
     id: String, projectId: String, title: String, sortOrder: Int = 0, done: Bool = false,
-    doneBy: String? = nil, doneAt: String? = nil, seq: Int, deleted: Bool = false
+    doneBy: String? = nil, doneAt: String? = nil, assignee: String? = nil, seq: Int, deleted: Bool = false
 ) -> [String: Any] {
     [
         "id": id, "projectId": projectId, "title": title, "sortOrder": sortOrder, "done": done,
-        "doneBy": orNull(doneBy), "doneAt": orNull(doneAt),
+        "doneBy": orNull(doneBy), "doneAt": orNull(doneAt), "assignee": orNull(assignee),
         "createdAt": listStamp, "updatedAt": listStamp, "deleted": deleted, "seq": seq,
     ]
 }
