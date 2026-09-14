@@ -54,7 +54,7 @@ struct StreakHeaderModel: Equatable {
     }
 
     func scoreLine(me: Person?) -> ScoreLine {
-        let streak = sides.map(\\.streak).max() ?? 0
+        let streak = sides.map(\.streak).max() ?? 0
         let halves = sides.map {
             ScoreLine.Half(person: $0.person, label: $0.person.displayName, score: $0.doneThisWeek)
         }
