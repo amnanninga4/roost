@@ -18,6 +18,8 @@ import {
   boardStats,
   DEFAULT_ACTIVE_FROM,
   ANCHOR,
+  CADENCES,
+  monthIndex,
   FAIRNESS_WEIGHTS,
   FAIRNESS_WINDOW_DAYS,
   weightFor,
@@ -26,6 +28,8 @@ import {
   currentPeriodFinisher,
   isReassignable,
   balance,
+  seasonStart,
+  dueItemId,
 } from "../src/rules.js";
 
 const litter = { id: "scoop-litter", title: "Scoop litter", cadence: "daily", fixedAssignee: null, category: "cat_care" };
@@ -66,11 +70,7 @@ test("escalation ladder", () => {
 // --- Calendar ---
 
 test("anchor is Monday period zero", () => {
-  assert.equal(periodIndex("daily", ANCHOR), 0);
-  assert.equal(periodIndex("weekly", ANCHOR), 0);
-  assert.equal(periodIndex("biweekly", ANCHOR), 0);
-  assert.equal(periodIndex("monthly", ANCHOR), 0);
-  // 2026-01-05 is a Monday
+  for (const cadence of CADENCES) assert.equal(periodIndex(cadence, ANCHOR), 0, cadence);
   const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", weekday: "short" }).format(ANCHOR);
   assert.equal(p, "Mon");
 });
@@ -315,6 +315,105 @@ test("monthly bounds for September 2026", () => {
   assert.equal(b.lastDay.getTime(), chicagoLocal(2026, 9, 30, 0).getTime());
 });
 
+test("bimonthly and quarterly periods across a year boundary", () => {
+  assert.deepEqual(CADENCES, ["daily", "weekly", "biweekly", "monthly", "bimonthly", "quarterly"]);
+  const sep13 = chicagoLocal(2026, 9, 13, 12);
+  assert.equal(monthIndex(sep13), 8);
+  assert.equal(periodIndex("bimonthly", sep13), 4);
+  assert.equal(periodIndex("quarterly", sep13), 2);
+  assert.equal(periodBounds("bimonthly", 4).firstDay.getTime(), chicagoLocal(2026, 9, 1).getTime());
+  assert.equal(periodBounds("bimonthly", 4).lastDay.getTime(), chicagoLocal(2026, 10, 31).getTime());
+  assert.equal(periodBounds("quarterly", 2).firstDay.getTime(), chicagoLocal(2026, 7, 1).getTime());
+  assert.equal(periodBounds("quarterly", 2).lastDay.getTime(), chicagoLocal(2026, 9, 30).getTime());
+  assert.equal(periodIndex("bimonthly", chicagoLocal(2026, 12, 31, 12)), 5);
+  assert.equal(periodIndex("bimonthly", chicagoLocal(2027, 1, 1, 12)), 6);
+  assert.equal(periodIndex("quarterly", chicagoLocal(2026, 12, 31, 12)), 3);
+  assert.equal(periodIndex("quarterly", chicagoLocal(2027, 1, 1, 12)), 4);
+  assert.equal(periodBounds("quarterly", 4).firstDay.getTime(), chicagoLocal(2027, 1, 1).getTime());
+  assert.equal(periodBounds("quarterly", 4).lastDay.getTime(), chicagoLocal(2027, 3, 31).getTime());
+  assert.equal(periodIndex("bimonthly", chicagoLocal(2025, 12, 15, 12)), -1);
+  assert.equal(periodBounds("bimonthly", -1).firstDay.getTime(), chicagoLocal(2025, 11, 1).getTime());
+  assert.equal(periodBounds("quarterly", -1).firstDay.getTime(), chicagoLocal(2025, 10, 1).getTime());
+  assert.throws(() => periodIndex("fortnightly", sep13), /unknown cadence/);
+});
+
+test("quarterly chore is one day late on the first day of the next quarter", () => {
+  const pantry = { id: "clean-out-fridge-pantry", title: "Clean out fridge and pantry", cadence: "quarterly", fixedAssignee: null, category: "chore" };
+  assert.equal(dueItemFor(pantry, { completions: [], asOf: wed, activeFrom })?.daysOverdue, 0);
+  assert.equal(dueItemFor(pantry, { completions: [], asOf: wed, activeFrom })?.periodIndex, 2);
+  const oct1 = chicagoLocal(2026, 10, 1, 9);
+  const late = dueItemFor(pantry, { completions: [], asOf: oct1, activeFrom });
+  assert.equal(late?.daysOverdue, 1);
+  assert.equal(late?.stage, "nudge");
+});
+
+const mowing = {
+  id: "mow-lawn", title: "Mow lawn", cadence: "weekly", fixedAssignee: "anne", category: "chore",
+  season: { months: [4, 5, 6, 7, 8, 9, 10] },
+};
+const pantry = {
+  id: "clean-out-fridge-pantry", title: "Clean out fridge and pantry", cadence: "quarterly",
+  fixedAssignee: null, category: "chore", together: true,
+};
+
+test("seasonal chore: not due in March, fresh in April, carries inside the season", () => {
+  assert.equal(dueItemFor(mowing, { completions: [], asOf: chicagoLocal(2027, 3, 17, 9), activeFrom }), null);
+  assert.equal(dueItemFor(mowing, { completions: [], asOf: chicagoLocal(2027, 4, 1, 9), activeFrom }), null, "week of Mar 29 starts in March");
+  const april = dueItemFor(mowing, { completions: [], asOf: chicagoLocal(2027, 4, 7, 9), activeFrom });
+  assert.equal(april.periodStart.getTime(), chicagoLocal(2027, 4, 5).getTime());
+  assert.equal(april.daysOverdue, 0);
+  assert.equal(april.person, "anne");
+  // Inside the season a miss carries like any other chore: week of Sep 7 is 3 days late on Wed Sep 16.
+  assert.equal(dueItemFor(mowing, { completions: [], asOf: wed, activeFrom }).daysOverdue, 3);
+  // The week of Oct 26 starts in October: due through Nov 1, gone (not overdue) from Nov 2.
+  const mowed = [{ id: "m1", choreId: "mow-lawn", person: "anne", completedAt: chicagoLocal(2026, 10, 22, 17) }];
+  assert.equal(dueItemFor(mowing, { completions: mowed, asOf: chicagoLocal(2026, 10, 30, 9), activeFrom }).periodStart.getTime(), chicagoLocal(2026, 10, 26).getTime());
+  assert.ok(dueItemFor(mowing, { completions: mowed, asOf: chicagoLocal(2026, 11, 1, 9), activeFrom }));
+  assert.equal(dueItemFor(mowing, { completions: mowed, asOf: chicagoLocal(2026, 11, 3, 9), activeFrom }), null);
+  // seasonStart on its own: the run of in-season weeks ending at the current one, never before the floor.
+  const floor = periodIndex("weekly", activeFrom);
+  const current = periodIndex("weekly", wed);
+  assert.equal(seasonStart(mowing, current, floor), floor);
+  assert.equal(seasonStart(mowing, periodIndex("weekly", chicagoLocal(2027, 3, 17)), floor), null);
+});
+
+test("together chore: one row per person, one completion clears both, credit for both, never handed off or balanced", () => {
+  const chores = [litter, pantry];
+  const due = dueItems({ chores, completions: [], asOf: wed, activeFrom });
+  const anne = due.anne.find((i) => i.chore.id === pantry.id);
+  const wes = due.wes.find((i) => i.chore.id === pantry.id);
+  assert.equal(dueItemId(anne), "clean-out-fridge-pantry#2#anne");
+  assert.equal(dueItemId(wes), "clean-out-fridge-pantry#2#wes");
+  assert.equal(anne.periodIndex, wes.periodIndex);
+  assert.equal(anne.viaHandoff, false);
+  const litterItem = due.anne.find((i) => i.chore.id === litter.id) ?? due.wes.find((i) => i.chore.id === litter.id);
+  assert.equal(dueItemId(litterItem), `scoop-litter#${litterItem.periodIndex}`);
+  assert.equal(litterItem.periodIndex, periodIndex("daily", activeFrom));
+
+  const doneByWes = [{ id: "p1", choreId: pantry.id, person: "wes", completedAt: wed }];
+  const cleared = dueItems({ chores, completions: doneByWes, asOf: wed, activeFrom });
+  assert.ok(!cleared.anne.some((i) => i.chore.id === pantry.id));
+  assert.ok(!cleared.wes.some((i) => i.chore.id === pantry.id));
+
+  assert.deepEqual(doneThisWeek({ completions: doneByWes, asOf: wed, chores }), { anne: 1, wes: 1 });
+  assert.deepEqual(doneThisWeek({ completions: doneByWes, asOf: wed }), { anne: 0, wes: 1 }, "without the list there is nothing to know");
+  assert.equal(boardStats({ chores, completions: doneByWes, asOf: wed, activeFrom }).anne.week, 1);
+
+  assert.equal(isReassignable(anne, { asOf: wed }), false);
+  const balanced = balance([anne, wes], { chores, completions: [], asOf: wed });
+  assert.deepEqual(balanced.map((i) => i.person), ["anne", "wes"]);
+  assert.deepEqual(windowLoads({ chores, completions: doneByWes, asOf: wed }), { anne: 0, wes: 0 }, "not weighed");
+
+  // A together daily is owed by both in the streak walk.
+  const bothDaily = { id: "feed-together", title: "Feed the cat together", cadence: "daily", fixedAssignee: null, category: "cat_care", together: true };
+  const dailyChores = [anneDaily, wesDaily, bothDaily];
+  const fed = [c(anneDaily, "anne", 9, 15), c(bothDaily, "wes", 9, 15)];
+  const wedNight = chicagoLocal(2026, 9, 16, 18);
+  assert.equal(streak({ person: "anne", chores: dailyChores, completions: fed, asOf: wedNight, activeFrom }), 1);
+  assert.equal(streak({ person: "wes", chores: dailyChores, completions: fed, asOf: wedNight, activeFrom }), 0);
+  assert.equal(streak({ person: "anne", chores: dailyChores, completions: [c(anneDaily, "anne", 9, 15)], asOf: wedNight, activeFrom }), 0);
+});
+
 // --- FairnessBalancer (R-19) — port of FairnessBalancerTests / FairnessLoadTests ---
 
 
@@ -367,12 +466,14 @@ function planPlain(chores, completions, handoffs = []) {
 }
 
 test("fairness provisional weights and window days", () => {
-  assert.deepEqual(FAIRNESS_WEIGHTS, { daily: 1, weekly: 3, biweekly: 5, monthly: 8 });
+  assert.deepEqual(FAIRNESS_WEIGHTS, { daily: 1, weekly: 3, biweekly: 5, monthly: 8, bimonthly: 10, quarterly: 13 });
   assert.equal(FAIRNESS_WINDOW_DAYS, 14);
   assert.equal(weightFor("daily"), 1);
   assert.equal(weightFor("weekly"), 3);
   assert.equal(weightFor("biweekly"), 5);
   assert.equal(weightFor("monthly"), 8);
+  assert.equal(weightFor("bimonthly"), 10);
+  assert.equal(weightFor("quarterly"), 13);
 });
 
 test("windowLoads: weekly outweighs two dailies", () => {

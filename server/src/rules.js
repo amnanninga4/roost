@@ -5,6 +5,12 @@
 export const TZ = "America/Chicago";
 export const PEOPLE = Object.freeze(["anne", "wes"]);
 
+/** Every cadence data/chores.json may use, in the order the file groups them. Mirrors RoostCore.Cadence. */
+export const CADENCES = Object.freeze(["daily", "weekly", "biweekly", "monthly", "bimonthly", "quarterly"]);
+
+/** Calendar months per period for the month-based cadences. Mirrors Cadence.monthsPerPeriod. */
+export const MONTHS_PER_PERIOD = Object.freeze({ monthly: 1, bimonthly: 2, quarterly: 3 });
+
 /** Monday 2026-01-05 00:00 Chicago — period 0 for every cadence. */
 export const ANCHOR = chicagoLocal(2026, 1, 5, 0, 0, 0);
 
@@ -145,6 +151,12 @@ export function dayAt(index) {
   return fromJulianDay(julianDay(a.year, a.month, a.day) + index);
 }
 
+/** Whole calendar months from January 2026 to the month containing `date`. Negative before it. */
+export function monthIndex(date) {
+  const { year, month } = ymd(date);
+  return (year - 2026) * 12 + (month - 1);
+}
+
 export function periodIndex(cadence, date) {
   switch (cadence) {
     case "daily":
@@ -153,16 +165,16 @@ export function periodIndex(cadence, date) {
       return floorDiv(dayIndex(date), 7);
     case "biweekly":
       return floorDiv(dayIndex(date), 14);
-    case "monthly": {
-      const { year, month } = ymd(date);
-      return (year - 2026) * 12 + (month - 1);
-    }
+    case "monthly":
+    case "bimonthly":
+    case "quarterly":
+      return floorDiv(monthIndex(date), MONTHS_PER_PERIOD[cadence]);
     default:
       throw new Error(`unknown cadence: ${cadence}`);
   }
 }
 
-/** Start of first day and start of last day of a period. */
+/** Start of first day and start of last day of a period. Month-based periods are `MONTHS_PER_PERIOD[cadence]` whole months from month index `index * months`. */
 export function periodBounds(cadence, index) {
   switch (cadence) {
     case "daily": {
@@ -173,15 +185,14 @@ export function periodBounds(cadence, index) {
       return { firstDay: dayAt(index * 7), lastDay: dayAt(index * 7 + 6) };
     case "biweekly":
       return { firstDay: dayAt(index * 14), lastDay: dayAt(index * 14 + 13) };
-    case "monthly": {
-      const year = 2026 + floorDiv(index, 12);
-      const month = mod(index, 12) + 1;
-      const first = chicagoLocal(year, month, 1, 0, 0, 0);
-      const nextMonth = month === 12 ? 1 : month + 1;
-      const nextYear = month === 12 ? year + 1 : year;
-      const nextFirst = chicagoLocal(nextYear, nextMonth, 1, 0, 0, 0);
-      // last day = day before nextFirst
-      const last = fromJulianDay(julianDay(nextYear, nextMonth, 1) - 1);
+    case "monthly":
+    case "bimonthly":
+    case "quarterly": {
+      const months = MONTHS_PER_PERIOD[cadence];
+      const firstMonth = index * months;
+      const first = chicagoLocal(2026 + floorDiv(firstMonth, 12), mod(firstMonth, 12) + 1, 1, 0, 0, 0);
+      const endMonth = firstMonth + months; // the month after the period, as a month index
+      const last = fromJulianDay(julianDay(2026 + floorDiv(endMonth, 12), mod(endMonth, 12) + 1, 1) - 1);
       return { firstDay: first, lastDay: last };
     }
     default:
@@ -251,6 +262,22 @@ export function escalationStage(daysOverdue) {
 // Scheduler / tallies
 // ---------------------------------------------------------------------------
 
+function inSeason(chore, index) {
+  const months = chore.season?.months ?? [];
+  return months.includes(ymd(periodBounds(chore.cadence, index).firstDay).month);
+}
+
+/**
+ * First period of the run of in-season periods ending at `current`, never earlier than `floor`; null when
+ * `current` itself started out of season. Mirrors Scheduler.firstPeriod(inSeason:endingAt:notBefore:).
+ */
+export function seasonStart(chore, current, floor) {
+  if (!inSeason(chore, current)) return null;
+  let start = current;
+  while (start - 1 >= floor && inSeason(chore, start - 1)) start -= 1;
+  return start;
+}
+
 /**
  * Oldest incomplete period for `chore` as of `asOf`, or null if done for the current period.
  * Completing in a later period clears older missed ones (one nag, not a backlog).
@@ -259,7 +286,12 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
   const asOfD = asDate(asOf);
   const active = asDate(activeFrom);
   const current = periodIndex(chore.cadence, asOfD);
-  const floor = periodIndex(chore.cadence, active);
+  let floor = periodIndex(chore.cadence, active);
+  if (chore.season) {
+    const start = seasonStart(chore, current, floor);
+    if (start === null) return null;
+    floor = Math.max(floor, start);
+  }
   const mine = completions.filter((c) => c.choreId === chore.id);
   let lastDone = null;
   for (const c of mine) {
@@ -271,8 +303,9 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
 
   const bounds = periodBounds(chore.cadence, oldestIncomplete);
   const daysOverdue = Math.max(0, dayIndex(asOfD) - dayIndex(bounds.lastDay));
-  const person = assigneeFor(chore, oldestIncomplete, handoffs, asOfD);
-  const viaHandoff = person !== (chore.fixedAssignee || rotationAssignee(chore.id, oldestIncomplete));
+  // Both of them owe a together chore; dueItems hands out the second row. Nothing was handed over.
+  const person = chore.together ? "anne" : assigneeFor(chore, oldestIncomplete, handoffs, asOfD);
+  const viaHandoff = !chore.together && person !== (chore.fixedAssignee || rotationAssignee(chore.id, oldestIncomplete));
   return {
     chore,
     person,
@@ -313,7 +346,11 @@ export function dueItems({
       handoffs,
     });
     if (!item) continue;
-    items.push(item);
+    if (chore.together) {
+      for (const person of PEOPLE) items.push({ ...item, person });
+    } else {
+      items.push(item);
+    }
   }
   if (doBalance) {
     items = balance(items, { chores, completions, handoffs, asOf });
@@ -333,14 +370,25 @@ export function dueItems({
   return result;
 }
 
-/** Completions per person in the Monday–Sunday Chicago week containing `asOf`. */
-export function doneThisWeek({ completions, asOf }) {
+/** `<choreId>#<periodIndex>`, plus `#<person>` for a together chore's two rows. Mirrors DueItem.id. */
+export function dueItemId(item) {
+  return item.chore.together
+    ? `${item.chore.id}#${item.periodIndex}#${item.person}`
+    : `${item.chore.id}#${item.periodIndex}`;
+}
+
+/** Completions per person in the Monday–Sunday Chicago week containing `asOf`. A together chore's completion counts for both. */
+export function doneThisWeek({ completions, asOf, chores = [] }) {
   const week = weekBounds(asOf);
+  const together = new Set(chores.filter((c) => c.together).map((c) => c.id));
   const counts = Object.fromEntries(PEOPLE.map((p) => [p, 0]));
   for (const c of completions) {
     const t = asDate(c.completedAt).getTime();
-    if (t >= week.start.getTime() && t < week.end.getTime()) {
-      if (counts[c.person] !== undefined) counts[c.person] += 1;
+    if (t < week.start.getTime() || t >= week.end.getTime()) continue;
+    if (together.has(c.choreId)) {
+      for (const p of PEOPLE) counts[p] += 1;
+    } else if (counts[c.person] !== undefined) {
+      counts[c.person] += 1;
     }
   }
   return counts;
@@ -351,7 +399,7 @@ function isDayComplete(person, dayIdx, dailies, completions, handoffs = []) {
   const end = dayAt(dayIdx + 1);
   const startMs = start.getTime();
   const endMs = end.getTime();
-  const mine = dailies.filter((ch) => assigneeFor(ch, dayIdx, handoffs, start) === person);
+  const mine = dailies.filter((ch) => ch.together || assigneeFor(ch, dayIdx, handoffs, start) === person);
   for (const chore of mine) {
     const done = completions.some((c) => {
       if (c.choreId !== chore.id) return false;
@@ -397,7 +445,7 @@ export function boardStats({
   balance: doBalance = false,
 }) {
   const due = dueItems({ chores, completions, asOf, activeFrom, handoffs, balance: doBalance });
-  const week = doneThisWeek({ completions, asOf });
+  const week = doneThisWeek({ completions, asOf, chores });
   const out = {};
   for (const person of PEOPLE) {
     const items = due[person] ?? [];
@@ -419,7 +467,7 @@ export function boardStats({
 // ---------------------------------------------------------------------------
 
 /** Provisional cadence weights — same knob as FairnessWeights.provisional. */
-export const FAIRNESS_WEIGHTS = Object.freeze({ daily: 1, weekly: 3, biweekly: 5, monthly: 8 });
+export const FAIRNESS_WEIGHTS = Object.freeze({ daily: 1, weekly: 3, biweekly: 5, monthly: 8, bimonthly: 10, quarterly: 13 });
 
 /** Trailing Chicago days that count toward load (today included). */
 export const FAIRNESS_WINDOW_DAYS = 14;
@@ -428,10 +476,6 @@ export function weightFor(cadence) {
   const w = FAIRNESS_WEIGHTS[cadence];
   if (w === undefined) throw new Error(`unknown cadence: ${cadence}`);
   return w | 0;
-}
-
-function dueItemId(item) {
-  return `${item.chore.id}#${item.periodIndex}`;
 }
 
 /**
@@ -461,11 +505,13 @@ function loads(chores, completions, asOf, dropCurrentPeriod) {
   const startMs = windowStart.getTime();
   const endMs = windowEnd.getTime();
   const cadenceByChore = new Map(chores.map((c) => [c.id, c.cadence]));
+  const together = new Set(chores.filter((c) => c.together).map((c) => c.id));
 
   const out = Object.fromEntries(PEOPLE.map((p) => [p, 0]));
   for (const completion of completions) {
     const t = asDate(completion.completedAt).getTime();
     if (t < startMs || t >= endMs) continue;
+    if (together.has(completion.choreId)) continue;
     const cadence = cadenceByChore.get(completion.choreId);
     if (cadence == null) continue;
     if (dropCurrentPeriod) {
@@ -518,7 +564,7 @@ export function currentPeriodFinisher(chore, { completions, asOf }) {
  * Unpinned, daysOverdue === 0, and no accepted handoff covering it.
  */
 export function isReassignable(item, { handoffs = [], asOf } = {}) {
-  if (item.chore.fixedAssignee) return false;
+  if (item.chore.fixedAssignee || item.chore.together) return false;
   if ((item.daysOverdue | 0) !== 0) return false;
   return (
     acceptedHandoffOverride(item.chore.id, item.periodIndex, handoffs, asOf) == null
@@ -539,6 +585,7 @@ export function balance(items, { chores, completions, handoffs = [], asOf }) {
   const reassigned = new Map();
 
   for (const chore of chores) {
+    if (chore.together) continue; // owed by both, moved by nobody, weighed by nobody
     const weight = weightFor(chore.cadence);
     const finisher = currentPeriodFinisher(chore, { completions, asOf });
     if (finisher != null) {

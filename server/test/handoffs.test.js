@@ -1,11 +1,12 @@
 // R-18: server handoffs — create/accept/decline/expiry, /sync, assigneeFor override, status arrow.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "../src/app.js";
+import { seedChores } from "../src/db.js";
 import {
   assigneeFor,
   periodIndex,
@@ -443,6 +444,36 @@ test("R-21: resolveHandoff on accepted past-period row returns ok unchanged", as
   assert.equal(again.status, 200);
   assert.equal(again.body.state, "accepted");
   assert.equal(app.db.prepare("SELECT state FROM handoffs WHERE id = 'h-rot'").get().state, "accepted");
+});
+
+test("POST /handoffs on a together chore is refused; a bimonthly cadence is accepted by validation", async () => {
+  const data = JSON.parse(readFileSync(CHORES, "utf8"));
+  const withPantry = {
+    ...data,
+    version: 99,
+    chores: [
+      ...data.chores,
+      { id: "pantry-t", title: "Clean out fridge and pantry", cadence: "quarterly", fixedAssignee: null, category: "chore", together: true },
+      { id: "hair-b", title: "Trim Wes's hair", cadence: "bimonthly", fixedAssignee: "anne", category: "chore" },
+    ],
+  };
+  const path = join(dir, "chores-together.json");
+  writeFileSync(path, JSON.stringify(withPantry));
+  seedChores(app.db, path);
+
+  const refused = await offer(ANNE, { id: "h-together", choreId: "pantry-t", to: "wes" });
+  assert.equal(refused.status, 400);
+  assert.match(String(refused.body.error), /together/i);
+  assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM handoffs WHERE id = 'h-together'").get().n, 0);
+
+  const bad = await offer(ANNE, { id: "h-cad", choreId: "hair-b", to: "wes", cadence: "fortnightly" });
+  assert.equal(bad.status, 400);
+  assert.match(String(bad.body.error), /bimonthly\|quarterly/);
+  const ok = await offer(ANNE, { id: "h-hair", choreId: "hair-b", to: "wes", cadence: "bimonthly" });
+  assert.equal(ok.status, 201);
+  assert.equal(ok.body.cadence, "bimonthly");
+
+  seedChores(app.db, CHORES); // put the standard list back for the tests that follow
 });
 
 test("no unhandled errors logged", () => {

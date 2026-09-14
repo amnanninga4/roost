@@ -1,6 +1,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,9 @@ import {
   hasPushAlert,
   COMPLETION_EXPIRATION_SEC,
   DIGEST_LAST_SENT_META,
+  PERIOD_PHRASES,
 } from "../src/push.js";
+import { seedChores } from "../src/db.js";
 import { expireOpenHandoffs } from "../src/handoffs.js";
 import { escalationStage } from "../src/rules.js";
 
@@ -252,6 +254,52 @@ test("R-25b: accepted handoff routes red-alert to taker's partner naming the tak
   assert.equal(req.body.aps.alert.body, "Wes's chore is overdue: Laundry");
 
   app.db.prepare("DELETE FROM handoffs WHERE id = ?").run("r25b-laundry-35");
+});
+
+test("period phrases are the app's words for every cadence", () => {
+  assert.deepEqual(PERIOD_PHRASES, {
+    daily: "today",
+    weekly: "this week",
+    biweekly: "this week",
+    monthly: "this month",
+    bimonthly: "these two months",
+    quarterly: "this quarter",
+  });
+});
+
+test("red alert for a together chore reaches both phones once, naming nobody", async () => {
+  const data = JSON.parse(readFileSync(CHORES, "utf8"));
+  const path = join(dir, "chores-together.json");
+  writeFileSync(path, JSON.stringify({
+    ...data,
+    version: 98,
+    chores: [...data.chores, { id: "pantry-t", title: "Clean out fridge and pantry", cadence: "daily", fixedAssignee: null, category: "chore", together: true }],
+  }));
+  seedChores(app.db, path);
+  app.db.prepare("DELETE FROM push_tokens").run();
+  app.db.prepare("DELETE FROM push_alerts").run();
+  app.db.prepare("DELETE FROM meta WHERE key = 'activeFrom'").run(); // the code default, Sep 7
+  upsertPushToken(app.db, { token: ANNE_PUSH, person: "anne", platform: "ios" }, clock.toISOString());
+  upsertPushToken(app.db, { token: WES_PUSH, person: "wes", platform: "ios" }, clock.toISOString());
+
+  sent.length = 0;
+  const asOf = new Date("2026-09-20T17:00:00.000Z"); // Sep 7 never done → 13 days late
+  await app.push.runRedAlertSweep(asOf);
+  const pantry = sent.filter((r) => r.headers["apns-collapse-id"] === "red-pantry-t");
+  assert.equal(pantry.length, 2, "one push per person");
+  assert.deepEqual(new Set(pantry.map((r) => r.deviceToken)), new Set([ANNE_PUSH, WES_PUSH]));
+  for (const req of pantry) {
+    assert.match(req.body.aps.alert.title, /red alert/i);
+    assert.equal(req.body.aps.alert.body, "Clean out fridge and pantry is 13 days late");
+  }
+  assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM push_alerts WHERE choreId = 'pantry-t'").get().n, 1, "recorded once");
+
+  sent.length = 0;
+  await app.push.runRedAlertSweep(asOf);
+  assert.equal(sent.filter((r) => r.headers["apns-collapse-id"] === "red-pantry-t").length, 0, "not re-sent");
+
+  seedChores(app.db, CHORES);
+  app.db.prepare("DELETE FROM push_alerts").run();
 });
 
 test("red-alert sweep respects meta activeFrom (no spam on fresh pair)", async () => {

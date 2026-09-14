@@ -10,26 +10,39 @@ import { readFileSync } from "node:fs";
 import { BONUS_SCHEMA } from "./bonus.js";
 import { PAIRING_SCHEMA } from "./pairing.js";
 import { PUSH_SCHEMA } from "./push.js";
-import { HANDOFFS_SCHEMA } from "./handoffs.js";
-import { chicagoDateString } from "./rules.js";
+import { HANDOFFS_SCHEMA, HANDOFFS_COLUMNS, HANDOFFS_INDEXES } from "./handoffs.js";
+import { chicagoDateString, CADENCES } from "./rules.js";
 
 /** The household. Single source for the Node side; the CHECK constraints below are built from it. */
 export const PEOPLE = Object.freeze(["anne", "wes"]);
 const PEOPLE_SQL = PEOPLE.map((p) => `'${p}'`).join(",");
+
+const CADENCES_SQL = CADENCES.map((c) => `'${c}'`).join(",");
+
+/**
+ * Bumped when a table's shape changes in a way CREATE TABLE IF NOT EXISTS cannot apply to an existing
+ * database (a CHECK, a new column). `migrate` brings an older database up to it, step by step.
+ */
+export const SCHEMA_VERSION = 2;
+
+/** The chores columns, shared by the schema and the v2 rebuild so the two can never drift. */
+export const CHORES_COLUMNS = `
+  id            TEXT PRIMARY KEY,
+  title         TEXT NOT NULL,
+  cadence       TEXT NOT NULL CHECK (cadence IN (${CADENCES_SQL})),
+  fixedAssignee TEXT CHECK (fixedAssignee IN (${PEOPLE_SQL})),
+  category      TEXT NOT NULL CHECK (category IN ('chore','cat_care')),
+  sortOrder     INTEGER NOT NULL,
+  retired       INTEGER NOT NULL DEFAULT 0,
+  season        TEXT,
+  together      INTEGER NOT NULL DEFAULT 0 CHECK (together IN (0,1))`;
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS chores (
-  id            TEXT PRIMARY KEY,
-  title         TEXT NOT NULL,
-  cadence       TEXT NOT NULL CHECK (cadence IN ('daily','weekly','biweekly','monthly')),
-  fixedAssignee TEXT CHECK (fixedAssignee IN (${PEOPLE_SQL})),
-  category      TEXT NOT NULL CHECK (category IN ('chore','cat_care')),
-  sortOrder     INTEGER NOT NULL,
-  retired       INTEGER NOT NULL DEFAULT 0
+CREATE TABLE IF NOT EXISTS chores (${CHORES_COLUMNS}
 );
 CREATE TABLE IF NOT EXISTS completions (
   id          TEXT PRIMARY KEY,
@@ -104,7 +117,61 @@ export function openDb(path) {
   db.exec(PAIRING_SCHEMA);
   db.exec(PUSH_SCHEMA);
   db.exec(HANDOFFS_SCHEMA);
+  migrate(db);
   return db;
+}
+
+/**
+ * One-time upgrades for a database created by an older schema string. Runs before seeding, once per
+ * open, and each step is idempotent: a fresh database already has the current shape and only records
+ * the version. Keyed on meta.schemaVersion (absent = 1).
+ */
+function migrate(db) {
+  const current = Number(getMeta(db, "schemaVersion") ?? 1);
+  if (current >= SCHEMA_VERSION) return;
+  if (current < 2) migrateToV2(db);
+  setMeta(db, "schemaVersion", String(SCHEMA_VERSION));
+}
+
+function columnNames(db, table) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+}
+
+/**
+ * v2 (R-29): chores gains season + together and both cadence CHECKs widen. SQLite cannot alter a CHECK,
+ * so chores and handoffs are rebuilt the documented way — new table, copy, drop, rename — with foreign
+ * keys off for the drop (a pragma, so it has to sit outside the transaction) and checked before commit.
+ * The other tables' REFERENCES chores(id) are text and bind to the renamed table.
+ */
+function migrateToV2(db) {
+  if (columnNames(db, "chores").includes("season")) return; // built from the v2 schema string already
+  db.exec("PRAGMA foreign_keys = OFF");
+  db.exec("BEGIN");
+  try {
+    db.exec(`
+      CREATE TABLE chores_v2 (${CHORES_COLUMNS}
+      );
+      INSERT INTO chores_v2 (id, title, cadence, fixedAssignee, category, sortOrder, retired)
+        SELECT id, title, cadence, fixedAssignee, category, sortOrder, retired FROM chores;
+      DROP TABLE chores;
+      ALTER TABLE chores_v2 RENAME TO chores;
+      CREATE TABLE handoffs_v2 (${HANDOFFS_COLUMNS}
+      );
+      INSERT INTO handoffs_v2 (id, choreId, fromPerson, toPerson, periodIndex, cadence, state, createdAt, updatedAt, deletedAt, seq)
+        SELECT id, choreId, fromPerson, toPerson, periodIndex, cadence, state, createdAt, updatedAt, deletedAt, seq FROM handoffs;
+      DROP TABLE handoffs;
+      ALTER TABLE handoffs_v2 RENAME TO handoffs;
+      ${HANDOFFS_INDEXES}
+    `);
+    const broken = db.prepare("PRAGMA foreign_key_check").all();
+    if (broken.length) throw new Error(`v2 migration broke foreign keys: ${JSON.stringify(broken)}`);
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON");
+  }
 }
 
 function nextSeq(db) {
@@ -126,15 +193,17 @@ export function seedChores(db, choresJsonPath) {
     throw new Error(`bad chores file: ${choresJsonPath}`);
   }
   const upsert = db.prepare(`
-    INSERT INTO chores (id, title, cadence, fixedAssignee, category, sortOrder, retired)
-    VALUES (?, ?, ?, ?, ?, ?, 0)
+    INSERT INTO chores (id, title, cadence, fixedAssignee, category, sortOrder, retired, season, together)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title,
       cadence = excluded.cadence,
       fixedAssignee = excluded.fixedAssignee,
       category = excluded.category,
       sortOrder = excluded.sortOrder,
-      retired = 0
+      retired = 0,
+      season = excluded.season,
+      together = excluded.together
   `);
   const setMeta = db.prepare(
     "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
@@ -142,7 +211,11 @@ export function seedChores(db, choresJsonPath) {
   db.exec("BEGIN");
   try {
     data.chores.forEach((c, i) => {
-      upsert.run(c.id, c.title, c.cadence, c.fixedAssignee ?? null, c.category, i);
+      upsert.run(
+        c.id, c.title, c.cadence, c.fixedAssignee ?? null, c.category, i,
+        c.season ? JSON.stringify(c.season) : null,
+        c.together ? 1 : 0
+      );
     });
     const ids = data.chores.map((c) => c.id);
     const placeholders = ids.map(() => "?").join(",");
@@ -182,10 +255,24 @@ export function ensureActiveFrom(db, now = new Date()) {
   return getMeta(db, "activeFrom") ?? date;
 }
 
+/** A chores row as clients and the rules see it: `season` parsed back to an object (or null), `together` a boolean. */
+export function shapeChore(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    cadence: row.cadence,
+    fixedAssignee: row.fixedAssignee,
+    category: row.category,
+    season: row.season ? JSON.parse(row.season) : null,
+    together: !!row.together,
+  };
+}
+
 export function listChores(db) {
   return db
-    .prepare("SELECT id, title, cadence, fixedAssignee, category FROM chores WHERE retired = 0 ORDER BY sortOrder")
-    .all();
+    .prepare("SELECT id, title, cadence, fixedAssignee, category, season, together FROM chores WHERE retired = 0 ORDER BY sortOrder")
+    .all()
+    .map(shapeChore);
 }
 
 export function choreExists(db, id) {

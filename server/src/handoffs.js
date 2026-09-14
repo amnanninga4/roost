@@ -6,27 +6,35 @@
 // the next seq so /sync carries every delta. Expiry runs at the start of /sync (and on
 // accept/decline), same pattern as bonus auto-assign — no timer required.
 import { PEOPLE } from "./db.js";
-import { periodIndex as calendarPeriodIndex, assigneeFor } from "./rules.js";
+import { periodIndex as calendarPeriodIndex, assigneeFor, CADENCES } from "./rules.js";
 
 // No people CHECK here: same module-cycle reason as bonus.js. Writers take the person from
 // an authenticated token or from PEOPLE, validated at call time.
-export const HANDOFFS_SCHEMA = `
-CREATE TABLE IF NOT EXISTS handoffs (
+const CADENCES_SQL = CADENCES.map((c) => `'${c}'`).join(",");
+
+/** The handoffs columns, shared by the schema and db.js's v2 rebuild so the two cannot drift. */
+export const HANDOFFS_COLUMNS = `
   id          TEXT PRIMARY KEY,
   choreId     TEXT NOT NULL REFERENCES chores(id),
   fromPerson  TEXT NOT NULL,
   toPerson    TEXT NOT NULL,
   periodIndex INTEGER NOT NULL,
-  cadence     TEXT NOT NULL CHECK (cadence IN ('daily','weekly','biweekly','monthly')),
+  cadence     TEXT NOT NULL CHECK (cadence IN (${CADENCES_SQL})),
   state       TEXT NOT NULL CHECK (state IN ('pending','accepted','declined','expired')),
   createdAt   TEXT NOT NULL,
   updatedAt   TEXT NOT NULL,
   deletedAt   TEXT,
-  seq         INTEGER NOT NULL UNIQUE
-);
+  seq         INTEGER NOT NULL UNIQUE`;
+
+export const HANDOFFS_INDEXES = `
 CREATE INDEX IF NOT EXISTS handoffs_seq ON handoffs(seq);
 CREATE INDEX IF NOT EXISTS handoffs_chore_period ON handoffs(choreId, periodIndex);
 `;
+
+export const HANDOFFS_SCHEMA = `
+CREATE TABLE IF NOT EXISTS handoffs (${HANDOFFS_COLUMNS}
+);
+${HANDOFFS_INDEXES}`;
 
 const STATES = new Set(["pending", "accepted", "declined", "expired"]);
 const OPEN = new Set(["pending", "accepted"]);
@@ -136,7 +144,7 @@ export function shapeHandoff(row) {
 
 /**
  * Insert if new. Returns { row, created, error? }.
- * error: unknown_chore | bad_people | self | not_owner | open_exists | future_period | cadence_mismatch
+ * error: unknown_chore | bad_people | self | not_owner | open_exists | future_period | cadence_mismatch | together
  * Existing rows (any state) are returned untouched (idempotent replay).
  */
 export function insertHandoff(db, { id, choreId, fromPerson, toPerson, periodIndex, cadence }, now) {
@@ -148,8 +156,9 @@ export function insertHandoff(db, { id, choreId, fromPerson, toPerson, periodInd
   }
   if (fromPerson === toPerson) return { row: null, created: false, error: "self" };
 
-  const chore = db.prepare("SELECT id, cadence, fixedAssignee FROM chores WHERE id = ? AND retired = 0").get(choreId);
+  const chore = db.prepare("SELECT id, cadence, fixedAssignee, together FROM chores WHERE id = ? AND retired = 0").get(choreId);
   if (!chore) return { row: null, created: false, error: "unknown_chore" };
+  if (chore.together) return { row: null, created: false, error: "together" };
 
   // Client may omit cadence (server uses the chore's) but must not invent a different one.
   if (cadence !== undefined && cadence !== chore.cadence) {
@@ -282,8 +291,8 @@ export async function handoffRoutes({ req, res, path, db, device, send, readJson
       send(res, 400, { error: "periodIndex must be a non-negative integer" });
       return true;
     }
-    if (body.cadence !== undefined && !["daily", "weekly", "biweekly", "monthly"].includes(body.cadence)) {
-      send(res, 400, { error: "cadence must be daily|weekly|biweekly|monthly" });
+    if (body.cadence !== undefined && !CADENCES.includes(body.cadence)) {
+      send(res, 400, { error: `cadence must be one of ${CADENCES.join("|")}` });
       return true;
     }
 
@@ -306,6 +315,7 @@ export async function handoffRoutes({ req, res, path, db, device, send, readJson
     else if (error === "bad_people") send(res, 400, { error: "from/to must be anne or wes" });
     else if (error === "future_period") send(res, 400, { error: "periodIndex cannot be in the future" });
     else if (error === "cadence_mismatch") send(res, 400, { error: "cadence must match the chore" });
+    else if (error === "together") send(res, 400, { error: "together chores cannot be handed off" });
     else if (error === "not_owner") send(res, 403, { error: "only the current owner may offer this chore" });
     else if (error === "open_exists") send(res, 409, { error: "an open handoff already exists for this chore and period" });
     else {
