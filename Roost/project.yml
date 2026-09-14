@@ -53,6 +53,10 @@ targets:
       - path: ../data/chores.json
         buildPhase: resources
         group: Resources
+      # Assets.xcassets, which holds the app icon and nothing else yet. xcodegen sees the .xcassets
+      # extension and puts it in the resources phase on its own. The widget extension has no icon of
+      # its own — WidgetKit draws the host app's — so this belongs to the app target alone.
+      - path: Resources
     dependencies:
       - package: RoostCore
       - package: RoostDesign
@@ -85,6 +89,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: xyz.hinescreative.roost
         TARGETED_DEVICE_FAMILY: "1"
         ENABLE_PREVIEWS: YES
+        # Which set in Assets.xcassets is the icon. xcodegen 2.46.0 already writes exactly this for an
+        # iOS application target, so the generated pbxproj is the same with or without the line — it is
+        # here so the app's icon does not depend on a generator default, given that a build with no
+        # icon is one of the ways App Store Connect rejects an upload outright.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     # Where the Team ID comes from on a machine that has one. `Config/Local.xcconfig` is
     # committed and holds no values — it only `#include?`s the gitignored
     # `Config/Local.override.xcconfig`. A target xcconfig outranks the project-level
