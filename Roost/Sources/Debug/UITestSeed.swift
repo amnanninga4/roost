@@ -399,12 +399,12 @@
                     SeededStep(title: "Find the studs", done: true),
                     SeededStep(title: "Drill and mount", done: true),
                 ]),
-                SeededProject(title: "Clear out the garage", dueInDays: 3, steps: [
+                SeededProject(title: "Clear out the garage", steps: [
                     SeededStep(title: "Sort the boxes", done: true),
                     SeededStep(title: "Book the dump run", done: true),
                     SeededStep(title: "Shelve what stays", assignee: .wes),
                     SeededStep(title: "Sweep it out"),
-                ]),
+                ], dueInDays: 3),
             ]
         }
     }
