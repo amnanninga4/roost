@@ -18,7 +18,7 @@ The swatchbook gains a section per component so the kit is reviewable in isolati
 
 The streak chrome (VS block, AHEAD pill, week bar, both tallies) collapses into a single line under the title: "You 6 — 4 Anne · 12-day streak ›", set in `monoTally` with each person's score in their own colour. Tapping the line (or its chevron) expands the full streak card as it exists today, with the `standard` spring; tapping again collapses it. Collapsed is the default on every launch — the tally is the glance, the card is the reveal. The date eyebrow, the "Today" title and the sync notice line do not move.
 
-The trade-off to name plainly: the head-to-head is Anne's favourite part, and collapsing it hides the week bar by default. The line keeps the score and the streak visible at all times; the bar is one tap away. If review says the VS card should greet people, the expand state can persist in `AppStorage` instead — flagged here so the decision is explicit.
+The trade-off to name plainly: the head-to-head is Anne's favourite part, and collapsing it hides the week bar by default. Ruling (Wes, 2026-09-14): a hybrid. Collapsed is the default on a fresh install, and the expanded/collapsed choice persists in `AppStorage` (`roost.today.streakExpanded`), so whoever wants the VS card to greet them opens it once and keeps it. The line keeps the score and the streak visible in both states.
 
 ## Today: the chore row
 
@@ -63,7 +63,6 @@ App: unit tests for the meta-line ordering (the two-slot urgency pick) and the s
 
 ## Not in this change
 
-- Persisting the streak card's expand state (the review flag above may change this).
 - Editing chores themselves — the chore list still comes from `chores.json`.
 - Reordering Shopping or Wishlist rows.
 - Any restructure of the Tasks screen beyond the header and row chrome (the "rooms" direction is a future design if this pass lands well).
