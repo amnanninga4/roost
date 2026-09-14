@@ -251,6 +251,8 @@
                       fixedAssignee: .anne, category: .catCare),
                 Chore(id: "uitest-cat-water", title: "Refill the cat water", cadence: .daily,
                       fixedAssignee: .anne, category: .catCare),
+                Chore(id: "uitest-feed-cat", title: "Feed the cat", cadence: .daily,
+                      fixedAssignee: .anne, category: .catCare),
                 Chore(id: "uitest-dishwasher", title: "Run the dishwasher", cadence: .daily,
                       fixedAssignee: .anne, category: .chore),
                 Chore(id: "uitest-counters", title: "Wipe down the kitchen counters and the bathroom mirror",
@@ -282,6 +284,9 @@
             [
                 SeededCompletion(choreId: "uitest-litter", person: .anne, daysAgo: 6),
                 SeededCompletion(choreId: "uitest-cat-water", person: .anne, daysAgo: 4),
+                // Done yesterday, so today's period is open and nobody has offered it: the one row on
+                // Anne's card the menu and the trailing swipe can hand off.
+                SeededCompletion(choreId: "uitest-feed-cat", person: .anne, daysAgo: 1),
                 SeededCompletion(choreId: "uitest-dishwasher", person: .anne, daysAgo: 2),
                 SeededCompletion(choreId: "uitest-counters", person: .anne, daysAgo: 1),
                 SeededCompletion(choreId: "uitest-plants", person: .anne, daysAgo: 0),

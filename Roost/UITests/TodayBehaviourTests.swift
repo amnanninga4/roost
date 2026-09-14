@@ -7,7 +7,7 @@ final class TodayBehaviourTests: RoostUITestCase {
     func testTheRowMenuHandsOffAndShowsInAllChores() {
         let app = launch(.paired)
         waitForTasks(in: app)
-        let row = app.buttons["Run the dishwasher"]
+        let row = app.buttons["Feed the cat"]
         XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "the chore rows never appeared")
         row.press(forDuration: 1.2)
         let ask = app.buttons["Ask Wes to take this"]
@@ -43,7 +43,7 @@ final class TodayBehaviourTests: RoostUITestCase {
     func testTheTrailingSwipeOffersAHandoff() {
         let app = launch(.paired)
         waitForTasks(in: app)
-        let row = app.buttons["Run the dishwasher"]
+        let row = app.buttons["Feed the cat"]
         XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "the chore rows never appeared")
         row.swipeLeft()
         let ask = app.buttons["Ask Wes to take this"]
