@@ -140,12 +140,12 @@ final class TodayBoardTests: XCTestCase {
 
     func testEachStageWearsItsOwnRole() {
         XCTAssertEqual(EscalationStage.dueToday.role, .textPrimary)
-        XCTAssertEqual(EscalationStage.nudge.role, .notice)
+        XCTAssertEqual(EscalationStage.nudge.role, .nudge)
         XCTAssertEqual(EscalationStage.pointed.role, .warning)
         XCTAssertEqual(EscalationStage.alert.role, .danger)
 
         XCTAssertNil(EscalationStage.dueToday.fillRole, "a row that is only due today carries no colour")
-        XCTAssertEqual(EscalationStage.nudge.fillRole, .noticeSoft)
+        XCTAssertEqual(EscalationStage.nudge.fillRole, .nudgeSoft)
         XCTAssertEqual(EscalationStage.pointed.fillRole, .warningSoft)
         XCTAssertEqual(EscalationStage.alert.fillRole, .dangerSoft)
     }

@@ -56,9 +56,15 @@ frame, so the defaults below use the `.app-shell` values where they exist. Dark 
 | `mealSoft` | `#F5DCC8` | `#3A2415` | |
 | `assign` | `#6B4FA0` | `#B79EE0` | auto-assigned / pinned |
 | `assignSoft` | `#E6DFF5` | `#332750` | |
+| `anne` | `#2F8F72` | `#6FC2A6` | Anne (own token; same hex as accent) |
+| `anneSoft` | `#CFEEE1` | `#1E362E` | |
+| `wes` | `#4C7FE0` | `#7FB3D9` | Wes (own token; same hex as info) |
+| `wesSoft` | `#DEE6FC` | `#1E2E3A` | |
+| `nudge` | `#4C7FE0` | `#7FB3D9` | 1–2 day nudge (own token; same hex as info) |
+| `nudgeSoft` | `#DEE6FC` | `#1E2E3A` | |
 | `shadow` | `rgba(31,42,34,0.14)` | `rgba(0,0,0,0.45)` | card shadow |
 
-`RoostColor.all` lists every token; `RoostColor.pairs` gives the seven strong/soft pairs.
+`RoostColor.all` lists every token; `RoostColor.pairs` gives the ten strong/soft pairs.
 
 ### Roles
 
@@ -85,15 +91,17 @@ there is one.
 | `bonus` / `bonusSoft` | `gold` / `goldSoft` | bonus chores, points |
 | `assigned` / `assignedSoft` | `assign` / `assignSoft` | auto-assigned by the rotation |
 | `notice` / `noticeSoft` | `info` / `infoSoft` | neutral information, sync state |
-| `anne` / `anneSoft` | `accent` / `accentSoft` | Anne (mockup `.avatar-a`, `.tally-fill-a`) |
-| `wes` / `wesSoft` | `info` / `infoSoft` | Wes (mockup `.avatar-p`, `.tally-fill-p`) |
+| `nudge` / `nudgeSoft` | `nudge` / `nudgeSoft` | 1–2 days late (own tokens) |
+| `anne` / `anneSoft` | `anne` / `anneSoft` | Anne (mockup `.avatar-a`, `.tally-fill-a`; own tokens) |
+| `wes` / `wesSoft` | `wes` / `wesSoft` | Wes (mockup `.avatar-p`, `.tally-fill-p`; own tokens) |
 | `catCare` / `catCareSoft` | `accent` / `accentSoft` | cat care (mockup `.icon-cat`) |
 | `home` / `homeSoft` | `gold` / `goldSoft` | household chores (mockup `.icon-chore`) |
 | `meals` / `mealsSoft` | `meal` / `mealSoft` | meals (mockup `.icon-meal`) |
 | `shadow` | `shadow` | shadow tint; prefer `.roostElevation(_:)` |
 
-Roles share tokens on purpose: Anne, cat care, and "done" are all the green, because that is the
-mockup's palette. It stays honest because the mapping is written down and tested.
+Cat care and "done" still share the accent green — that is the mockup's palette. Anne, Wes, and
+the 1–2 day nudge each have their own tokens (same hex as the roles they used to borrow), so
+tinting a person or a nudge does not also recolour notices or the primary action.
 
 `RoostPerson` (`.anne`, `.wes`) and `RoostCategory` (`.catCare`, `.home`, `.meals`, `.bonus`) wrap
 the person and category roles with a `color`, a `softColor`, and an SF Symbol name, so view code

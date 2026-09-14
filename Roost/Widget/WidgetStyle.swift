@@ -9,11 +9,11 @@ import RoostDesign
 import SwiftUI
 
 extension RoostSnapshot.Stage {
-    /// Information, then a warning, then danger — the Tasks tab's ladder, not three reds.
+    /// The nudge's own blue, then a warning, then danger — the Tasks tab's ladder, not three reds.
     var role: RoostColor.Role {
         switch self {
         case .dueToday: .textSecondary
-        case .nudge: .notice
+        case .nudge: .nudge
         case .pointed: .warning
         case .alert: .danger
         }

@@ -8,11 +8,11 @@ import RoostDesign
 
 extension EscalationStage {
     /// The role the title, the subtitle, and the late badge take. The ladder is deliberately three
-    /// different meanings rather than three reds: information, then a warning, then danger.
+    /// different meanings rather than three reds: the nudge's own blue, then a warning, then danger.
     var role: RoostColor.Role {
         switch self {
         case .dueToday: .textPrimary
-        case .nudge: .notice
+        case .nudge: .nudge
         case .pointed: .warning
         case .alert: .danger
         }
@@ -23,7 +23,7 @@ extension EscalationStage {
     var fillRole: RoostColor.Role? {
         switch self {
         case .dueToday: nil
-        case .nudge: .noticeSoft
+        case .nudge: .nudgeSoft
         case .pointed: .warningSoft
         case .alert: .dangerSoft
         }
