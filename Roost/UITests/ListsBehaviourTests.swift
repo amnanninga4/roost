@@ -57,9 +57,15 @@ final class ListsBehaviourTests: RoostUITestCase {
         openList("Shopping", in: app)
         let row = app.buttons["Cat litter"]
         XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "the shopping rows never appeared")
-        row.press(forDuration: 1.2)
+        // A long-press on a List row inside the paged TabView is the one gesture the CI runner drops
+        // under load (the menu never opens; #77's run), so press again, bounded, before calling it a failure.
         let edit = app.buttons["Edit"]
-        XCTAssertTrue(edit.waitForExistence(timeout: Self.timeout), "no Edit in the row's menu")
+        var presses = 0
+        repeat {
+            row.press(forDuration: 1.2)
+            presses += 1
+        } while !edit.waitForExistence(timeout: 3) && presses < 3
+        XCTAssertTrue(edit.exists, "no Edit in the row's menu after \(presses) presses")
         edit.tap()
         let field = app.textFields["Add an item…"]
         XCTAssertTrue(field.waitForExistence(timeout: Self.timeout), "the edit sheet never opened")
