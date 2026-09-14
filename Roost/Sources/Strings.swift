@@ -18,7 +18,7 @@ enum Strings {
         static let projects = "Projects"
     }
 
-    /// Shared by the three list tabs.
+    /// Shared by the four list pages.
     enum Lists {
         static let delete = "Delete"
         /// The swipe action on a row the server refused: it never reached the server, so nothing is deleted there.
@@ -72,6 +72,34 @@ enum Strings {
         static let stillNeeded = "Still needed"
         static let markBought = "Marks it bought"
         static let markStillNeeded = "Marks it still needed"
+    }
+
+
+    enum Wishlist {
+        /// "4 items · $1,850 total"; with nothing priced, just "4 items".
+        static func header(items: Int, total: String?) -> String {
+            let count = "\(items) \(items == 1 ? "item" : "items")"
+            guard let total else { return count }
+            return "\(count)\(Lists.metaSeparator)\(total) total"
+        }
+
+        static let add = "Add something you'd like…"
+        /// The second field under the title: dollars, cents optional.
+        static let price = "Price, like 599"
+        static let empty = "Nothing on the wishlist."
+        /// Under the empty line: what to do about it.
+        static let emptyHint = "Add the things you'd buy some day."
+        static let boughtSection = "Bought"
+        static let clearBought = "Clear bought"
+        /// VoiceOver: a row's state, and what a tap does to it.
+        static let bought = "Bought"
+        static let stillWanted = "Still wanted"
+        static let markBought = "Marks it bought"
+        static let markStillWanted = "Marks it still wanted"
+        /// VoiceOver, after the state: "priced $599".
+        static func priced(_ price: String) -> String {
+            "priced \(price)"
+        }
     }
 
     enum Meals {

@@ -1,6 +1,9 @@
 // The list screens' arithmetic, kept out of the views so it can be tested without a simulator:
 //
 //   ShoppingSplit   still-to-buy rows first, bought rows after, and the header's two numbers
+//   PriceParser     what a typed price becomes, as whole cents
+//   PriceFormat     how a price reads on a row and in the header
+//   WishlistTotals  open count and the priced open items' sum
 //   ProjectProgress done / total / fraction, and the one condition that makes a card finished
 //   SubtaskOrder    the sortOrder values a drag implies, changing as few other rows as possible
 //   MealDates       "last made today" / "yesterday" / "Tuesday" / "Jul 20"
@@ -28,6 +31,54 @@ struct ShoppingSplit<Row> {
         toBuy = rows.filter { !isBought($0) }
         let ticked = rows.filter(isBought)
         bought = ticked.sorted { (boughtAt($0) ?? .distantPast) > (boughtAt($1) ?? .distantPast) }
+    }
+}
+
+
+/// The wishlist's price field: what a person types, as whole cents.
+///
+/// "599" is $599, "12.5" is $12.50, "$1,299.99" is $1,299.99. A third decimal, a second point, letters,
+/// a sign, a space inside the number, or nothing at all is nil, and so is anything past the server's
+/// ceiling. Whole dollars first, because that is how a price is said out loud; the cents are there for
+/// the people who type them.
+enum PriceParser {
+    static func cents(from text: String) -> Int? {
+        var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        cleaned.removeAll { $0 == "$" || $0 == "," }
+        guard !cleaned.isEmpty, cleaned.allSatisfy({ $0.isASCII && ($0.isNumber || $0 == ".") }) else { return nil }
+        let parts = cleaned.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count <= 2 else { return nil }
+        let whole = parts[0]
+        let fraction = parts.count == 2 ? parts[1] : ""
+        guard !(whole.isEmpty && fraction.isEmpty), fraction.count <= 2 else { return nil }
+        guard let dollars = whole.isEmpty ? 0 : Int(whole), dollars <= ListActions.priceLimit / 100 else { return nil }
+        let cents = fraction.isEmpty ? 0 : (Int(String(fraction).padding(toLength: 2, withPad: "0", startingAt: 0)) ?? 0)
+        let total = dollars * 100 + cents
+        return total <= ListActions.priceLimit ? total : nil
+    }
+}
+
+/// How a price reads on a row and in the header: whole dollars when the cents are zero ("$599"),
+/// dollars and cents otherwise ("$12.50"), grouped by thousands ("$1,850").
+enum PriceFormat {
+    static func dollars(cents: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        let places = cents % 100 == 0 ? 0 : 2
+        return (Decimal(cents) / 100)
+            .formatted(.currency(code: "USD").precision(.fractionLength(places)).locale(locale))
+    }
+}
+
+/// The wishlist header's two numbers: how many open items, and what the priced ones add up to.
+struct WishlistTotals: Equatable {
+    let openCount: Int
+    /// Nil when no open item has a price, so the header leaves the total out rather than saying "$0".
+    let totalCents: Int?
+
+    init<Row>(rows: [Row], isBought: (Row) -> Bool, priceCents: (Row) -> Int?) {
+        let open = rows.filter { !isBought($0) }
+        openCount = open.count
+        let priced = open.compactMap(priceCents)
+        totalCents = priced.isEmpty ? nil : priced.reduce(0, +)
     }
 }
 

@@ -1,4 +1,4 @@
-// SwiftData records for the shared lists: shopping items, meal ideas, projects and their subtasks.
+// SwiftData records for the shared lists: shopping items, wishlist items, meal ideas, projects and their subtasks.
 // Each mirrors its server row field for field (server/README.md, "Model") and carries the same sync
 // bookkeeping CompletionRecord does, plus `pendingPatch` for edits. Subtasks point at their project by
 // id, like the server; there are no SwiftData relationships here. `removed` is the soft-delete flag
@@ -18,6 +18,7 @@ struct PatchFields: OptionSet, Sendable, Hashable {
     static let nextUp = PatchFields(rawValue: 1 << 4)
     static let done = PatchFields(rawValue: 1 << 5)
     static let sortOrder = PatchFields(rawValue: 1 << 6)
+    static let price = PatchFields(rawValue: 1 << 7)
 }
 
 /// The sync state machine every list record shares (the one CompletionRecord documents, plus PATCH):
@@ -121,6 +122,54 @@ final class ShoppingItemRecord: ListRecord {
     ) {
         self.id = id
         self.title = title
+        self.addedBy = addedBy
+        self.bought = bought
+        self.boughtBy = boughtBy
+        self.boughtAt = boughtAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
+        self.syncedAt = syncedAt
+        self.removed = removed
+    }
+}
+
+
+/// One line of the wishlist: a shopping item with a price. `priceCents` is whole cents, nil when the
+/// row has no price (nil and 0 are different: "free" is a price). `addedBy` as on a shopping item.
+@Model
+final class WishlistItemRecord: ListRecord {
+    @Attribute(.unique) var id: String
+    var title: String
+    var priceCents: Int?
+    var addedBy: String
+    var bought: Bool
+    var boughtBy: String?
+    var boughtAt: Date?
+    var createdAt: Date
+    var updatedAt: Date
+    var syncedAt: Date?
+    var removed: Bool
+    var deleteSynced: Bool = false
+    var rejected: Bool = false
+    var seq: Int?
+    var pendingPatch: Int = 0
+
+    init(
+        id: String,
+        title: String,
+        priceCents: Int? = nil,
+        addedBy: String,
+        bought: Bool = false,
+        boughtBy: String? = nil,
+        boughtAt: Date? = nil,
+        createdAt: Date,
+        updatedAt: Date? = nil,
+        syncedAt: Date? = nil,
+        removed: Bool = false
+    ) {
+        self.id = id
+        self.title = title
+        self.priceCents = priceCents
         self.addedBy = addedBy
         self.bought = bought
         self.boughtBy = boughtBy
