@@ -306,6 +306,13 @@ is already `false` in the Info.plist.
 TestFlight puts the app on the phone; the app still has to be told which person it is and
 be given a token. That is pairing, and it is the same six-digit flow as a simulator build.
 
+Before TestFlight exists, the build goes on by cable: from a Terminal window on a Mac that is signed
+in to the team (not over ssh, the keychain will not hand out the signing key to a remote session),
+with the phone plugged in and unlocked, run `scripts/install-device.sh`. It picks the wired phone,
+checks the iOS floor from `Roost/project.yml`, pairs, checks Developer Mode, regenerates the project,
+builds with automatic signing and installs with `devicectl`; it prints what to tap on the phone when
+it needs a Trust or a Developer Mode restart, and stops with the reason when it cannot go on.
+
 1. On theoldone, mint a code for that person:
 
    ```bash
