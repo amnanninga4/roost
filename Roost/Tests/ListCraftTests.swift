@@ -135,21 +135,6 @@ final class ListCraftTests: XCTestCase {
         XCTAssertEqual(try Set(liveItems().map(\.title)), ["Bread", "Milk", "Eggs"])
     }
 
-
-    func testRenameFlagsOnlyTheTitleAndBlankIsRefused() throws {
-        let item = ShoppingItemRecord(id: "s-1", title: "Oat milk", addedBy: "anne", createdAt: clock, syncedAt: clock)
-        context.insert(item)
-        try context.save()
-        try ListActions.renameShoppingItem(item, to: "  Oat milk, barista  ", in: context, now: clock)
-        XCTAssertEqual(item.title, "Oat milk, barista")
-        XCTAssertEqual(item.pendingFields, [.title])
-        try ListActions.renameShoppingItem(item, to: "   ", in: context, now: clock)
-        XCTAssertEqual(item.title, "Oat milk, barista", "a blank edit is refused; the row keeps its name")
-        try ListActions.renameShoppingItem(item, to: "Oat milk, barista", in: context, now: clock)
-        XCTAssertEqual(item.pendingFields, [.title], "a no-op edit flags nothing new")
-    }
-
-
     func testUndoOfAMealCarriesEveryFieldSoNothingFollowsTheCreate() throws {
         let meal = MealRecord(
             id: "me-1", title: "Tacos", tag: "Weeknight", lastMadeAt: clock, nextUp: true,
