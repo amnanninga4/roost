@@ -549,4 +549,24 @@ final class ListUndoSyncTests: ListSyncTestCase {
         XCTAssertEqual(moved.pendingPatch, 0)
         XCTAssertEqual(moved.sortOrder, 8)
     }
+
+    // MARK: - Projects composer (Return on title)
+
+    func testTitleReturnNeverClearsFirstSteps() {
+        let blank = ProjectComposer.afterTitleReturn(title: "   ", steps: "Sort boxes\nSweep")
+        XCTAssertEqual(blank.title, "")
+        XCTAssertEqual(blank.steps, "Sort boxes\nSweep", "Return on a blank title must not discard steps")
+
+        let kept = ProjectComposer.afterTitleReturn(title: "Garage", steps: "Sort boxes")
+        XCTAssertEqual(kept.title, "Garage")
+        XCTAssertEqual(kept.steps, "Sort boxes", "Return on a real title does not start and does not clear steps")
+    }
+
+    func testFirstStepsStayVisibleWhenOnlyStepsRemain() {
+        XCTAssertTrue(ProjectComposer.showsFirstSteps(title: "Garage", steps: ""))
+        XCTAssertTrue(ProjectComposer.showsFirstSteps(title: "", steps: "Sort"))
+        XCTAssertTrue(ProjectComposer.showsFirstSteps(title: "  ", steps: "  Sort  "))
+        XCTAssertFalse(ProjectComposer.showsFirstSteps(title: "", steps: ""))
+        XCTAssertFalse(ProjectComposer.showsFirstSteps(title: "   ", steps: "\n"))
+    }
 }

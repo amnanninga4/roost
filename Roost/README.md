@@ -87,6 +87,7 @@ Roost/
     Models/HandoffPresentation.swift pure: handoffs -> what a row says, which offers are waiting, and the period phrase
     Models/ChoreSeeder.swift  idempotent seed from the bundled chores.json (also used for server-sent chores)
     Models/TodayPlanner.swift pure: records -> per-person rows via RoostCore Scheduler/Tallies
+    Models/ProjectComposer.swift pure: Return on the title never clears first steps; when the steps field stays visible
     Models/StreakHeaderModel.swift pure: streaks + weekly tallies -> two sides, the leader from the week tally (nil on a tie), the tally line
     Models/EscalationCopy.swift pure: EscalationStage + category -> row subtitle (nil for dueToday and done rows)
     Models/SeasonCopy.swift   pure: a chore's season -> "April to October"
@@ -125,7 +126,7 @@ Roost/
     Screens/StreakHeaderView.swift the head-to-head block from the mockup
     Screens/ShoppingScreen.swift Shopping page: composer, to-buy rows, Bought section + "Clear bought", check-off, swipe to delete with undo
     Screens/MealsScreen.swift Meals page: composer (title + tag), NEXT UP badge, "Made it" + "last made …", tag chips, swipe to delete with undo
-    Screens/ProjectsScreen.swift Projects page: composer, one card per project with an animated bar and a counting number, steps reorderable by drag, DONE chip + Archive
+    Screens/ProjectsScreen.swift Projects page: composer (Return on title keeps steps), one card per project with an animated bar and a counting number, steps reorderable by drag, DONE chip + Archive
     Screens/ListParts.swift   pieces the four list pages share: header + sync line, the composer, check circle, avatar, chips, the "Didn't sync" marker, empty states, swipe-to-delete, the undo bar and its five-second window, and `RoostTextActionStyle` — a text-only action that holds 44 pt, used from the onboarding screens too
     Screens/SettingsScreen.swift More → Settings: paired as, device, paired since, server, last sync, Unpair, version (pushed; back button is the way out)
     Screens/SettingsModel.swift  the GET /me call behind those rows, and the fallback when it fails
@@ -504,7 +505,7 @@ Empty, the screen reads "No meal ideas yet." over "Save something you both like.
 
 ### Projects
 
-Header: "N active projects". "Start a project…" takes a title and, once there is one, a "First steps, one per line" field and a Start button (Return on the title also starts). Each project is its own card: the title, a chevron, and a progress bar with "done/total" over its live steps. Tapping the card opens it (the first card opens on its own, like the mockup): the steps with check-off (strikethrough when done, `doneBy`/`doneAt` previewed locally) and an "Add a step…" row that appends after the highest `sortOrder`, the server's default.
+Header: "N active projects". "Start a project…" takes a title and, once there is a title or typed steps, a "First steps, one per line" field and a Start button (Return on the title never starts — it leaves the steps alone; only Start creates). Each project is its own card: the title, a chevron, and a progress bar with "done/total" over its live steps. Tapping the card opens it (the first card opens on its own, like the mockup): the steps with check-off (strikethrough when done, `doneBy`/`doneAt` previewed locally) and an "Add a step…" row that appends after the highest `sortOrder`, the server's default.
 
 A card can carry a due day (long-press → Set a due day; `ProjectRecord.dueOn`, a Chicago calendar day) shown as "Due Sep 20", in the danger role once the day has passed and the project is not finished; on the morning of the day the phone posts "Garage trash is due today" through `NotificationPlanner.planProjects`. A step can carry an owner (long-press → Owner, or the person button in the step composer; `SubtaskRecord.assignee`), shown as the person's avatar at the trailing edge; completing a step still stamps whoever tapped.
 
