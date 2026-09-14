@@ -37,4 +37,22 @@ final class TodayBehaviourTests: RoostUITestCase {
             "Show in All chores should be on every row's menu"
         )
     }
+
+    /// A left swipe on an offerable row reveals Hand off in the assign colour; tapping it asks the
+    /// same confirmation the menu does.
+    func testTheTrailingSwipeOffersAHandoff() {
+        let app = launch(.paired)
+        waitForTasks(in: app)
+        let row = app.buttons["Run the dishwasher"]
+        XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "the chore rows never appeared")
+        row.swipeLeft()
+        let ask = app.buttons["Ask Wes to take this"]
+        XCTAssertTrue(ask.waitForExistence(timeout: Self.timeout), "the swipe revealed no Hand off")
+        ask.tap()
+        XCTAssertTrue(
+            app.buttons["Ask Wes"].waitForExistence(timeout: Self.timeout),
+            "the handoff confirmation never appeared"
+        )
+        app.buttons["Cancel"].tap()
+    }
 }

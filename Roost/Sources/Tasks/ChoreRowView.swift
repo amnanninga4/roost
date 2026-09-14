@@ -23,6 +23,9 @@ struct ChoreRowView: View {
     let onToggle: () -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// How far the row has slid left, 0 closed to `-revealWidth` open.
+    @State private var swipeOffset: CGFloat = 0
 
     private var category: RoostCategory {
         row.chore.category == .catCare ? .catCare : .home
@@ -34,7 +37,73 @@ struct ChoreRowView: View {
     }
 
     var body: some View {
-        Button(action: onToggle) {
+        ZStack(alignment: .trailing) {
+            if let onOffer {
+                Button {
+                    closeSwipe()
+                    onOffer()
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .roostType(.headline)
+                        .foregroundStyle(RoostColor.Role.onAccent.color)
+                        .frame(width: handoffRevealWidth)
+                        .frame(maxHeight: .infinity)
+                        .background(RoostColor.Role.assigned.color, in: RoostRadius.rowShape)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.roostPressQuiet)
+                .accessibilityLabel(Strings.Handoffs.ask(other.displayName))
+                // The strip is only real once the row has moved; a due-today row has a clear
+                // background, so without this the button would peek through it at rest.
+                .opacity(swipeOffset < 0 ? 1 : 0)
+            }
+            swipeableRow
+        }
+    }
+
+    @ViewBuilder
+    private var swipeableRow: some View {
+        if onOffer != nil {
+            rowButton
+                .offset(x: swipeOffset)
+                .gesture(swipe)
+                .onChange(of: row.id) { _, _ in swipeOffset = 0 } // a reused row snaps shut
+        } else {
+            rowButton
+        }
+    }
+
+    /// A horizontal-dominant drag slides the row; the ScrollView keeps the vertical ones. Open past
+    /// half the strip, or on a flick, closed otherwise.
+    private var swipe: some Gesture {
+        DragGesture(minimumDistance: RoostSpacing.lg)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                swipeOffset = min(0, max(-handoffRevealWidth, value.translation.width))
+            }
+            .onEnded { value in
+                let open = value.translation.width < -handoffRevealWidth / 2
+                    || value.predictedEndTranslation.width < -handoffRevealWidth
+                withAnimation(RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion)) {
+                    swipeOffset = open ? -handoffRevealWidth : 0
+                }
+            }
+    }
+
+    private func closeSwipe() {
+        withAnimation(RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion)) {
+            swipeOffset = 0
+        }
+    }
+
+    private var rowButton: some View {
+        Button {
+            if swipeOffset != 0 {
+                closeSwipe()
+            } else {
+                onToggle()
+            }
+        } label: {
             HStack(alignment: .top, spacing: RoostSpacing.xs) {
                 check
                 VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
@@ -203,6 +272,16 @@ struct ChoreRowView: View {
         return parts.joined(separator: ", ")
     }
 }
+
+// MARK: - The trailing swipe
+//
+// The Today board is a ScrollView of cards, not a List, so the system's `.swipeActions` is not
+// available here — this reveal is the one gesture in the app built by hand. It exists for exactly
+// one action, Hand off, and only on rows where the context menu would offer it (`onOffer != nil`).
+// No leading swipe: tap already toggles done, and a second done gesture adds nothing.
+
+/// The strip the row uncovers. Two `xxxl` steps (96 pt): a comfortable thumb landing.
+private let handoffRevealWidth = RoostSpacing.xxxl * 2
 
 /// The escalation stage, as an edge rather than a wash: a rounded bar along the row's leading edge
 /// in the stage's colour. A bad day still reads at a glance, but the card is no longer painted
