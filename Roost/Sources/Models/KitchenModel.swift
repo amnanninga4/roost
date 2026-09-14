@@ -6,6 +6,10 @@ import RoostCore
 import SwiftData
 
 struct KitchenModel: Equatable {
+    /// Close is the only dismiss control. A tap on the board itself must not leave Kitchen mode —
+    /// that used to steal taps meant for scrolling the counter.
+    static let backgroundTapDismisses = false
+
     /// One overdue chore. `copy` is the row's escalation subtitle from EscalationCopy; it is never nil here
     /// because only overdue, not-yet-done rows become items.
     struct Item: Identifiable, Hashable {
