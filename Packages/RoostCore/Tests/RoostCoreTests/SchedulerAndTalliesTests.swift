@@ -19,6 +19,14 @@ final class SchedulerTests: XCTestCase {
         cadence: .quarterly,
         category: .chore
     )
+    let mowing = Chore(
+        id: "mow-lawn",
+        title: "Mow lawn",
+        cadence: .weekly,
+        fixedAssignee: .anne,
+        category: .chore,
+        season: Season(months: [4, 5, 6, 7, 8, 9, 10])
+    )
 
     // Household starts Monday 2026-09-07. "Today" is Wednesday 2026-09-16 unless a test says otherwise.
     lazy var activeFrom = cal.date(year: 2026, month: 9, day: 7, hour: 0)
@@ -119,6 +127,39 @@ final class SchedulerTests: XCTestCase {
         }
         let all = byPerson.values.flatMap(\.self)
         XCTAssertEqual(all.count, 4, "every chore is due somewhere when nothing has been done")
+    }
+
+    func testSeasonalChoreIsNotDueInMarchAndStartsFreshInApril() {
+        let s = Scheduler(chores: [mowing], activeFrom: activeFrom, calendar: cal)
+        // Week of Mar 15 2027: out of season, and not overdue either.
+        XCTAssertNil(s.dueItem(for: mowing, on: cal.date(year: 2027, month: 3, day: 17, hour: 9), completions: []))
+        // Apr 1 2027 is a Thursday in the week of Mar 29, which starts in March: still out.
+        XCTAssertNil(s.dueItem(for: mowing, on: cal.date(year: 2027, month: 4, day: 1, hour: 9), completions: []))
+        // Week of Apr 5: in season, and last autumn's missed weeks do not carry over.
+        let item = s.dueItem(for: mowing, on: cal.date(year: 2027, month: 4, day: 7, hour: 9), completions: [])
+        XCTAssertEqual(item?.periodStart, cal.date(year: 2027, month: 4, day: 5, hour: 0))
+        XCTAssertEqual(item?.daysOverdue, 0)
+        XCTAssertEqual(item?.person, .anne)
+    }
+
+    func testSeasonalChoreStaysDueWhileItsLastPeriodRunsIntoNovember() {
+        let s = Scheduler(chores: [mowing], activeFrom: activeFrom, calendar: cal)
+        let mowed = done(mowing, .anne, cal.date(year: 2026, month: 10, day: 22, hour: 17)) // week of Oct 19
+        // The week of Oct 26 starts in October, so it is due through Sunday Nov 1.
+        let oct30 = s.dueItem(for: mowing, on: cal.date(year: 2026, month: 10, day: 30, hour: 9), completions: [mowed])
+        XCTAssertEqual(oct30?.periodStart, cal.date(year: 2026, month: 10, day: 26, hour: 0))
+        XCTAssertEqual(oct30?.daysOverdue, 0)
+        XCTAssertNotNil(s.dueItem(for: mowing, on: cal.date(year: 2026, month: 11, day: 1, hour: 9), completions: [mowed]))
+        // The week of Nov 2 starts out of season: not due, and the missed Oct 26 week is not overdue.
+        XCTAssertNil(s.dueItem(for: mowing, on: cal.date(year: 2026, month: 11, day: 3, hour: 9), completions: [mowed]))
+    }
+
+    func testSeasonalChoreInsideTheSeasonCarriesLikeAnyOther() {
+        let s = Scheduler(chores: [mowing], activeFrom: activeFrom, calendar: cal)
+        // Household started Sep 7 (in season). Nothing done by Wed Sep 16 → the week of Sep 7 is 3 days late.
+        let item = s.dueItem(for: mowing, on: wed, completions: [])
+        XCTAssertEqual(item?.periodStart, activeFrom)
+        XCTAssertEqual(item?.daysOverdue, 3)
     }
 }
 
