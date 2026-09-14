@@ -461,6 +461,17 @@ enum Strings {
         /// A device from the tokens file has no pairing date, because nothing paired it.
         static let pairedHandMinted = "Set up by hand"
 
+        static let appearanceHeader = "APPEARANCE"
+        /// The picker's own label. It is the row's leading text at the accessibility sizes, where the
+        /// segmented control gives way to a menu, and it is what VoiceOver reads either way.
+        static let appearanceLabel = "Appearance"
+        static let appearanceSystem = "System"
+        static let appearanceLight = "Light"
+        static let appearanceDark = "Dark"
+        /// Two facts, both of which come up the first time somebody picks Dark: what System means, and why
+        /// the Home Screen did not change with everything else.
+        static let appearanceFooter = "System follows the phone's setting. The Home Screen widget always follows the phone."
+
         static let serverHeader = "SERVER"
         static let serverField = "Address"
         /// Debug builds only: the field is editable and the launch argument overrides everything.
