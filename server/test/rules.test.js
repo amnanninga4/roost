@@ -18,6 +18,8 @@ import {
   boardStats,
   DEFAULT_ACTIVE_FROM,
   ANCHOR,
+  CADENCES,
+  monthIndex,
   FAIRNESS_WEIGHTS,
   FAIRNESS_WINDOW_DAYS,
   weightFor,
@@ -66,11 +68,7 @@ test("escalation ladder", () => {
 // --- Calendar ---
 
 test("anchor is Monday period zero", () => {
-  assert.equal(periodIndex("daily", ANCHOR), 0);
-  assert.equal(periodIndex("weekly", ANCHOR), 0);
-  assert.equal(periodIndex("biweekly", ANCHOR), 0);
-  assert.equal(periodIndex("monthly", ANCHOR), 0);
-  // 2026-01-05 is a Monday
+  for (const cadence of CADENCES) assert.equal(periodIndex(cadence, ANCHOR), 0, cadence);
   const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", weekday: "short" }).format(ANCHOR);
   assert.equal(p, "Mon");
 });
@@ -315,6 +313,38 @@ test("monthly bounds for September 2026", () => {
   assert.equal(b.lastDay.getTime(), chicagoLocal(2026, 9, 30, 0).getTime());
 });
 
+test("bimonthly and quarterly periods across a year boundary", () => {
+  assert.deepEqual(CADENCES, ["daily", "weekly", "biweekly", "monthly", "bimonthly", "quarterly"]);
+  const sep13 = chicagoLocal(2026, 9, 13, 12);
+  assert.equal(monthIndex(sep13), 8);
+  assert.equal(periodIndex("bimonthly", sep13), 4);
+  assert.equal(periodIndex("quarterly", sep13), 2);
+  assert.equal(periodBounds("bimonthly", 4).firstDay.getTime(), chicagoLocal(2026, 9, 1).getTime());
+  assert.equal(periodBounds("bimonthly", 4).lastDay.getTime(), chicagoLocal(2026, 10, 31).getTime());
+  assert.equal(periodBounds("quarterly", 2).firstDay.getTime(), chicagoLocal(2026, 7, 1).getTime());
+  assert.equal(periodBounds("quarterly", 2).lastDay.getTime(), chicagoLocal(2026, 9, 30).getTime());
+  assert.equal(periodIndex("bimonthly", chicagoLocal(2026, 12, 31, 12)), 5);
+  assert.equal(periodIndex("bimonthly", chicagoLocal(2027, 1, 1, 12)), 6);
+  assert.equal(periodIndex("quarterly", chicagoLocal(2026, 12, 31, 12)), 3);
+  assert.equal(periodIndex("quarterly", chicagoLocal(2027, 1, 1, 12)), 4);
+  assert.equal(periodBounds("quarterly", 4).firstDay.getTime(), chicagoLocal(2027, 1, 1).getTime());
+  assert.equal(periodBounds("quarterly", 4).lastDay.getTime(), chicagoLocal(2027, 3, 31).getTime());
+  assert.equal(periodIndex("bimonthly", chicagoLocal(2025, 12, 15, 12)), -1);
+  assert.equal(periodBounds("bimonthly", -1).firstDay.getTime(), chicagoLocal(2025, 11, 1).getTime());
+  assert.equal(periodBounds("quarterly", -1).firstDay.getTime(), chicagoLocal(2025, 10, 1).getTime());
+  assert.throws(() => periodIndex("fortnightly", sep13), /unknown cadence/);
+});
+
+test("quarterly chore is one day late on the first day of the next quarter", () => {
+  const pantry = { id: "clean-out-fridge-pantry", title: "Clean out fridge and pantry", cadence: "quarterly", fixedAssignee: null, category: "chore" };
+  assert.equal(dueItemFor(pantry, { completions: [], asOf: wed, activeFrom })?.daysOverdue, 0);
+  assert.equal(dueItemFor(pantry, { completions: [], asOf: wed, activeFrom })?.periodIndex, 2);
+  const oct1 = chicagoLocal(2026, 10, 1, 9);
+  const late = dueItemFor(pantry, { completions: [], asOf: oct1, activeFrom });
+  assert.equal(late?.daysOverdue, 1);
+  assert.equal(late?.stage, "nudge");
+});
+
 // --- FairnessBalancer (R-19) — port of FairnessBalancerTests / FairnessLoadTests ---
 
 
@@ -367,12 +397,14 @@ function planPlain(chores, completions, handoffs = []) {
 }
 
 test("fairness provisional weights and window days", () => {
-  assert.deepEqual(FAIRNESS_WEIGHTS, { daily: 1, weekly: 3, biweekly: 5, monthly: 8 });
+  assert.deepEqual(FAIRNESS_WEIGHTS, { daily: 1, weekly: 3, biweekly: 5, monthly: 8, bimonthly: 10, quarterly: 13 });
   assert.equal(FAIRNESS_WINDOW_DAYS, 14);
   assert.equal(weightFor("daily"), 1);
   assert.equal(weightFor("weekly"), 3);
   assert.equal(weightFor("biweekly"), 5);
   assert.equal(weightFor("monthly"), 8);
+  assert.equal(weightFor("bimonthly"), 10);
+  assert.equal(weightFor("quarterly"), 13);
 });
 
 test("windowLoads: weekly outweighs two dailies", () => {

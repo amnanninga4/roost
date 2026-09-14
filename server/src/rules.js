@@ -5,6 +5,12 @@
 export const TZ = "America/Chicago";
 export const PEOPLE = Object.freeze(["anne", "wes"]);
 
+/** Every cadence data/chores.json may use, in the order the file groups them. Mirrors RoostCore.Cadence. */
+export const CADENCES = Object.freeze(["daily", "weekly", "biweekly", "monthly", "bimonthly", "quarterly"]);
+
+/** Calendar months per period for the month-based cadences. Mirrors Cadence.monthsPerPeriod. */
+export const MONTHS_PER_PERIOD = Object.freeze({ monthly: 1, bimonthly: 2, quarterly: 3 });
+
 /** Monday 2026-01-05 00:00 Chicago — period 0 for every cadence. */
 export const ANCHOR = chicagoLocal(2026, 1, 5, 0, 0, 0);
 
@@ -145,6 +151,12 @@ export function dayAt(index) {
   return fromJulianDay(julianDay(a.year, a.month, a.day) + index);
 }
 
+/** Whole calendar months from January 2026 to the month containing `date`. Negative before it. */
+export function monthIndex(date) {
+  const { year, month } = ymd(date);
+  return (year - 2026) * 12 + (month - 1);
+}
+
 export function periodIndex(cadence, date) {
   switch (cadence) {
     case "daily":
@@ -153,16 +165,16 @@ export function periodIndex(cadence, date) {
       return floorDiv(dayIndex(date), 7);
     case "biweekly":
       return floorDiv(dayIndex(date), 14);
-    case "monthly": {
-      const { year, month } = ymd(date);
-      return (year - 2026) * 12 + (month - 1);
-    }
+    case "monthly":
+    case "bimonthly":
+    case "quarterly":
+      return floorDiv(monthIndex(date), MONTHS_PER_PERIOD[cadence]);
     default:
       throw new Error(`unknown cadence: ${cadence}`);
   }
 }
 
-/** Start of first day and start of last day of a period. */
+/** Start of first day and start of last day of a period. Month-based periods are `MONTHS_PER_PERIOD[cadence]` whole months from month index `index * months`. */
 export function periodBounds(cadence, index) {
   switch (cadence) {
     case "daily": {
@@ -173,15 +185,14 @@ export function periodBounds(cadence, index) {
       return { firstDay: dayAt(index * 7), lastDay: dayAt(index * 7 + 6) };
     case "biweekly":
       return { firstDay: dayAt(index * 14), lastDay: dayAt(index * 14 + 13) };
-    case "monthly": {
-      const year = 2026 + floorDiv(index, 12);
-      const month = mod(index, 12) + 1;
-      const first = chicagoLocal(year, month, 1, 0, 0, 0);
-      const nextMonth = month === 12 ? 1 : month + 1;
-      const nextYear = month === 12 ? year + 1 : year;
-      const nextFirst = chicagoLocal(nextYear, nextMonth, 1, 0, 0, 0);
-      // last day = day before nextFirst
-      const last = fromJulianDay(julianDay(nextYear, nextMonth, 1) - 1);
+    case "monthly":
+    case "bimonthly":
+    case "quarterly": {
+      const months = MONTHS_PER_PERIOD[cadence];
+      const firstMonth = index * months;
+      const first = chicagoLocal(2026 + floorDiv(firstMonth, 12), mod(firstMonth, 12) + 1, 1, 0, 0, 0);
+      const endMonth = firstMonth + months; // the month after the period, as a month index
+      const last = fromJulianDay(julianDay(2026 + floorDiv(endMonth, 12), mod(endMonth, 12) + 1, 1) - 1);
       return { firstDay: first, lastDay: last };
     }
     default:
@@ -419,7 +430,7 @@ export function boardStats({
 // ---------------------------------------------------------------------------
 
 /** Provisional cadence weights — same knob as FairnessWeights.provisional. */
-export const FAIRNESS_WEIGHTS = Object.freeze({ daily: 1, weekly: 3, biweekly: 5, monthly: 8 });
+export const FAIRNESS_WEIGHTS = Object.freeze({ daily: 1, weekly: 3, biweekly: 5, monthly: 8, bimonthly: 10, quarterly: 13 });
 
 /** Trailing Chicago days that count toward load (today included). */
 export const FAIRNESS_WINDOW_DAYS = 14;
