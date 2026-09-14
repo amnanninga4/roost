@@ -11,13 +11,14 @@ struct StreakHeaderModel: Equatable {
     }
 
     let sides: [Side]
-    /// The person with the strictly higher streak; nil when tied.
+    /// The person with the strictly higher week tally — the same number the week bar uses — so the
+    /// AHEAD badge and the bar never disagree. Nil when tied.
     let leader: Person?
 
     init(streak: [Person: Int], doneThisWeek: [Person: Int]) {
         sides = Person.allCases.map { Side(person: $0, streak: streak[$0] ?? 0, doneThisWeek: doneThisWeek[$0] ?? 0) }
-        let anne = streak[.anne] ?? 0
-        let wes = streak[.wes] ?? 0
+        let anne = doneThisWeek[.anne] ?? 0
+        let wes = doneThisWeek[.wes] ?? 0
         leader = anne == wes ? nil : (anne > wes ? .anne : .wes)
     }
 

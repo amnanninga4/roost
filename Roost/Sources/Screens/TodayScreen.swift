@@ -2,9 +2,9 @@
 // a chore off.
 //
 // Both columns are always on screen, each on its own card, so nobody has to switch a filter to see
-// whether the other person is keeping up. The paired person's own column comes first (`TodayBoard
-// .columnPeople`); Order, the celebration rule, and the status line come from TodayBoard; the row is
-// ChoreRowView; colours, type, spacing, motion, and haptics are RoostDesign's.
+// whether the other person is keeping up. The paired person's own column comes first
+// (`TodayBoard.columnPeople`). Order, the celebration rule, and the status line come from
+// TodayBoard; the row is ChoreRowView; colours, type, spacing, motion, and haptics are RoostDesign's.
 //
 // A minute-by-minute TimelineView re-renders the screen, so the date line, the days-late counts, and
 // the "synced 5 minutes ago" wording stay honest without the store changing.
