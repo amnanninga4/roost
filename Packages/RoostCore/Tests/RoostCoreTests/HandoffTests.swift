@@ -254,4 +254,15 @@ final class HandoffTests: XCTestCase {
             "and a sweep in between does not hand the nag back"
         )
     }
+
+    func testATogetherChoreCannotBeOffered() {
+        let pantry = Chore(id: "clean-out-fridge-pantry", title: "Clean out fridge and pantry",
+                           cadence: .quarterly, category: .chore, together: true)
+        let rules = HandoffRules(scheduler: Scheduler(
+            chores: [pantry], activeFrom: activeFrom, rotation: FixedRotation(person: .anne), calendar: cal
+        ))
+        XCTAssertFalse(rules.canOffer(pantry, from: .anne, on: wed))
+        XCTAssertFalse(rules.canOffer(pantry, from: .wes, on: wed))
+        XCTAssertNil(rules.offer(pantry, from: .anne, to: .wes, on: wed, id: "h1"))
+    }
 }

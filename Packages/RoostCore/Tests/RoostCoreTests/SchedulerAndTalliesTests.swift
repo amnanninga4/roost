@@ -27,6 +27,13 @@ final class SchedulerTests: XCTestCase {
         category: .chore,
         season: Season(months: [4, 5, 6, 7, 8, 9, 10])
     )
+    let pantry = Chore(
+        id: "clean-out-fridge-pantry",
+        title: "Clean out fridge and pantry",
+        cadence: .quarterly,
+        category: .chore,
+        together: true
+    )
 
     // Household starts Monday 2026-09-07. "Today" is Wednesday 2026-09-16 unless a test says otherwise.
     lazy var activeFrom = cal.date(year: 2026, month: 9, day: 7, hour: 0)
@@ -161,6 +168,30 @@ final class SchedulerTests: XCTestCase {
         XCTAssertEqual(item?.periodStart, activeFrom)
         XCTAssertEqual(item?.daysOverdue, 3)
     }
+    func testTogetherChoreIsARowForBothAndOneCheckOffClearsBoth() {
+        let s = Scheduler(chores: [litter, pantry], activeFrom: activeFrom, calendar: cal)
+        let plan = s.plan(on: wed, completions: [])
+        let anne = plan[.anne]?.first { $0.chore.id == pantry.id }
+        let wes = plan[.wes]?.first { $0.chore.id == pantry.id }
+        XCTAssertEqual(anne?.id, "clean-out-fridge-pantry#2#anne")
+        XCTAssertEqual(wes?.id, "clean-out-fridge-pantry#2#wes")
+        XCTAssertEqual(anne?.periodIndex, wes?.periodIndex)
+        XCTAssertEqual(anne?.daysOverdue, wes?.daysOverdue)
+        XCTAssertEqual(s.dueItems(for: pantry, on: wed, completions: []).map(\.person), [.anne, .wes])
+        XCTAssertEqual(s.dueItem(for: pantry, on: wed, completions: [])?.person, .anne, "the single-row call answers Anne's row")
+
+        // Wes does it: gone from both columns.
+        let cleared = s.plan(on: wed, completions: [done(pantry, .wes, wed)])
+        XCTAssertFalse(cleared[.anne]!.contains { $0.chore.id == pantry.id })
+        XCTAssertFalse(cleared[.wes]!.contains { $0.chore.id == pantry.id })
+        XCTAssertEqual(s.dueItems(for: pantry, on: wed, completions: [done(pantry, .wes, wed)]), [])
+
+        // An ordinary chore's id is what it always was.
+        let day = cal.periodIndex(.daily, containing: wed)
+        XCTAssertEqual(s.dueItem(for: litter, on: wed, completions: [])?.id, "scoop-litter#\(day)")
+        XCTAssertEqual(s.dueItems(for: litter, on: wed, completions: []).count, 1)
+    }
+
 }
 
 final class TalliesTests: XCTestCase {
@@ -250,5 +281,27 @@ final class TalliesTests: XCTestCase {
         let completions = (1 ... 16).map { c(anneDaily, .anne, month: 9, day: $0) }
         let wedNight = cal.date(year: 2026, month: 9, day: 16, hour: 22)
         XCTAssertEqual(tallies.streak(for: .anne, asOf: wedNight, completions: completions), 10)
+    }
+
+    func testTogetherCompletionCountsForBothInTheWeekTallyAndTheStreak() {
+        let bothDaily = Chore(id: "feed-together", title: "Feed the cat together", cadence: .daily,
+                              category: .catCare, together: true)
+        let both = Tallies(scheduler: Scheduler(
+            chores: [anneDaily, wesDaily, bothDaily],
+            activeFrom: activeFrom,
+            calendar: cal
+        ))
+        let wed = cal.date(year: 2026, month: 9, day: 16, hour: 18)
+        let completions = [
+            c(anneDaily, .anne, month: 9, day: 15),
+            c(bothDaily, .wes, month: 9, day: 15), // one row, credited to both
+        ]
+        XCTAssertEqual(both.doneThisWeek(asOf: wed, completions: completions), [.anne: 2, .wes: 1])
+
+        // Sep 15 is complete for Anne (her daily + the shared one) and incomplete for Wes (his daily is missing).
+        XCTAssertEqual(both.streak(for: .anne, asOf: wed, completions: completions), 1)
+        XCTAssertEqual(both.streak(for: .wes, asOf: wed, completions: completions), 0)
+        // Without the shared completion Anne's day is incomplete too: a together daily is owed by both.
+        XCTAssertEqual(both.streak(for: .anne, asOf: wed, completions: [c(anneDaily, .anne, month: 9, day: 15)]), 0)
     }
 }

@@ -50,11 +50,12 @@ public struct FairnessWeights: Codable, Sendable, Hashable {
 /// The unit is the whole list, not one chore. `Scheduler.plan(on:completions:handoffs:)` builds the day's items
 /// the normal way — an accepted handoff wins, then the pin, then the rotation — and then, if it was given a
 /// balancer, walks the master chore list in order and gives each *reassignable* item to whoever is carrying
-/// less so far. An item is reassignable only when all three hold:
+/// less so far. An item is reassignable only when all four hold:
 ///
 /// - it is unpinned,
 /// - no accepted handoff covers it,
-/// - it is still inside its own period (`daysOverdue == 0`).
+/// - it is still inside its own period (`daysOverdue == 0`),
+/// - it is not a together chore (those are not weighed either: nobody's side of the scale is the right one).
 ///
 /// Everything else keeps the person it already had. Overdue items in particular are never moved: that person
 /// was already told it was theirs and probably notified about it, and shuffling a nag between columns is how
@@ -98,7 +99,7 @@ public struct FairnessBalancer: Sendable {
         on date: Date,
         calendar: HouseholdCalendar = HouseholdCalendar()
     ) -> Bool {
-        guard !item.chore.isPinned, item.daysOverdue == 0 else { return false }
+        guard !item.chore.isPinned, !item.chore.together, item.daysOverdue == 0 else { return false }
         return HandoffRules.acceptedOverride(
             choreId: item.chore.id,
             periodIndex: item.periodIndex,
@@ -123,6 +124,7 @@ public struct FairnessBalancer: Sendable {
         var reassigned: [String: Person] = [:]
 
         for chore in chores {
+            if chore.together { continue } // owed by both, moved by nobody, weighed by nobody
             let weight = weights.weight(for: chore.cadence)
 
             // Already done for this period: it is nobody's item any more, but it was this period's work and it
@@ -195,6 +197,7 @@ public struct FairnessBalancer: Sendable {
         // A completion whose chore is not in the list cannot be weighted, and guessing would make the answer
         // depend on data we do not have, so it is skipped.
         let cadenceByChore = Dictionary(chores.map { ($0.id, $0.cadence) }, uniquingKeysWith: { first, _ in first })
+        let together = Set(chores.filter(\.together).map(\.id))
 
         var loads: [Person: Int] = [:]
         for person in Person.allCases {
@@ -202,6 +205,7 @@ public struct FairnessBalancer: Sendable {
         }
         for completion in completions {
             guard completion.completedAt >= windowStart, completion.completedAt < windowEnd else { continue }
+            guard !together.contains(completion.choreId) else { continue }
             guard let cadence = cadenceByChore[completion.choreId] else { continue }
             let itsPeriod = calendar.periodIndex(cadence, containing: completion.completedAt)
             let currentPeriod = calendar.periodIndex(cadence, containing: date)
