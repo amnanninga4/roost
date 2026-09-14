@@ -23,6 +23,9 @@ struct WishlistScreen: View {
     @State private var added = 0
     @State private var checkedOff = 0
     @State private var uncheckedOff = 0
+    @State private var editing: WishlistItemRecord?
+    @State private var editDraft = ""
+    @State private var editPriceDraft: String?
 
     private var person: String? {
         syncStates.first?.person
@@ -82,6 +85,16 @@ struct WishlistScreen: View {
         .roostHaptic(.checkOff, trigger: checkedOff)
         .roostHaptic(.undo, trigger: uncheckedOff)
         .undoBar(undo)
+        .sheet(item: $editing) { item in
+            ListEditSheet(
+                title: Strings.Wishlist.editItem,
+                fieldPlaceholder: Strings.Wishlist.add,
+                draft: $editDraft,
+                priceDraft: $editPriceDraft,
+                onSave: { saveEdit(item) },
+                onCancel: { editing = nil }
+            )
+        }
     }
 
     private var boughtHeader: some View {
@@ -99,7 +112,15 @@ struct WishlistScreen: View {
     }
 
     private func row(_ item: WishlistItemRecord) -> some View {
-        WishlistRow(item: item) { toggle(item) }
+        WishlistRow(
+            item: item,
+            onEdit: {
+                editDraft = item.title
+                editPriceDraft = item.priceCents.map { PriceFormat.dollars(cents: $0) }
+                editing = item
+            },
+            onDelete: { remove(item) }
+        ) { toggle(item) }
             .listRowBackground(RoostColor.Role.surface.color)
             .roostTransition(.checkOff)
             .swipeToDelete(rejected: item.rejected) { remove(item) }
@@ -160,10 +181,20 @@ struct WishlistScreen: View {
             sync.syncSoon()
         })
     }
+
+    private func saveEdit(_ item: WishlistItemRecord) {
+        try? ListActions.renameWishlistItem(
+            item, to: editDraft, priceCents: PriceParser.cents(from: editPriceDraft ?? ""), in: context
+        )
+        editing = nil
+        sync.syncSoon()
+    }
 }
 
 private struct WishlistRow: View {
     let item: WishlistItemRecord
+    let onEdit: () -> Void
+    let onDelete: () -> Void
     let onToggle: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -240,5 +271,10 @@ private struct WishlistRow: View {
         .accessibilityLabel(item.title)
         .accessibilityValue(value)
         .accessibilityHint(item.bought ? Strings.Wishlist.markStillWanted : Strings.Wishlist.markBought)
+        .contextMenu {
+            Button(Strings.Lists.edit, systemImage: "pencil", action: onEdit)
+            Button(Strings.Lists.delete, systemImage: "trash", role: .destructive, action: onDelete)
+        }
+        .accessibilityAction(named: Text(Strings.Lists.edit), onEdit)
     }
 }

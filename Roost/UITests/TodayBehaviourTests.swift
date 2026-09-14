@@ -67,4 +67,23 @@ final class TodayBehaviourTests: RoostUITestCase {
             "the handoff confirmation never appeared"
         )
     }
+
+    /// The streak chrome is one line at launch; a tap reveals the card, another hides it again.
+    func testTheStreakLineExpandsAndCollapses() {
+        let app = launch(.paired)
+        waitForTasks(in: app)
+        let line = app.buttons["streakSummary"]
+        XCTAssertTrue(line.waitForExistence(timeout: Self.timeout), "the collapsed streak line never appeared")
+        XCTAssertFalse(app.staticTexts["TASKS DONE THIS WEEK"].exists, "the card starts collapsed")
+        line.tap()
+        XCTAssertTrue(
+            app.staticTexts["TASKS DONE THIS WEEK"].waitForExistence(timeout: Self.timeout),
+            "the streak card never expanded"
+        )
+        line.tap()
+        XCTAssertTrue(
+            app.staticTexts["TASKS DONE THIS WEEK"].waitForNonExistence(timeout: Self.timeout),
+            "the streak card never collapsed"
+        )
+    }
 }

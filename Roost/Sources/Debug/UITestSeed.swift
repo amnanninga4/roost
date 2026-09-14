@@ -49,6 +49,8 @@
         /// the container's `mainContext` — the same context the app's views write through.
         @MainActor
         func makeContainer() -> ModelContainer {
+            // Launch reset: every fixture starts with the streak card collapsed.
+            UserDefaults.standard.removeObject(forKey: "roost.today.streakExpanded")
             let container: ModelContainer
             do {
                 container = try ModelContainer(

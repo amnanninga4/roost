@@ -59,4 +59,30 @@ final class StreakHeaderTests: XCTestCase {
         XCTAssertEqual(m.sides.map(\.doneThisWeek), [1, 0])
         XCTAssertEqual(m.sides.map(\.streak), [plan.streak[.anne], plan.streak[.wes]].map { $0 ?? -1 })
     }
+
+    func testScoreLineLeadsWithThePhonesOwnPersonCalledYou() {
+        let m = StreakHeaderModel(streak: [.anne: 12, .wes: 3], doneThisWeek: [.anne: 6, .wes: 4])
+        let line = m.scoreLine(me: .anne)
+        XCTAssertEqual(line.first, StreakHeaderModel.ScoreLine.Half(person: .anne, label: "You", score: 6))
+        XCTAssertEqual(line.second, StreakHeaderModel.ScoreLine.Half(person: .wes, label: "Wes", score: 4))
+        XCTAssertEqual(line.streak, 12)
+    }
+
+    func testScoreLineUnpairedKeepsAnneFirstAndUsesNames() {
+        let m = StreakHeaderModel(streak: [.anne: 2, .wes: 9], doneThisWeek: [.anne: 6, .wes: 4])
+        let line = m.scoreLine(me: nil)
+        XCTAssertEqual(line.first.label, "Anne")
+        XCTAssertEqual(line.second.label, "Wes")
+        XCTAssertEqual(line.streak, 9, "the line carries the longest running streak")
+    }
+
+    func testScoreLineDropsTheStreakClauseWhenNeitherPersonHasOne() {
+        let m = StreakHeaderModel(streak: [:], doneThisWeek: [.anne: 6, .wes: 4])
+        XCTAssertNil(m.scoreLine(me: .anne).streak, "no 0-day streak on the line")
+    }
+
+    func testStreakLineWording() {
+        XCTAssertEqual(Strings.Streak.lineStreak(12), "12-day streak")
+        XCTAssertEqual(Strings.Streak.lineStreak(1), "1-day streak")
+    }
 }

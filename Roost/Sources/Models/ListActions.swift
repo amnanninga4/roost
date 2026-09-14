@@ -36,6 +36,17 @@ enum ListActions {
         try context.save()
     }
 
+    /// Rename a row (long-press → Edit). A blank title is refused — the field keeps what was typed —
+    /// and a no-op edit flags nothing.
+    static func renameShoppingItem(
+        _ item: ShoppingItemRecord, to title: String, in context: ModelContext, now: Date = Date()
+    ) throws {
+        guard let title = cleaned(title), title != item.title else { return }
+        item.title = title
+        item.markEdited(.title, at: now)
+        try context.save()
+    }
+
     static func removeShoppingItem(_ item: ShoppingItemRecord, in context: ModelContext, now: Date = Date()) throws {
         item.markRemoved(at: now)
         try context.save()

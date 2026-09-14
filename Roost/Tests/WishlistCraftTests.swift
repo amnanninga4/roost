@@ -68,12 +68,24 @@ final class WishlistCraftTests: XCTestCase {
 
     func testAddingKeepsThePriceInsideTheServersRangeAndBlankTitlesAreNotAdded() throws {
         XCTAssertNil(try ListActions.addWishlistItem("   ", priceCents: 100, by: "anne", in: context, now: clock))
-        let item = try XCTUnwrap(try ListActions.addWishlistItem(" Bigger TV ", priceCents: 59900, by: nil, in: context, now: clock))
+        let item = try XCTUnwrap(try ListActions.addWishlistItem(
+            " Bigger TV ",
+            priceCents: 59900,
+            by: nil,
+            in: context,
+            now: clock
+        ))
         XCTAssertEqual(item.title, "Bigger TV")
         XCTAssertEqual(item.priceCents, 59900)
         XCTAssertEqual(item.addedBy, "", "blank until the server stamps it")
         XCTAssertTrue(item.needsPost)
-        let free = try XCTUnwrap(try ListActions.addWishlistItem("A weekend away", priceCents: nil, by: "wes", in: context, now: clock))
+        let free = try XCTUnwrap(try ListActions.addWishlistItem(
+            "A weekend away",
+            priceCents: nil,
+            by: "wes",
+            in: context,
+            now: clock
+        ))
         XCTAssertNil(free.priceCents)
         XCTAssertEqual(ListActions.clampedPrice(-1), 0)
         XCTAssertEqual(ListActions.clampedPrice(100_000_000), ListActions.priceLimit)
@@ -97,9 +109,30 @@ final class WishlistCraftTests: XCTestCase {
         XCTAssertNil(item.boughtAt)
     }
 
+    func testRenameFlagsOnlyWhatChanged() throws {
+        let item = WishlistItemRecord(id: "w-9", title: "Kayak", priceCents: 89900, addedBy: "anne",
+                                      createdAt: clock, syncedAt: clock)
+        context.insert(item)
+        try context.save()
+        try ListActions.renameWishlistItem(item, to: "Kayak (tandem)", priceCents: 89900, in: context, now: clock)
+        XCTAssertEqual(item.title, "Kayak (tandem)")
+        XCTAssertEqual(item.pendingFields, [.title], "the price did not change, so it is not flagged")
+        try ListActions.renameWishlistItem(item, to: "Kayak (tandem)", priceCents: nil, in: context, now: clock)
+        XCTAssertNil(item.priceCents, "nil clears the price")
+        XCTAssertEqual(item.pendingFields, [.title, .price])
+        try ListActions.renameWishlistItem(item, to: "   ", priceCents: 500, in: context, now: clock)
+        XCTAssertEqual(
+            item.title,
+            "Kayak (tandem)",
+            "a blank title keeps the old one, so a price-only edit still lands"
+        )
+        XCTAssertEqual(item.priceCents, 500)
+    }
+
     func testUndoAfterTheDeleteWentOutCopiesThePriceAndFlagsBought() throws {
         let item = WishlistItemRecord(id: "w-2", title: "Standing desk", priceCents: 45000, addedBy: "wes",
-                                      bought: true, boughtBy: "anne", boughtAt: clock, createdAt: clock, syncedAt: clock)
+                                      bought: true, boughtBy: "anne", boughtAt: clock, createdAt: clock,
+                                      syncedAt: clock)
         context.insert(item)
         try context.save()
         try ListActions.removeWishlistItem(item, in: context, now: clock)
@@ -113,7 +146,13 @@ final class WishlistCraftTests: XCTestCase {
     }
 
     func testUndoOfADeleteThatNeverLeftUnremovesTheSameRow() throws {
-        let item = try XCTUnwrap(try ListActions.addWishlistItem("Kayak", priceCents: nil, by: "wes", in: context, now: clock))
+        let item = try XCTUnwrap(try ListActions.addWishlistItem(
+            "Kayak",
+            priceCents: nil,
+            by: "wes",
+            in: context,
+            now: clock
+        ))
         try ListActions.removeWishlistItem(item, in: context, now: clock)
         XCTAssertTrue(item.deleteSynced, "never reached the server, so nothing to send")
         let back = try ListActions.restoreWishlistItem(item, in: context, now: clock)
@@ -124,8 +163,14 @@ final class WishlistCraftTests: XCTestCase {
 
     func testClearBoughtRemovesEveryTickedRowAndReturnsThem() throws {
         for (index, bought) in [true, false, true].enumerated() {
-            context.insert(WishlistItemRecord(id: "w-\(index)", title: "Thing \(index)", addedBy: "anne", bought: bought,
-                                              createdAt: clock, syncedAt: clock))
+            context.insert(WishlistItemRecord(
+                id: "w-\(index)",
+                title: "Thing \(index)",
+                addedBy: "anne",
+                bought: bought,
+                createdAt: clock,
+                syncedAt: clock
+            ))
         }
         try context.save()
         let cleared = try ListActions.clearBoughtWishlist(in: context, now: clock)

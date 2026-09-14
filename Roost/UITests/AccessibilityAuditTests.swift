@@ -123,7 +123,16 @@ final class AccessibilityAuditTests: RoostUITestCase {
         openList("Projects", in: app)
         // The finished card opens itself; open the other one too, so the audit sees a step row, the step
         // composer, and a bar that is not full.
+        // The pill picker is taller than the system control it replaced, so on a 17 Pro the second card
+        // starts below the fold — and a List does not build a row it is not about to draw. Flick until
+        // it exists.
+        let list = app.collectionViews["projectsList"]
         let second = app.buttons["Clear out the garage"]
+        var flicks = 0
+        while !second.exists, flicks < 4 {
+            list.swipeUp()
+            flicks += 1
+        }
         XCTAssertTrue(second.waitForExistence(timeout: Self.timeout), "the second project never appeared")
         second.tap()
         // A List only builds the rows it is about to draw, so the second card's steps are not in the

@@ -184,3 +184,87 @@ struct StreakHeaderView: View {
         .background(RoostColor.Role.background.color)
         .environment(\.dynamicTypeSize, .accessibility5)
 }
+
+/// The head-to-head as one line: "You 6 — 4 Anne · 12-day streak ›", set in `monoTally` with each
+/// score in its person's colour. Collapsed is the default on every launch — the tally is the glance,
+/// the card is the reveal. A tap expands the full streak card as it has always drawn, on the
+/// `standard` spring; another tap collapses it.
+struct StreakSummaryView: View {
+    let model: StreakHeaderModel
+    /// This phone's person, so the line can say "You" and lead with your number. Nil unpaired.
+    var me: Person?
+    /// Persisted by the parent (`@AppStorage("roost.today.streakExpanded")`); default collapsed.
+    @Binding var expanded: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var score: StreakHeaderModel.ScoreLine {
+        model.scoreLine(me: me)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: RoostSpacing.md) {
+            Button {
+                withAnimation(RoostMotion.reduceMotionAware(.standard, reduceMotion: reduceMotion)) {
+                    expanded.toggle()
+                }
+            } label: {
+                line
+            }
+            // Quiet: the chevron and the card already answer the tap visibly, and a streak line is
+            // not an action that needs feeling.
+            .buttonStyle(.roostPressQuiet)
+            .accessibilityIdentifier("streakSummary")
+            .accessibilityLabel(voiceOverLine)
+            .accessibilityHint(expanded ? Strings.Streak.collapseHint : Strings.Streak.expandHint)
+            if expanded {
+                StreakHeaderView(model: model)
+            }
+        }
+    }
+
+    private var line: some View {
+        HStack(spacing: RoostSpacing.xs) {
+            scoreText
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: RoostSpacing.sm)
+            Image(systemName: "chevron.right")
+                .roostType(.caption)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+                .rotationEffect(.degrees(expanded ? 90 : 0))
+                .accessibilityHidden(true)
+        }
+        .frame(maxWidth: .infinity, minHeight: RoostSpacing.minTapTarget, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    /// "You 6 — 4 Anne · 12-day streak", each score in its person's colour.
+    private var scoreText: Text {
+        let text = Text(score.first.label + " ")
+            .foregroundStyle(RoostColor.Role.textPrimary.color)
+            + Text("\(score.first.score)")
+            .foregroundStyle(score.first.person.design.color)
+            + Text(Strings.Streak.scoreSeparator)
+            .foregroundStyle(RoostColor.Role.textSecondary.color)
+            + Text("\(score.second.score)")
+            .foregroundStyle(score.second.person.design.color)
+            + Text(" " + score.second.label)
+            .foregroundStyle(RoostColor.Role.textPrimary.color)
+        guard let streak = score.streak else { return text.roostFont(.monoTally) }
+        let clause = Text(Strings.Lists.metaSeparator + Strings.Streak.lineStreak(streak))
+            .foregroundStyle(RoostColor.Role.textSecondary.color)
+        return (text + clause).roostFont(.monoTally)
+    }
+
+    /// "You 6, Anne 4, 12-day streak" — spoken, the colours are useless, so the names stay in.
+    private var voiceOverLine: String {
+        var parts = [
+            "\(score.first.label) \(score.first.score)",
+            "\(score.second.label) \(score.second.score)",
+        ]
+        if let streak = score.streak {
+            parts.append(Strings.Streak.lineStreak(streak))
+        }
+        return parts.joined(separator: ", ")
+    }
+}

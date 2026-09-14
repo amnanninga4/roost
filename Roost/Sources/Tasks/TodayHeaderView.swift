@@ -1,4 +1,5 @@
 // The top of the Tasks tab: the date, the word Today, the head-to-head block, and one status line.
+import RoostCore
 import RoostDesign
 import SwiftUI
 
@@ -6,6 +7,10 @@ struct TodayHeaderView: View {
     let date: Date
     let streaks: StreakHeaderModel
     let notice: TodayBoard.Notice
+    /// This phone's person, so the collapsed streak line can say "You".
+    let me: Person?
+    /// Ruling 2026-09-14: expand state persists; default collapsed on a fresh install.
+    @AppStorage("roost.today.streakExpanded") private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: RoostSpacing.md) {
@@ -21,7 +26,7 @@ struct TodayHeaderView: View {
                     .foregroundStyle(RoostColor.Role.textPrimary.color)
                     .accessibilityAddTraits(.isHeader)
             }
-            StreakHeaderView(model: streaks)
+            StreakSummaryView(model: streaks, me: me, expanded: $expanded)
             SyncNoticeLine(notice: notice)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,7 +69,8 @@ struct SyncNoticeLine: View {
     TodayHeaderView(
         date: Date(),
         streaks: StreakHeaderModel(streak: [.anne: 9, .wes: 6], doneThisWeek: [.anne: 14, .wes: 11]),
-        notice: TodayBoard.Notice(tone: .quiet, text: SyncStatusCopy.synced(at: Date()))
+        notice: TodayBoard.Notice(tone: .quiet, text: SyncStatusCopy.synced(at: Date())),
+        me: .anne
     )
     .padding(RoostSpacing.screenMargin)
     .background(RoostColor.Role.background.color)
@@ -74,7 +80,8 @@ struct SyncNoticeLine: View {
     TodayHeaderView(
         date: Date(),
         streaks: StreakHeaderModel(streak: [:], doneThisWeek: [:]),
-        notice: TodayBoard.Notice(tone: .notice, text: Strings.Tasks.notPaired)
+        notice: TodayBoard.Notice(tone: .notice, text: Strings.Tasks.notPaired),
+        me: .anne
     )
     .padding(RoostSpacing.screenMargin)
     .background(RoostColor.Role.background.color)

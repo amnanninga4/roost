@@ -36,4 +36,38 @@ struct StreakHeaderModel: Equatable {
             .map { "\($0.person.displayName)\(Strings.Streak.tallySeparator)\($0.doneThisWeek)" }
             .joined(separator: Strings.Streak.tallyGap)
     }
+
+    /// What the collapsed streak line prints: the two week scores, this phone's person first and
+    /// called "You", and the household's longest running streak — nil when neither person has one
+    /// going, so the line drops the clause rather than saying "0-day streak".
+    struct ScoreLine: Equatable {
+        struct Half: Equatable {
+            let person: Person
+            /// "You" for this phone's person; the display name otherwise.
+            let label: String
+            let score: Int
+        }
+
+        let first: Half
+        let second: Half
+        let streak: Int?
+    }
+
+    func scoreLine(me: Person?) -> ScoreLine {
+        let streak = sides.map(\.streak).max() ?? 0
+        let halves = sides.map {
+            ScoreLine.Half(person: $0.person, label: $0.person.displayName, score: $0.doneThisWeek)
+        }
+        guard let me,
+              let mine = halves.first(where: { $0.person == me }),
+              let other = halves.first(where: { $0.person != me })
+        else {
+            return ScoreLine(first: halves[0], second: halves[1], streak: streak > 0 ? streak : nil)
+        }
+        return ScoreLine(
+            first: ScoreLine.Half(person: mine.person, label: Strings.Streak.lineYou, score: mine.score),
+            second: other,
+            streak: streak > 0 ? streak : nil
+        )
+    }
 }

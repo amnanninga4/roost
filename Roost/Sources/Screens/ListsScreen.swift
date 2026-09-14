@@ -1,4 +1,4 @@
-// The Lists tab: Shopping, Meals, Projects and Wishlist under one roof. A segmented control picks the
+// The Lists tab: Shopping, Meals, Projects and Wishlist under one roof. A RoostSegmentedControl picks the
 // page and a paged TabView under it scrolls to the same page, so a tap and a swipe do the same thing and
 // every page keeps its own state — its draft, its open cards, its five-second undo — while another one is
 // showing. The chosen page is remembered per phone. The list chrome is applied here, once, so the pages
@@ -38,14 +38,18 @@ enum ListPage: String, CaseIterable, Identifiable {
 
 struct ListsScreen: View {
     @AppStorage(ListPage.storageKey) private var page: ListPage = .shopping
-    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                picker
-                    .padding(.horizontal, RoostSpacing.screenMargin)
-                    .padding(.vertical, RoostSpacing.sm)
+                RoostSegmentedControl(
+                    items: ListPage.allCases,
+                    selection: $page,
+                    title: { $0.title },
+                    symbol: { $0.symbol }
+                )
+                .padding(.horizontal, RoostSpacing.screenMargin)
+                .padding(.vertical, RoostSpacing.sm)
                 TabView(selection: $page) {
                     ForEach(ListPage.allCases) { page in
                         pageBody(page)
@@ -57,23 +61,6 @@ struct ListsScreen: View {
             .listTabChrome()
         }
         .tint(RoostColor.Role.accent.color)
-    }
-
-    private var picker: some View {
-        Picker(Strings.Tabs.lists, selection: $page) {
-            ForEach(ListPage.allCases) { page in
-                if typeSize.isAccessibilitySize {
-                    Image(systemName: page.symbol)
-                        .accessibilityLabel(page.title)
-                        .tag(page)
-                } else {
-                    Text(page.title)
-                        .tag(page)
-                }
-            }
-        }
-        .pickerStyle(.segmented)
-        .accessibilityIdentifier("listsPicker")
     }
 
     @ViewBuilder
