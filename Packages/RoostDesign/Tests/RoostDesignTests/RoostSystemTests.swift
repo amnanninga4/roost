@@ -328,10 +328,21 @@ final class RoostHapticTests: XCTestCase {
     func testEveryMomentIsDistinctAndDocumented() {
         let names = RoostHaptic.allCases.map(\.rawValue)
         XCTAssertEqual(Set(names).count, names.count)
-        XCTAssertEqual(RoostHaptic.allCases.count, 5)
+        XCTAssertEqual(RoostHaptic.allCases.count, 6)
         for haptic in RoostHaptic.allCases {
             XCTAssertFalse(haptic.usage.isEmpty, "\(haptic.rawValue) has no guidance")
         }
+    }
+
+    func testPressIsALightImpactAndNotTheSelectionTick() {
+        XCTAssertEqual(
+            String(describing: RoostHaptic.press.feedback),
+            String(describing: SensoryFeedback.impact(weight: .light))
+        )
+        XCTAssertNotEqual(
+            String(describing: RoostHaptic.press.feedback),
+            String(describing: RoostHaptic.selection.feedback)
+        )
     }
 
     func testCheckOffAndUndoDoNotFeelTheSame() {
