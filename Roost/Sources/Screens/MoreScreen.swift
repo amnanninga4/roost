@@ -8,6 +8,9 @@ struct MoreScreen: View {
     @Environment(RootNavigation.self) private var navigation
     @State private var showKitchen = false
     @State private var showAllChores = false
+    /// The last request this tab answered, so a request that arrived before the tab first appeared is
+    /// still honoured on appearance and no request is answered twice.
+    @State private var handledAllChoresRequests = 0
 
     var body: some View {
         NavigationStack {
@@ -57,9 +60,16 @@ struct MoreScreen: View {
             .toolbarTitleDisplayMode(.inline)
             .fullScreenCover(isPresented: $showKitchen) { KitchenScreen() }
             .navigationDestination(isPresented: $showAllChores) { ChoreListScreen() }
-            .onChange(of: navigation.allChoresRequests) { _, _ in showAllChores = true }
+            .onAppear(perform: answerAllChoresRequest)
+            .onChange(of: navigation.allChoresRequests) { _, _ in answerAllChoresRequest() }
         }
         .tint(RoostColor.Role.accent.color)
+    }
+
+    private func answerAllChoresRequest() {
+        guard navigation.allChoresRequests > handledAllChoresRequests else { return }
+        handledAllChoresRequests = navigation.allChoresRequests
+        showAllChores = true
     }
 }
 
