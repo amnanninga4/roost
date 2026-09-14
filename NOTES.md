@@ -41,6 +41,7 @@ Everything else is fair-game split; only those two weekly tasks are pinned.
 3. **Overdue escalation** (litter-box example): Due today → 1 day → 3 days → 5 days (shared red alert).
 4. **Tabs:** Tasks / Lists (Shopping · Meals · Projects · Wishlist) / More. Calendar slots in second when the reminders design ships. (Decided 2026-09-13; spec in docs/superpowers/specs/2026-09-13-new-bar-lists-design.md.)
    **Projects (2026-09-13):** a due day per project and an owner per step, from Anne's issue #1 notes; the morning-of reminder is local to the phone until the reminders design moves it to the server.
+   **UI polish (2026-09-14):** the component kit (RoostButtonStyle / RoostCard / RoostAvatar, plus the press haptic) and the density diet — collapsed streak line, two-slot chore meta, the escalation edge bar, row menus and a Hand-off swipe, the sliding Lists pill, and Edit on Shopping/Wishlist rows. The streak card's expand state persists at `@AppStorage("roost.today.streakExpanded")` (default collapsed; `paired` UI-test launch clears the key).
 5. **Cat care** called out as its own section (not buried in chores).
 
 Visual system already has light/dark tokens, Fraunces + IBM Plex Mono, accent / gold / meal / assign / alert colors — good seed for a real design system.
