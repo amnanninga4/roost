@@ -21,6 +21,7 @@ public struct RoostSwatchbook: View {
                 SpacingSection()
                 RadiusSection()
                 ElevationSection()
+                ComponentsSection()
                 MotionSection()
                 GlassSection()
                 Text(fontStatus)
@@ -90,8 +91,7 @@ struct SwatchCard<Content: View>: View {
         content
             .padding(RoostSpacing.cardPadding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoostColor.Role.surface.color, in: RoostRadius.cardShape)
-            .roostElevation(.card, cornerRadius: RoostRadius.card)
+            .roostCard()
     }
 }
 

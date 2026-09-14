@@ -1,4 +1,4 @@
-// Haptics, as five named moments.
+// Haptics, as six named moments.
 //
 // `.sensoryFeedback` is the SwiftUI-native API and the only one the app needs. The list is
 // short on purpose: haptics work because they are rare. The rule is user-initiated and
@@ -17,6 +17,9 @@ public enum RoostHaptic: String, Sendable, CaseIterable, Identifiable {
     case milestone
     /// Moving between tabs, days, or people. The lightest one.
     case selection
+    /// A finger landing on a button or row. The only haptic that fires on touch-down rather than on
+    /// the action: it is the press itself, not what the press did. `RoostButtonStyle` owns the firing.
+    case press
 
     public var id: String {
         rawValue
@@ -29,6 +32,7 @@ public enum RoostHaptic: String, Sendable, CaseIterable, Identifiable {
         case .error: .error
         case .milestone: .levelChange
         case .selection: .selection
+        case .press: .impact(weight: .light)
         }
     }
 
@@ -39,6 +43,7 @@ public enum RoostHaptic: String, Sendable, CaseIterable, Identifiable {
         case .error: "The action failed."
         case .milestone: "A streak milestone or a week decided."
         case .selection: "Tab, day, or person changed."
+        case .press: "Touch-down on a button or row."
         }
     }
 }
