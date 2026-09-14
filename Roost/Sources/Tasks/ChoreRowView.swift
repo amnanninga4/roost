@@ -129,7 +129,7 @@ struct ChoreRowView: View {
     private var meta: some View {
         let late = row.daysOverdue > 0
         let pinned = row.chore.fixedAssignee
-        if late || pinned != nil || row.handoff != nil {
+        if late || pinned != nil || row.chore.together || row.handoff != nil {
             // One line normally. At accessibility sizes a 40-pt chip leaves the note beside it a column
             // two characters wide, so the meta line becomes a stack instead.
             let layout = typeSize.isAccessibilitySize
@@ -141,7 +141,9 @@ struct ChoreRowView: View {
                     // rather than a second wash of the same colour.
                     RowBadge(text: Strings.daysLate(row.daysOverdue), tint: row.stage.role, fill: .surface)
                 }
-                if let pinned {
+                if row.chore.together {
+                    RowBadge(text: Strings.Tasks.together, tint: .assigned, fill: .assignedSoft)
+                } else if let pinned {
                     RowBadge(text: pinned.displayName.uppercased(), tint: .assigned, fill: .assignedSoft)
                 }
                 if case let .takenFrom(giver) = row.handoff {
@@ -187,7 +189,9 @@ struct ChoreRowView: View {
         } else {
             parts.append(Strings.Tasks.stateDueToday)
         }
-        if let pinned = row.chore.fixedAssignee {
+        if row.chore.together {
+            parts.append(Strings.Tasks.togetherValue)
+        } else if let pinned = row.chore.fixedAssignee {
             parts.append(Strings.Tasks.always(pinned.displayName))
         }
         if case let .takenFrom(giver) = row.handoff {

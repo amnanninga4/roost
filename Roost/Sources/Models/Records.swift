@@ -18,6 +18,7 @@ enum RoostSchema {
 
 /// One row of data/chores.json, persisted. `cadence`, `category`, and `fixedAssignee` are stored as
 /// their raw strings so a future value in the JSON does not crash the store; converters validate.
+/// `season` is the JSON text of a `RoostCore.Season` (`{"months":[4,5,6,7,8,9,10]}`), nil for the rest.
 @Model
 final class ChoreRecord {
     @Attribute(.unique) var id: String
@@ -27,6 +28,8 @@ final class ChoreRecord {
     var category: String
     var sortOrder: Int
     var retired: Bool
+    var season: String?
+    var together: Bool = false
 
     init(
         id: String,
@@ -35,7 +38,9 @@ final class ChoreRecord {
         fixedAssignee: String?,
         category: String,
         sortOrder: Int,
-        retired: Bool = false
+        retired: Bool = false,
+        season: String? = nil,
+        together: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -44,6 +49,8 @@ final class ChoreRecord {
         self.category = category
         self.sortOrder = sortOrder
         self.retired = retired
+        self.season = season
+        self.together = together
     }
 }
 

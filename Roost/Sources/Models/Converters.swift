@@ -7,6 +7,7 @@ enum ConversionError: Error, CustomStringConvertible {
     case badCategory(String, id: String)
     case badPerson(String, id: String)
     case badState(String, id: String)
+    case badSeason(String, id: String)
 
     var description: String {
         switch self {
@@ -14,6 +15,7 @@ enum ConversionError: Error, CustomStringConvertible {
         case let .badCategory(v, id): "chore \(id): unknown category '\(v)'"
         case let .badPerson(v, id): "record \(id): unknown person '\(v)'"
         case let .badState(v, id): "handoff \(id): unknown state '\(v)'"
+        case let .badSeason(v, id): "chore \(id): unreadable season '\(v)'"
         }
     }
 }
@@ -26,7 +28,9 @@ extension ChoreRecord {
             cadence: chore.cadence.rawValue,
             fixedAssignee: chore.fixedAssignee?.rawValue,
             category: chore.category.rawValue,
-            sortOrder: sortOrder
+            sortOrder: sortOrder,
+            season: Self.seasonText(chore.season),
+            together: chore.together
         )
     }
 
@@ -38,6 +42,8 @@ extension ChoreRecord {
         category = chore.category.rawValue
         self.sortOrder = sortOrder
         retired = false
+        season = Self.seasonText(chore.season)
+        together = chore.together
     }
 
     func toChore() throws -> Chore {
@@ -49,7 +55,23 @@ extension ChoreRecord {
             guard let p = Person(rawValue: raw) else { throw ConversionError.badPerson(raw, id: id) }
             person = p
         }
-        return Chore(id: id, title: title, cadence: cadence, fixedAssignee: person, category: category)
+        var season: Season? = nil
+        if let text = self.season {
+            guard let decoded = try? JSONDecoder().decode(Season.self, from: Data(text.utf8)) else {
+                throw ConversionError.badSeason(text, id: id)
+            }
+            season = decoded
+        }
+        return Chore(
+            id: id, title: title, cadence: cadence, fixedAssignee: person, category: category,
+            season: season, together: together
+        )
+    }
+
+    /// The stored form of a season: its JSON, or nil. Month order in the text is unspecified (it is a set).
+    static func seasonText(_ season: Season?) -> String? {
+        guard let season, let data = try? JSONEncoder().encode(season) else { return nil }
+        return String(decoding: data, as: UTF8.self)
     }
 }
 

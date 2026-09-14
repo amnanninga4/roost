@@ -312,6 +312,28 @@ final class SyncTests: XCTestCase {
         XCTAssertEqual(active.count, 30)
     }
 
+    func testServerSentChoresCarrySeasonAndTogether() async throws {
+        try await pairAsAnne()
+        let chores: [[String: Any]] = [
+            ["id": "mow-lawn", "title": "Mow lawn", "cadence": "weekly", "fixedAssignee": "anne",
+             "category": "chore", "season": ["months": [4, 5, 6, 7, 8, 9, 10]], "together": false],
+            ["id": "clean-out-fridge-pantry", "title": "Clean out fridge and pantry", "cadence": "quarterly",
+             "fixedAssignee": NSNull(), "category": "chore", "season": NSNull(), "together": true],
+            ["id": "scoop-litter", "title": "Scoop litter", "cadence": "daily", "fixedAssignee": NSNull(),
+             "category": "cat_care"], // an older server: no keys at all
+        ]
+        StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 2, chores: chores)) }
+        _ = await client.syncNow()
+        let active = try fresh().fetch(FetchDescriptor<ChoreRecord>(
+            predicate: #Predicate { !$0.retired }, sortBy: [SortDescriptor(\.sortOrder)]
+        ))
+        XCTAssertEqual(active.map(\.id), ["mow-lawn", "clean-out-fridge-pantry", "scoop-litter"])
+        XCTAssertEqual(try active[0].toChore().season, Season(months: [4, 5, 6, 7, 8, 9, 10]))
+        XCTAssertEqual(active[1].together, true)
+        XCTAssertEqual(active[2].together, false)
+        XCTAssertNil(active[2].season)
+    }
+
     func testOverlappingSyncsCoalesce() async throws {
         try await pairAsAnne()
         StubURLProtocol.reset { _ in

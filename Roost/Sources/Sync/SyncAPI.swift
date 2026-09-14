@@ -66,6 +66,9 @@ struct SyncAPI: Sendable {
         let cadence: String
         let fixedAssignee: String?
         let category: String
+        /// Both optional so a server older than R-29, or a test stub, still decodes.
+        let season: Season?
+        let together: Bool?
     }
 
     struct SyncResponse: Codable, Sendable {

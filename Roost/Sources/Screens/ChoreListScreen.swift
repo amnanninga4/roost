@@ -94,6 +94,9 @@ private struct ChoreListRow: View {
         record.fixedAssignee.flatMap(Person.init(rawValue:))
     }
 
+    private var chore: Chore? { try? record.toChore() }
+    private var seasonLine: String? { chore?.season.flatMap { SeasonCopy.line($0) } }
+
     var body: some View {
         // One line normally. At accessibility sizes the badge and the pinned chip each take a fixed
         // 40-odd points off a column that is only 300 wide, which breaks "dishwasher" mid-word, so the
@@ -101,6 +104,10 @@ private struct ChoreListRow: View {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: RoostSpacing.sm))
+        var a11yValue = record.together ? Strings.Tasks.togetherValue : (pinnedTo.map { Strings.Tasks.always($0.displayName) } ?? "")
+        if let seasonLine {
+            a11yValue = a11yValue.isEmpty ? seasonLine : a11yValue + Strings.Lists.metaSeparator + seasonLine
+        }
         return layout {
             // The cat/house badge is a tint, not information — it is the first thing to go.
             if !typeSize.isAccessibilitySize {
@@ -111,21 +118,24 @@ private struct ChoreListRow: View {
                     .background(category.softColor, in: RoostRadius.shape(RoostRadius.sm))
                     .accessibilityHidden(true)
             }
-            Text(record.title)
-                .roostType(.rowTitle)
-                .foregroundStyle(RoostColor.Role.textPrimary.color)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                Text(record.title)
+                    .roostType(.rowTitle)
+                    .foregroundStyle(RoostColor.Role.textPrimary.color)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let seasonLine {
+                    Text(seasonLine)
+                        .roostType(.caption)
+                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                }
+            }
             if !typeSize.isAccessibilitySize {
                 Spacer(minLength: RoostSpacing.sm)
             }
-            if let person = pinnedTo {
-                Text(person.displayName.uppercased())
-                    .roostType(.monoLabel)
-                    .foregroundStyle(RoostColor.Role.assigned.color)
-                    .padding(.horizontal, RoostSpacing.sm)
-                    .padding(.vertical, RoostSpacing.xxs)
-                    .background(RoostColor.Role.assignedSoft.color, in: RoostRadius.shape(RoostRadius.sm))
-                    .fixedSize()
+            if record.together {
+                chip(Strings.Tasks.together)
+            } else if let person = pinnedTo {
+                chip(person.displayName.uppercased())
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -134,7 +144,17 @@ private struct ChoreListRow: View {
         .frame(minHeight: RoostSpacing.minTapTarget)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(record.title)
-        .accessibilityValue(pinnedTo.map { Strings.Tasks.always($0.displayName) } ?? "")
+        .accessibilityValue(a11yValue)
+    }
+
+    private func chip(_ text: String) -> some View {
+        Text(text)
+            .roostType(.monoLabel)
+            .foregroundStyle(RoostColor.Role.assigned.color)
+            .padding(.horizontal, RoostSpacing.sm)
+            .padding(.vertical, RoostSpacing.xxs)
+            .background(RoostColor.Role.assignedSoft.color, in: RoostRadius.shape(RoostRadius.sm))
+            .fixedSize()
     }
 }
 
@@ -178,6 +198,10 @@ private enum PreviewStore {
             Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore),
             Chore(id: "garbage", title: "Garbage can to street, Sunday", cadence: .weekly, fixedAssignee: .wes,
                   category: .chore),
+            Chore(id: "mow-lawn", title: "Mow lawn", cadence: .weekly, fixedAssignee: .anne, category: .chore,
+                  season: Season(months: [4, 5, 6, 7, 8, 9, 10])),
+            Chore(id: "pantry", title: "Clean out fridge and pantry", cadence: .quarterly, category: .chore,
+                  together: true),
         ])
         try! ChoreSeeder.seed(sample, into: container.mainContext)
         return container

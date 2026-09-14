@@ -255,6 +255,15 @@ final class HandoffPlanningTests: XCTestCase {
         XCTAssertTrue(p.offers(for: .wes).isEmpty)
     }
 
+    func testATogetherRowIsNeverOfferable() {
+        let pantry = Chore(id: "pantry", title: "Clean out fridge and pantry", cadence: .weekly,
+                           category: .chore, together: true)
+        let plan = TodayPlanner.plan(chores: [pantry], completions: [], asOf: monday,
+                                     activeFrom: cal.startOfDay(monday), calendar: cal)
+        XCTAssertEqual(plan.rows(for: .anne).first?.canOffer, false)
+        XCTAssertEqual(plan.rows(for: .wes).first?.canOffer, false)
+    }
+
     /// The period phrase is the server's, so the card and the push that arrived before it agree.
     func testThePeriodPhraseMatchesTheServers() {
         XCTAssertEqual(Cadence.daily.periodPhrase, "today")
@@ -263,5 +272,11 @@ final class HandoffPlanningTests: XCTestCase {
         XCTAssertEqual(Cadence.monthly.periodPhrase, "this month")
         XCTAssertEqual(Cadence.bimonthly.periodPhrase, "these two months")
         XCTAssertEqual(Cadence.quarterly.periodPhrase, "this quarter")
+        // The whole table, so the server's PERIOD_PHRASES test and this one pin the same six lines.
+        XCTAssertEqual(
+            Dictionary(uniqueKeysWithValues: Cadence.allCases.map { ($0.rawValue, $0.periodPhrase) }),
+            ["daily": "today", "weekly": "this week", "biweekly": "this week", "monthly": "this month",
+             "bimonthly": "these two months", "quarterly": "this quarter"]
+        )
     }
 }

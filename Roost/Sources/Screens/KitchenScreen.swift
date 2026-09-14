@@ -219,7 +219,7 @@ private struct AlertBanner: View {
                         .roostType(.display)
                         .foregroundStyle(RoostColor.Role.textPrimary.color)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("\(item.person.displayName.uppercased()) · \(Strings.Kitchen.daysLate(item.daysOverdue))")
+                    Text("\(item.chore.together ? Strings.Kitchen.together : item.person.displayName.uppercased()) · \(Strings.Kitchen.daysLate(item.daysOverdue))")
                         .roostType(.monoTally)
                         .foregroundStyle(RoostColor.Role.textSecondary.color)
                         .fixedSize(horizontal: false, vertical: true)
