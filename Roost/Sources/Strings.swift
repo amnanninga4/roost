@@ -267,6 +267,12 @@ enum Strings {
         static let together = "TOGETHER"
         /// VoiceOver value for a together row, after the state.
         static let togetherValue = "Both of you"
+        /// The long-press menu's last item: opens More → All chores.
+        static let showInAllChores = "Show in All chores"
+        /// The preview card's first fact: "For Anne".
+        static func forPerson(_ name: String) -> String {
+            "For \(name)"
+        }
     }
 
     /// Handing a turn over: the ask, the wait, the answer. One period at a time, never a rule change.

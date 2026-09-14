@@ -24,6 +24,7 @@ struct PersonColumnView: View {
     /// Takes back an offer that has not synced yet.
     var withdraw: ((String) -> Void)?
     var answer: ((IncomingOffer, HandoffRules.Decision) -> Void)?
+    var showInAllChores: (() -> Void)? = nil
 
     @Environment(\.dynamicTypeSize) private var typeSize
     /// The dot that ties a column to its half of the week bar.
@@ -107,7 +108,8 @@ struct PersonColumnView: View {
                     ChoreRowView(
                         row: row,
                         onOffer: offerAction(for: row),
-                        onWithdraw: withdrawAction(for: row)
+                        onWithdraw: withdrawAction(for: row),
+                        onShowInAllChores: showInAllChores
                     ) { toggle(row) }
                         .roostTransition(.checkOff)
                 }

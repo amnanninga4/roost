@@ -5,7 +5,9 @@ import SwiftUI
 
 struct MoreScreen: View {
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(RootNavigation.self) private var navigation
     @State private var showKitchen = false
+    @State private var showAllChores = false
 
     var body: some View {
         NavigationStack {
@@ -54,6 +56,8 @@ struct MoreScreen: View {
             .navigationTitle(Strings.Tabs.more)
             .toolbarTitleDisplayMode(.inline)
             .fullScreenCover(isPresented: $showKitchen) { KitchenScreen() }
+            .navigationDestination(isPresented: $showAllChores) { ChoreListScreen() }
+            .onChange(of: navigation.allChoresRequests) { _, _ in showAllChores = true }
         }
         .tint(RoostColor.Role.accent.color)
     }

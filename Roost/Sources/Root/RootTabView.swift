@@ -29,12 +29,27 @@ enum RootTab: String, CaseIterable, Identifiable {
     }
 }
 
+/// Cross-tab navigation requests, on the counter pattern a tapped push already uses
+/// (`PushService.openTasksRequests`): a counter rather than a Bool, so two asks in a row both land
+/// even if the reader wandered off between them. The one request today is a chore row's "Show in
+/// All chores".
+@Observable
+final class RootNavigation {
+    var selected: RootTab = .tasks
+    private(set) var allChoresRequests = 0
+
+    func showAllChores() {
+        selected = .more
+        allChoresRequests += 1
+    }
+}
+
 struct RootTabView: View {
-    @State private var selected: RootTab = .tasks
+    @State private var navigation = RootNavigation()
     @Environment(SyncCoordinator.self) private var sync
 
     var body: some View {
-        TabView(selection: $selected) {
+        TabView(selection: $navigation.selected) {
             ForEach(RootTab.allCases) { tab in
                 Tab(tab.title, systemImage: tab.symbol, value: tab) {
                     screen(for: tab)
@@ -42,10 +57,11 @@ struct RootTabView: View {
             }
         }
         .tint(RoostColor.accent)
+        .environment(navigation)
         // A tapped push lands on Tasks: everything the server pushes is about a chore. A counter rather
         // than a flag, so a second tap works even if the reader has moved to another tab since the first.
         .onChange(of: sync.push.openTasksRequests) {
-            selected = .tasks
+            navigation.selected = .tasks
         }
     }
 

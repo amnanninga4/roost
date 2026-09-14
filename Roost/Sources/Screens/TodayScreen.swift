@@ -17,6 +17,7 @@ struct TodayScreen: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(RootNavigation.self) private var navigation
 
     @Query(filter: #Predicate<ChoreRecord> { !$0.retired }, sort: \ChoreRecord.sortOrder)
     private var choreRecords: [ChoreRecord]
@@ -115,7 +116,8 @@ struct TodayScreen: View {
                         toggle: { row in toggle(row, among: rows) },
                         offer: { row in pendingOffer = row },
                         withdraw: withdrawOffer,
-                        answer: answerOffer
+                        answer: answerOffer,
+                        showInAllChores: { navigation.showAllChores() }
                     )
                 }
             }

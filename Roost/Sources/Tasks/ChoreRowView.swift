@@ -18,6 +18,8 @@ struct ChoreRowView: View {
     /// endpoint on the server (`POST /handoffs` and the two answer routes are all of it), so once an
     /// offer has synced the only honest answer is to wait for one.
     var onWithdraw: (() -> Void)?
+    /// Opens More → All chores from the long-press menu. Nil when the parent has not wired the route.
+    var onShowInAllChores: (() -> Void)? = nil
     let onToggle: () -> Void
 
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -67,13 +69,25 @@ struct ChoreRowView: View {
         // Quiet: the toggle already fires .checkOff / .undo on the same touch — the kit's press
         // haptic on top of that would be two haptics for one finger.
         .buttonStyle(.roostPressQuiet)
-        .contextMenu { handoffMenu }
+        .contextMenu {
+            handoffMenu
+            if let onShowInAllChores {
+                Button(Strings.Tasks.showInAllChores, systemImage: "list.bullet", action: onShowInAllChores)
+            }
+        } preview: {
+            ChoreRowPreview(row: row)
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.chore.title)
         .accessibilityValue(accessibilityValue)
         .accessibilityHint(row.isDone ? Strings.Tasks.hintUncheck : Strings.Tasks.hintCheck)
         .accessibilityAddTraits(.isButton)
-        .accessibilityActions { handoffMenu }
+        .accessibilityActions {
+            handoffMenu
+            if let onShowInAllChores {
+                Button(Strings.Tasks.showInAllChores, action: onShowInAllChores)
+            }
+        }
     }
 
     /// The handoff actions, in the long-press menu and in VoiceOver's actions rotor. Empty for almost
@@ -219,5 +233,50 @@ private struct RowBadge: View {
     /// A hairline in the chip's own colour, so the chip survives on a fill of the same family.
     private var strokeOpacity: Double {
         fill == .surface ? 0.35 : 0
+    }
+}
+
+/// The card a long-press lifts the row into: everything the two-slot meta line had to leave out —
+/// who the chore is for, its cadence, how late it is, and what a handoff is doing to it.
+private struct ChoreRowPreview: View {
+    let row: TodayRow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: RoostSpacing.xs) {
+            Text(row.chore.title)
+                .roostType(.rowTitle)
+                .foregroundStyle(RoostColor.Role.textPrimary.color)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(detail)
+                .roostType(.subheadline)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+            if let note = ChoreRowMeta.handoffNote(for: row) {
+                Text(note)
+                    .roostType(.caption)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+            }
+        }
+        .padding(RoostSpacing.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .roostCard()
+    }
+
+    /// "For Anne · Daily · 3 days late" — the whole story, since the row only ever tells two slots of it.
+    private var detail: String {
+        var parts: [String] = [
+            row.chore.together ? Strings.Tasks.togetherValue : Strings.Tasks.forPerson(row.person.displayName),
+            row.chore.cadence.label,
+        ]
+        if row.isDone {
+            parts.append(Strings.Tasks.stateDone)
+        } else if row.daysOverdue > 0 {
+            parts.append(Strings.Tasks.stateLate(row.daysOverdue))
+        } else {
+            parts.append(Strings.Tasks.stateDueToday)
+        }
+        if case let .takenFrom(giver) = row.handoff {
+            parts.append(Strings.Handoffs.from(giver.displayName))
+        }
+        return parts.joined(separator: Strings.Lists.metaSeparator)
     }
 }
