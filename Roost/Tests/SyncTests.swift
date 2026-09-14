@@ -304,12 +304,14 @@ final class SyncTests: XCTestCase {
                 "cadence": $0.cadence.rawValue,
                 "fixedAssignee": $0.fixedAssignee?.rawValue as Any,
                 "category": $0.category.rawValue,
+                "season": $0.season.map { ["months": Array($0.months)] } as Any,
+                "together": $0.together,
             ] }
-        StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 2, chores: trimmed)) }
+        StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 3, chores: trimmed)) }
         _ = await client.syncNow()
-        XCTAssertEqual(try state().choresVersion, 2)
+        XCTAssertEqual(try state().choresVersion, 3)
         let active = try fresh().fetch(FetchDescriptor<ChoreRecord>(predicate: #Predicate { !$0.retired }))
-        XCTAssertEqual(active.count, 30)
+        XCTAssertEqual(active.count, 38)
     }
 
     func testServerSentChoresCarrySeasonAndTogether() async throws {

@@ -12,24 +12,29 @@ func repoChoresURL(file: String = #filePath) -> URL {
 }
 
 final class ChoreListTests: XCTestCase {
-    func testRealSeedHas31ChoresAndTwoPinned() throws {
+    func testRealSeedHas39ChoresAndFivePinned() throws {
         let list = try ChoreList.load(from: repoChoresURL())
-        XCTAssertEqual(list.version, 1)
-        XCTAssertEqual(list.chores.count, 31)
-        XCTAssertEqual(Set(list.chores.map(\.id)).count, 31, "ids unique")
+        XCTAssertEqual(list.version, 2)
+        XCTAssertEqual(list.chores.count, 39)
+        XCTAssertEqual(Set(list.chores.map(\.id)).count, 39, "ids unique")
 
-        let pinned = list.pinned.sorted { $0.id < $1.id }
-        XCTAssertEqual(pinned.map(\.id), ["garbage-can-to-street-sunday", "laundry"])
-        XCTAssertEqual(list["laundry"]?.fixedAssignee, .anne)
-        XCTAssertEqual(list["garbage-can-to-street-sunday"]?.fixedAssignee, .wes)
+        let pinned = Dictionary(uniqueKeysWithValues: list.pinned.map { ($0.id, $0.fixedAssignee!) })
+        XCTAssertEqual(pinned, [
+            "laundry": .anne, "wash-all-rugs": .anne, "mow-lawn": .anne, "trim-wes-hair": .anne,
+            "garbage-can-to-street-sunday": .wes,
+        ])
 
         let counts = Dictionary(grouping: list.chores, by: \.cadence).mapValues(\.count)
-        XCTAssertEqual(counts[.daily], 11)
-        XCTAssertEqual(counts[.weekly], 9)
-        XCTAssertEqual(counts[.biweekly], 5)
-        XCTAssertEqual(counts[.monthly], 6)
-
+        XCTAssertEqual(counts, [.daily: 11, .weekly: 12, .biweekly: 5, .monthly: 7, .bimonthly: 1, .quarterly: 3])
         XCTAssertEqual(list.chores.filter { $0.category == .catCare }.count, 5)
+
+        XCTAssertEqual(list["mow-lawn"]?.season, Season(months: [4, 5, 6, 7, 8, 9, 10]))
+        XCTAssertEqual(list.chores.filter(\.together).map(\.id), ["clean-out-fridge-pantry"])
+        XCTAssertNil(list["take-out-garbages"], "split into three")
+        XCTAssertNil(list["clean-out-fridge"], "replaced")
+        // Grouped by cadence in Cadence.allCases order: the order is sortOrder on both stores.
+        let ranks = list.chores.map { Cadence.allCases.firstIndex(of: $0.cadence)! }
+        XCTAssertEqual(ranks, ranks.sorted())
     }
 
     func testSeasonAndTogetherDecodeAndDefault() throws {

@@ -1,8 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
   "source": "chore-master-list.html",
   "locked": "2026-09-13",
-  "notes": "Seed from the locked master list only. Mockup sample rows are illustrative and must not be merged in. HTML meta/NOTES say 32; the list body has 31 tasks (11+9+5+6).",
+  "notes": "Version 2, 2026-09-13: Anne's additions on issue #1. 39 tasks (11 daily + 12 weekly + 5 biweekly + 7 monthly + 1 bimonthly + 3 quarterly). Grouped by cadence; the order is sortOrder. take-out-garbages became three weekly chores; clean-out-fridge became clean-out-fridge-pantry (quarterly, together). Mockup sample rows are illustrative and must not be merged in.",
   "chores": [
     {
       "id": "load-dishwasher",
@@ -96,8 +96,22 @@
       "category": "chore"
     },
     {
-      "id": "take-out-garbages",
-      "title": "Take out all garbages — basement, bathroom, kitchen",
+      "id": "take-out-garbage-basement",
+      "title": "Take out garbage: basement",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "take-out-garbage-bathroom",
+      "title": "Take out garbage: bathroom",
+      "cadence": "weekly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "take-out-garbage-kitchen",
+      "title": "Take out garbage: kitchen",
       "cadence": "weekly",
       "fixedAssignee": null,
       "category": "chore"
@@ -118,7 +132,7 @@
     },
     {
       "id": "wipe-cabinet-doors",
-      "title": "Wipe down outer cabinet doors — kitchen and bathroom",
+      "title": "Wipe down outer cabinet doors \u2014 kitchen and bathroom",
       "cadence": "weekly",
       "fixedAssignee": null,
       "category": "chore"
@@ -143,6 +157,14 @@
       "cadence": "weekly",
       "fixedAssignee": null,
       "category": "chore"
+    },
+    {
+      "id": "mow-lawn",
+      "title": "Mow lawn",
+      "cadence": "weekly",
+      "fixedAssignee": "anne",
+      "category": "chore",
+      "season": { "months": [4, 5, 6, 7, 8, 9, 10] }
     },
     {
       "id": "scrub-clean-shower",
@@ -187,15 +209,8 @@
       "category": "cat_care"
     },
     {
-      "id": "clean-out-fridge",
-      "title": "Clean out fridge",
-      "cadence": "monthly",
-      "fixedAssignee": null,
-      "category": "chore"
-    },
-    {
       "id": "clean-inside-ovens",
-      "title": "Clean inside ovens — basement and kitchen",
+      "title": "Clean inside ovens \u2014 basement and kitchen",
       "cadence": "monthly",
       "fixedAssignee": null,
       "category": "chore"
@@ -220,6 +235,49 @@
       "cadence": "monthly",
       "fixedAssignee": null,
       "category": "chore"
+    },
+    {
+      "id": "clean-medicine-cabinet",
+      "title": "Clean inside medicine cabinet",
+      "cadence": "monthly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "wash-all-rugs",
+      "title": "Wash all rugs (washer)",
+      "cadence": "monthly",
+      "fixedAssignee": "anne",
+      "category": "chore"
+    },
+    {
+      "id": "trim-wes-hair",
+      "title": "Trim Wes's hair",
+      "cadence": "bimonthly",
+      "fixedAssignee": "anne",
+      "category": "chore"
+    },
+    {
+      "id": "clean-garbage-cans",
+      "title": "Clean garbage cans",
+      "cadence": "quarterly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "wipe-down-doors",
+      "title": "Wipe down doors",
+      "cadence": "quarterly",
+      "fixedAssignee": null,
+      "category": "chore"
+    },
+    {
+      "id": "clean-out-fridge-pantry",
+      "title": "Clean out fridge and pantry",
+      "cadence": "quarterly",
+      "fixedAssignee": null,
+      "category": "chore",
+      "together": true
     }
   ]
 }
