@@ -534,14 +534,19 @@ private struct SubtaskComposer: View {
                     }
                 }
             } label: {
-                if let person = Person(rawValue: owner ?? "") {
-                    PersonAvatar(person: person)
-                } else {
-                    Image(systemName: "person.crop.circle")
-                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                Group {
+                    if let person = Person(rawValue: owner ?? "") {
+                        PersonAvatar(person: person)
+                    } else {
+                        Image(systemName: "person.crop.circle")
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                    }
                 }
+                .frame(width: RoostSpacing.minTapTarget, height: RoostSpacing.minTapTarget)
+                .contentShape(Rectangle())
             }
             .accessibilityLabel(Strings.Projects.owner)
+            .accessibilityValue(owner.map { Person(rawValue: $0)?.displayName ?? $0 } ?? Strings.Projects.nobody)
         }
         .padding(.vertical, RoostSpacing.xxs)
         .frame(minHeight: RoostSpacing.minTapTarget)
