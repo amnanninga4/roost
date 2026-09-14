@@ -10,7 +10,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { createPrivateKey, sign } from "node:crypto";
 import http2 from "node:http2";
-import { PEOPLE, getMeta, setMeta } from "./db.js";
+import { PEOPLE, getMeta, setMeta, listChores } from "./db.js";
 import { listHandoffs } from "./handoffs.js";
 import { dueItems, parseActiveFrom, chicagoDateString, chicagoLocal } from "./rules.js";
 
@@ -25,6 +25,20 @@ export const DIGEST_LAST_SENT_META = "digestLastSent";
 
 /** dueToday=0, nudge=1, pointed=2, alert=3 — red-alert is stage >= 3. */
 export const STAGE_RANK = Object.freeze({ dueToday: 0, nudge: 1, pointed: 2, alert: 3 });
+
+/** Which period a handoff covers, in the words the app's `Cadence.periodPhrase` uses. One test on each side pins them. */
+export const PERIOD_PHRASES = Object.freeze({
+  daily: "today",
+  weekly: "this week",
+  biweekly: "this week",
+  monthly: "this month",
+  bimonthly: "these two months",
+  quarterly: "this quarter",
+});
+
+function periodPhrase(cadence) {
+  return PERIOD_PHRASES[cadence] ?? "this period";
+}
 
 export const PUSH_SCHEMA = `
 CREATE TABLE IF NOT EXISTS push_tokens (
@@ -324,14 +338,6 @@ export function createPush({
     });
   }
 
-  /** daily→today, weekly|biweekly→this week, monthly→this month. */
-  function periodPhrase(cadence) {
-    if (cadence === "daily") return "today";
-    if (cadence === "weekly" || cadence === "biweekly") return "this week";
-    if (cadence === "monthly") return "this month";
-    return "this period";
-  }
-
   /**
    * Handoff push. kind: "offer" | "accepted" | "declined".
    * Offer → toPerson; accept/decline → fromPerson. Collapse id handoff-<id>.
@@ -373,9 +379,7 @@ export function createPush({
     if (sweeping) return;
     sweeping = true;
     try {
-      const chores = db
-        .prepare("SELECT id, title, cadence, fixedAssignee, category FROM chores WHERE retired = 0 ORDER BY sortOrder")
-        .all();
+      const chores = listChores(db);
       const completions = db
         .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
         .all();
@@ -388,13 +392,17 @@ export function createPush({
           if ((STAGE_RANK[item.stage] ?? -1) < 3) continue;
           if (hasPushAlert(db, item.chore.id, item.periodIndex)) continue;
           recordPushAlert(db, item.chore.id, item.periodIndex, sentAt);
+          const headers = { "apns-collapse-id": `red-${item.chore.id}` };
+          if (item.chore.together) {
+            // Both of them owe it, so both hear about it, and nobody is named.
+            const days = item.daysOverdue;
+            const body = `${item.chore.title} is ${days} ${days === 1 ? "day" : "days"} late`;
+            for (const each of PEOPLE) await deliver(each, { title: "Roost red alert", body, headers });
+            continue;
+          }
           const other = partnerOf(item.person);
           const who = NAME[item.person] ?? item.person;
-          await deliver(other, {
-            title: "Roost red alert",
-            body: `${who}'s chore is overdue: ${item.chore.title}`,
-            headers: { "apns-collapse-id": `red-${item.chore.id}` },
-          });
+          await deliver(other, { title: "Roost red alert", body: `${who}'s chore is overdue: ${item.chore.title}`, headers });
         }
       }
     } finally {
@@ -422,9 +430,7 @@ export function createPush({
       const eight = chicagoLocal(y, m, d, 8, 0, 0);
       if (asOf.getTime() < eight.getTime()) return;
 
-      const chores = db
-        .prepare("SELECT id, title, cadence, fixedAssignee, category FROM chores WHERE retired = 0 ORDER BY sortOrder")
-        .all();
+      const chores = listChores(db);
       const completions = db
         .prepare("SELECT choreId, person, completedAt FROM completions WHERE deletedAt IS NULL")
         .all();
