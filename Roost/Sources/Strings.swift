@@ -233,10 +233,6 @@ enum Strings {
         static let nothingDue = "Nothing due today"
         /// A person's section once everything they owed today is checked off.
         static let nothingLeft = "Nothing left"
-        /// Under the escalation copy from three days late: the other phone shows it too, and from five
-        /// days the server pushes it there.
-        static let onTheOtherPhone = "On the other phone too"
-
         /// The More page's rows. Settings is `Strings.Settings.title`, which the screen itself owns.
         static let allChores = "All chores"
         static let syncNow = "Sync now"

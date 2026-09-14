@@ -125,60 +125,39 @@ struct ChoreRowView: View {
         }
     }
 
-    /// The line under the words: how late it is, who it is pinned to, who handed it over, and — once the
-    /// other phone is in on it — that it is not a private problem any more. Empty for a row that is
-    /// simply due today and nobody's business but this person's.
+    /// The line under the words: at most two elements, picked by `ChoreRowMeta` — how late it is,
+    /// then a handoff in motion, then whose it is. Everything else the row knows is one long-press
+    /// away, on the context menu's preview card.
     @ViewBuilder
     private var meta: some View {
-        let late = row.daysOverdue > 0
-        let pinned = row.chore.fixedAssignee
-        if late || pinned != nil || row.chore.together || row.handoff != nil {
+        let elements = ChoreRowMeta.elements(for: row)
+        if !elements.isEmpty {
             // One line normally. At accessibility sizes a 40-pt chip leaves the note beside it a column
             // two characters wide, so the meta line becomes a stack instead.
             let layout = typeSize.isAccessibilitySize
                 ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
                 : AnyLayout(HStackLayout(spacing: RoostSpacing.sm))
             layout {
-                if late {
-                    // On a tinted row the chip sits on the card's own surface, so it reads as a chip
-                    // rather than a second wash of the same colour.
-                    RowBadge(text: Strings.daysLate(row.daysOverdue), tint: row.stage.role, fill: .surface)
-                }
-                if row.chore.together {
-                    RowBadge(text: Strings.Tasks.together, tint: .assigned, fill: .assignedSoft)
-                } else if let pinned {
-                    RowBadge(text: pinned.displayName.uppercased(), tint: .assigned, fill: .assignedSoft)
-                }
-                if case let .takenFrom(giver) = row.handoff {
-                    // A settled fact, so it gets a chip; the states still in motion below get a line of
-                    // words instead, because a chip for a thing that is about to change reads as a label.
-                    RowBadge(text: Strings.Handoffs.from(giver.displayName), tint: .accent, fill: .accentSoft)
-                }
-                if let note = handoffNote {
-                    Text(note)
-                        .roostType(.caption)
-                        .foregroundStyle(RoostColor.Role.textSecondary.color)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if !row.isDone, row.stage.isSharedWithTheOther {
-                    Text(Strings.Tasks.onTheOtherPhone)
-                        .roostType(.caption)
-                        .foregroundStyle(RoostColor.Role.textSecondary.color)
-                        .fixedSize(horizontal: false, vertical: true)
+                ForEach(elements, id: \.self) { element in
+                    switch element {
+                    case let .daysLate(days):
+                        // The stage's strong on its soft: the one chip that keeps a tinted fill.
+                        RowBadge(text: Strings.daysLate(days), tint: row.stage.role, fill: row.stage.fillRole ?? .surface)
+                    case let .handoffNote(note):
+                        Text(note)
+                            .roostType(.caption)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                            .fixedSize(horizontal: false, vertical: true)
+                    case .together:
+                        RowBadge(text: Strings.Tasks.together, tint: .assigned, fill: .assignedSoft)
+                    case let .pinned(person):
+                        RowBadge(text: person.displayName.uppercased(), tint: .assigned, fill: .assignedSoft)
+                    case let .taken(giver):
+                        RowBadge(text: giver.displayName.uppercased(), tint: giver.design.role, fill: giver.design.softRole)
+                    }
                 }
             }
             .padding(.top, RoostSpacing.xxs)
-        }
-    }
-
-    /// The one line a handoff in motion puts under the row. An expired offer has none: nobody answered,
-    /// and being told so days later helps no one.
-    private var handoffNote: String? {
-        switch row.handoff {
-        case let .waiting(asked, _, _): Strings.Handoffs.waiting(asked.displayName)
-        case let .declined(by): Strings.Handoffs.saidNo(by.displayName)
-        case .refused: Strings.Handoffs.refused
-        case .takenFrom, .none: nil
         }
     }
 
@@ -200,7 +179,7 @@ struct ChoreRowView: View {
         if case let .takenFrom(giver) = row.handoff {
             parts.append(Strings.Handoffs.from(giver.displayName))
         }
-        if let note = handoffNote {
+        if let note = ChoreRowMeta.handoffNote(for: row) {
             parts.append(note)
         }
         return parts.joined(separator: ", ")
