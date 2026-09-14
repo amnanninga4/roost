@@ -22,6 +22,13 @@ enum Strings {
         static let wishlist = "Wishlist"
     }
 
+    /// The More tab: what the gear menu held, as a page.
+    enum More {
+        /// Section headers, in the mono eyebrow like Settings', so written in caps here.
+        static let household = "HOUSEHOLD"
+        static let thisPhone = "THIS PHONE"
+    }
+
     /// Shared by the four list pages.
     enum Lists {
         static let delete = "Delete"
@@ -182,7 +189,7 @@ enum Strings {
         static let wes = "Wes"
     }
 
-    /// The Tasks tab: the header, each person's section, the states, and the gear menu.
+    /// The Tasks tab: the header, each person's section, and the states.
     enum Tasks {
         /// The screen's own title, under the date.
         static let today = "Today"
@@ -202,15 +209,13 @@ enum Strings {
         /// days the server pushes it there.
         static let onTheOtherPhone = "On the other phone too"
 
-        /// Gear menu, in order. Settings is `Strings.Settings.title`, which the screen itself owns.
+        /// The More page's rows. Settings is `Strings.Settings.title`, which the screen itself owns.
         static let allChores = "All chores"
         static let syncNow = "Sync now"
-        /// VoiceOver name for the gear button itself; the menu behind it has its own item named Settings.
-        static let gear = "More"
 
-        /// Not paired: one line under the header pointing at the gear menu's Settings item, where
+        /// Not paired: one line under the header pointing at the More tab's Settings row, where
         /// "Paired as" lives. A phone with a token but no person yet sees this.
-        static let notPaired = "Not paired yet · gear menu → Settings"
+        static let notPaired = "Not paired yet · More → Settings"
         /// The last sync failed, or the server could not be reached. Never a modal: offline is normal
         /// here. `synced` is `SyncStatusCopy`'s own phrase — "Synced just now", "Synced 5 min. ago" —
         /// so this screen never words "when" differently from the rest of the app.
@@ -289,7 +294,7 @@ enum Strings {
         static let periodMonth = "this month"
     }
 
-    /// Gear → All chores: the whole seeded list, grouped by cadence.
+    /// More → All chores: the whole seeded list, grouped by cadence.
     enum Chores {
         static let eyebrow = "HOUSEHOLD LIST"
         static func seeded(_ count: Int) -> String {
@@ -339,7 +344,7 @@ enum Strings {
         }
     }
 
-    /// Kitchen mode (Gear → Kitchen mode): the phone propped on the counter, both people at once.
+    /// Kitchen mode (More → Kitchen mode): the phone propped on the counter, both people at once.
     enum Kitchen {
         static let menuEntry = "Kitchen mode"
         static let close = "Close"
@@ -375,7 +380,7 @@ enum Strings {
     enum Sync {
         static let syncing = "Syncing…"
         static let neverSynced = "Not synced yet"
-        static let notPaired = "Not paired · tap the gear"
+        static let notPaired = "Not paired · More → Settings"
         /// The reason comes from the failure itself, so it is the server's or the system's words.
         static func offline(_ reason: String) -> String {
             "Offline · will retry (\(reason))"
@@ -477,10 +482,9 @@ enum Strings {
         }
     }
 
-    /// Gear → Settings. What this phone is paired to, and how to undo it.
+    /// More → Settings. What this phone is paired to, and how to undo it.
     enum Settings {
         static let title = "Settings"
-        static let close = "Close"
 
         /// Section headers are set in the mono eyebrow rung, the same as the onboarding screens, so they are
         /// written in caps here rather than uppercased at the view.

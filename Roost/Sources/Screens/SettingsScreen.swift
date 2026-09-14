@@ -1,4 +1,4 @@
-// Gear → Settings: what this phone is paired to, and the one way to undo it.
+// More → Settings: what this phone is paired to, and the one way to undo it.
 //
 // A `Form`, because iOS already knows how a settings screen behaves — rows that grow with the reader's text
 // size, a field that lifts itself above the keyboard, a footer that belongs to its section. What the Form
@@ -21,7 +21,6 @@ import SwiftUI
 struct SettingsScreen: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(\.modelContext) private var context
-    @Environment(\.dismiss) private var dismiss
     @Query private var syncStates: [SyncState]
 
     @State private var model: SettingsModel?
@@ -45,48 +44,43 @@ struct SettingsScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                phoneSection
-                serverSection
-                syncSection
-                unpairSection
+        Form {
+            phoneSection
+            serverSection
+            syncSection
+            unpairSection
+        }
+        .scrollContentBackground(.hidden)
+        .background(RoostColor.Role.background.color)
+        .roostAnimation(.gentle, value: model?.identity)
+        .navigationTitle(Strings.Settings.title)
+        .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text(Strings.Settings.title)
+                    .roostType(.title)
+                    .foregroundStyle(RoostColor.Role.textPrimary.color)
             }
-            .scrollContentBackground(.hidden)
-            .background(RoostColor.Role.background.color)
-            .roostAnimation(.gentle, value: model?.identity)
-            .navigationTitle(Strings.Settings.title)
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(Strings.Settings.title)
-                        .roostType(.title)
-                        .foregroundStyle(RoostColor.Role.textPrimary.color)
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(Strings.Settings.close) { dismiss() }
-                }
+        }
+        .task { await loadIdentity() }
+        .confirmationDialog(
+            Strings.Settings.unpairConfirmTitle,
+            isPresented: $confirmingUnpair,
+            titleVisibility: .visible
+        ) {
+            Button(Strings.Settings.unpairConfirm, role: .destructive) {
+                Task { await unpair() }
             }
-            .task { await loadIdentity() }
-            .confirmationDialog(
-                Strings.Settings.unpairConfirmTitle,
-                isPresented: $confirmingUnpair,
-                titleVisibility: .visible
-            ) {
-                Button(Strings.Settings.unpairConfirm, role: .destructive) {
-                    Task { await unpair() }
-                }
-                Button(Strings.Settings.cancel, role: .cancel) {}
-            } message: {
-                Text(Strings.Settings.unpairFooter)
+            Button(Strings.Settings.cancel, role: .cancel) {}
+        } message: {
+            Text(Strings.Settings.unpairFooter)
+        }
+        .alert(Strings.Settings.unpairNoticeTitle, isPresented: $showingNote) {
+            Button(Strings.Settings.unpairNoticeAction) {
+                sync.returnToOnboarding()
             }
-            .alert(Strings.Settings.unpairNoticeTitle, isPresented: $showingNote) {
-                Button(Strings.Settings.unpairNoticeAction) {
-                    sync.returnToOnboarding()
-                }
-            } message: {
-                Text(unpairNote)
-            }
+        } message: {
+            Text(unpairNote)
         }
         .tint(RoostColor.Role.accent.color)
     }
@@ -224,7 +218,7 @@ struct SettingsScreen: View {
             VStack(spacing: RoostSpacing.sm) {
                 Text(Strings.Settings.unpairFooter)
                     .roostType(.footnote)
-                Text(Self.versionLine)
+                Text(AppVersion.line)
                     .roostType(.caption)
             }
             .foregroundStyle(RoostColor.Role.textSecondary.color)
@@ -254,13 +248,6 @@ struct SettingsScreen: View {
         await model.refresh()
     }
 
-    /// "Roost 0.1.0 (1)" — from the bundle, so it is whatever this build actually is.
-    private static var versionLine: String {
-        let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "?"
-        let build = info?["CFBundleVersion"] as? String ?? "?"
-        return Strings.Settings.version(short, build: build)
-    }
 }
 
 // MARK: - the parts a settings row is made of
@@ -323,5 +310,15 @@ extension SettingsRow where Value == SettingsValue {
     /// The common case: a value that is only text.
     init(_ label: String, value: String) {
         self.init(label) { SettingsValue(text: value) }
+    }
+}
+
+/// "Roost 0.1.0 (1)" — from the bundle, so it is whatever this build actually is. Settings and More both show it.
+enum AppVersion {
+    static var line: String {
+        let info = Bundle.main.infoDictionary
+        let short = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        return Strings.Settings.version(short, build: build)
     }
 }

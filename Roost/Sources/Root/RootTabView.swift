@@ -54,7 +54,7 @@ struct RootTabView: View {
         switch tab {
         case .tasks: TodayScreen()
         case .lists: ListsScreen()
-        case .more: EmptyView() // MoreScreen lands in the next task
+        case .more: MoreScreen()
         }
     }
 }
