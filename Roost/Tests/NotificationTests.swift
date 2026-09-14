@@ -226,6 +226,26 @@ final class NotificationPlannerTests: XCTestCase {
         XCTAssertEqual([c.year, c.month, c.day, c.hour, c.minute], [2026, 9, 6, 18, 0])
         XCTAssertEqual(Fixture.cal.calendar.date(from: c), Fixture.sixPM)
     }
+
+    func testAProjectDueTodayIsOneMorningNotificationAndTomorrowsIsNot() {
+        let projects = [
+            DueProject(id: "p-garage", title: "Garage trash", dueOn: "2026-09-06"),
+            DueProject(id: "p-fence", title: "Fence", dueOn: "2026-09-07"),
+        ]
+        let planned = NotificationPlanner.planProjects(projects, on: Fixture.morning, now: Fixture.morning, calendar: Fixture.cal)
+        XCTAssertEqual(planned.map(\.id), ["roost.project.p-garage.2026-09-06"])
+        XCTAssertEqual(planned.first?.title, "Due today")
+        XCTAssertEqual(planned.first?.body, "Garage trash is due today")
+        XCTAssertEqual(planned.first?.fireAt, Fixture.nineAM)
+
+        let tomorrow = Fixture.cal.adding(days: 1, to: Fixture.morning)
+        let next = NotificationPlanner.planProjects(projects, on: tomorrow, now: Fixture.morning, calendar: Fixture.cal)
+        XCTAssertEqual(next.map(\.id), ["roost.project.p-fence.2026-09-07"])
+
+        let late = NotificationPlanner.planProjects(projects, on: Fixture.morning, now: Fixture.evening, calendar: Fixture.cal)
+        XCTAssertEqual(late, [], "09:00 has passed by 19:00")
+    }
+
 }
 
 // MARK: - scheduler
@@ -388,5 +408,27 @@ final class NotificationSchedulerTests: XCTestCase {
         _ = await (a, b, c)
         XCTAssertEqual(center.clearCount, 2, "one pass plus exactly one rerun")
         XCTAssertEqual(center.pending.count, 5)
+    }
+
+
+    func testADueProjectIsScheduledAndAFinishedOneIsNot() async throws {
+        try pair(as: .anne)
+        let ctx = ModelContext(container)
+        let garage = ProjectRecord(id: "p-garage", title: "Garage trash", dueOn: "2026-09-06", createdAt: now, syncedAt: now)
+        let fence = ProjectRecord(id: "p-fence", title: "Fence", dueOn: "2026-09-06", createdAt: now, syncedAt: now)
+        ctx.insert(garage)
+        ctx.insert(fence)
+        ctx.insert(SubtaskRecord(id: "st-1", projectId: "p-fence", title: "Done already", sortOrder: 0, done: true, createdAt: now, syncedAt: now))
+        try ctx.save()
+
+        await scheduler().replan()
+        let ids = Set(center.pending.map(\.identifier))
+        XCTAssertTrue(ids.contains("roost.project.p-garage.2026-09-06"), "\(ids)")
+        XCTAssertFalse(ids.contains("roost.project.p-fence.2026-09-06"), "a finished project is not reminded")
+        XCTAssertTrue(ids.contains("roost.digest.2026-09-06"), "the chore plan is still there")
+
+        try ListActions.setDueOn(garage, nil, in: ctx, now: now)
+        await scheduler().replan()
+        XCTAssertFalse(Set(center.pending.map(\.identifier)).contains("roost.project.p-garage.2026-09-06"))
     }
 }

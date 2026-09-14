@@ -204,6 +204,11 @@ enum Strings {
         static func ownedBy(_ name: String) -> String {
             "For \(name)"
         }
+
+        /// The morning-of reminder's body.
+        static func dueToday(_ title: String) -> String {
+            "\(title) is due today"
+        }
     }
 
     /// The two people. Reached through `Person.displayName`, never spelled out in a screen.

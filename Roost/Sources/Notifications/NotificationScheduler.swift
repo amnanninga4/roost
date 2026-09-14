@@ -6,6 +6,7 @@
 //
 // Horizon: today and tomorrow. Tomorrow's set assumes nothing else gets done; the next replan replaces it.
 // Without tomorrow, a phone opened after 18:00 would never get an overdue ping.
+// Projects with a due day get one reminder at 09:00 Chicago on that morning (unfinished only).
 import Foundation
 import RoostCore
 import SwiftData
@@ -116,6 +117,20 @@ final class NotificationScheduler {
             )).compactMap { try? $0.toSnapshot() }
         )
 
+        // Projects with a due day, minus the finished ones: one reminder on the morning of the day.
+        let dated = try context.fetch(FetchDescriptor<ProjectRecord>(
+            predicate: #Predicate { !$0.removed && $0.dueOn != nil }
+        ))
+        let steps = Dictionary(grouping: try context.fetch(FetchDescriptor<SubtaskRecord>(
+            predicate: #Predicate { !$0.removed }
+        )), by: \.projectId)
+        let dueProjects = dated.compactMap { project -> DueProject? in
+            guard let dueOn = project.dueOn,
+                  !ProjectProgress(steps: steps[project.id] ?? [], isDone: \.done).isFinished
+            else { return nil }
+            return DueProject(id: project.id, title: project.title, dueOn: dueOn)
+        }
+
         let now = now()
         let activeFrom = state.activeFrom ?? calendar.startOfDay(now)
         let scheduler = Scheduler(chores: chores, activeFrom: activeFrom, calendar: calendar)
@@ -126,6 +141,7 @@ final class NotificationScheduler {
             let day = calendar.adding(days: offset, to: now)
             let due = scheduler.due(on: day, completions: completions, handoffs: handoffs)
             planned += NotificationPlanner.plan(due: due, for: person, on: day, now: now, calendar: calendar)
+            planned += NotificationPlanner.planProjects(dueProjects, on: day, now: now, calendar: calendar)
             if offset == 0 {
                 badge = NotificationPlanner.badgeCount(due: due, for: person)
             }

@@ -4,6 +4,7 @@
 // Per day, for the paired person only:
 //   09:00 Chicago  one digest listing everything due that day (skipped when nothing is due)
 //   18:00 Chicago  one notification per overdue chore, worded by EscalationStage (the mockup's ladder)
+//   09:00 Chicago  one notification per project due that day ("Garage trash is due today")
 // Identifiers are deterministic per chore + date, so a replan replaces rather than duplicates.
 import Foundation
 import RoostCore
@@ -17,10 +18,19 @@ struct PlannedNotification: Hashable, Sendable {
     let fireAt: Date
 }
 
+/// A live, unfinished project with a due day, as the scheduler hands it to the planner.
+struct DueProject: Hashable, Sendable {
+    let id: String
+    let title: String
+    /// `YYYY-MM-DD`, Chicago.
+    let dueOn: String
+}
+
 enum NotificationPlanner {
     static let identifierPrefix = "roost."
     static let digestHour = 9
     static let overdueHour = 18
+    static let projectHour = 9
     static let threadIdentifier = "roost"
 
     /// Notifications for `person` on the day containing `date`. `due` is `Scheduler.due(on:)` for that day;
@@ -59,6 +69,26 @@ enum NotificationPlanner {
     /// The app badge: how many of `person`'s chores are past their period.
     static func badgeCount(due: [Person: [DueItem]], for person: Person) -> Int {
         (due[person] ?? []).filter { $0.daysOverdue > 0 }.count
+    }
+
+    /// One notification per project due on the day containing `date`, at 9 in the morning, dropped when
+    /// that moment has already passed. Both people get it: a project is the household's, not a person's.
+    static func planProjects(_ projects: [DueProject], on date: Date, now: Date,
+                             calendar: HouseholdCalendar = HouseholdCalendar()) -> [PlannedNotification]
+    {
+        let day = dayKey(date, calendar: calendar)
+        let fireAt = time(projectHour, on: date, calendar: calendar)
+        return projects
+            .filter { $0.dueOn == day }
+            .map { project in
+                PlannedNotification(
+                    id: "\(identifierPrefix)project.\(project.id).\(day)",
+                    title: "Due today",
+                    body: Strings.Projects.dueToday(project.title),
+                    fireAt: fireAt
+                )
+            }
+            .filter { $0.fireAt > now }
     }
 
     /// Mockup ladder: nudge "Still no <title>…", pointed "The cat has feelings about this." (cat care) /
