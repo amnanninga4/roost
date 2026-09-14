@@ -172,18 +172,41 @@ enum ListActions {
         return project
     }
 
-    /// Appends after the project's highest live step, the same default the server uses.
+    /// `dueOn` is a Chicago calendar day ("2026-09-20"), or nil to clear the day.
+    static func setDueOn(_ project: ProjectRecord, _ dueOn: String?, in context: ModelContext, now: Date = Date()) throws {
+        project.dueOn = dueOn
+        project.markEdited(.dueOn, at: now)
+        try context.save()
+    }
+
+    /// Appends after the project's highest live step, the same default the server uses. An owner given
+    /// here is flagged as an edit as well: a step that rides its project's create goes out without it,
+    /// and the flag is what sends it after.
     @discardableResult
-    static func addSubtask(_ title: String, to project: ProjectRecord, in context: ModelContext,
-                           now: Date = Date()) throws -> SubtaskRecord?
+    static func addSubtask(_ title: String, to project: ProjectRecord, assignee: String? = nil,
+                           in context: ModelContext, now: Date = Date()) throws -> SubtaskRecord?
     {
         guard let title = cleaned(title) else { return nil }
         let siblings = try liveSubtasks(of: project.id, in: context)
         let next = (siblings.map(\.sortOrder).max() ?? -1) + 1
-        let subtask = SubtaskRecord(id: newId(), projectId: project.id, title: title, sortOrder: next, createdAt: now)
+        let subtask = SubtaskRecord(
+            id: newId(), projectId: project.id, title: title, sortOrder: next, assignee: assignee, createdAt: now
+        )
+        if assignee != nil {
+            subtask.pendingFields = .assignee
+        }
         context.insert(subtask)
         try context.save()
         return subtask
+    }
+
+    /// `anne`, `wes`, or nil for nobody.
+    static func setAssignee(_ subtask: SubtaskRecord, _ person: String?, in context: ModelContext,
+                            now: Date = Date()) throws
+    {
+        subtask.assignee = person
+        subtask.markEdited(.assignee, at: now)
+        try context.save()
     }
 
     static func setDone(
@@ -221,15 +244,21 @@ enum ListActions {
             projectId: subtask.projectId,
             title: subtask.title,
             sortOrder: subtask.sortOrder,
+            assignee: subtask.assignee,
             done: subtask.done,
             doneBy: subtask.doneBy,
             doneAt: subtask.doneAt,
             createdAt: subtask.createdAt,
             updatedAt: now
         )
+        var pending: PatchFields = []
         if copy.done {
-            copy.pendingFields = .done
+            pending.insert(.done)
         }
+        if copy.assignee != nil {
+            pending.insert(.assignee)
+        }
+        copy.pendingFields = pending
         context.insert(copy)
         try context.save()
         return copy
@@ -294,7 +323,11 @@ enum ListActions {
             try context.save()
             return project
         }
-        let copy = ProjectRecord(id: newId(), title: project.title, createdAt: project.createdAt, updatedAt: now)
+        let copy = ProjectRecord(id: newId(), title: project.title, dueOn: project.dueOn, createdAt: project.createdAt, updatedAt: now)
+        // A create does not carry the day, so flag it for the PATCH that follows.
+        if copy.dueOn != nil {
+            copy.pendingFields = .dueOn
+        }
         context.insert(copy)
         for step in steps.sorted(by: { $0.sortOrder < $1.sortOrder }) {
             let stepCopy = SubtaskRecord(
@@ -302,16 +335,22 @@ enum ListActions {
                 projectId: copy.id,
                 title: step.title,
                 sortOrder: step.sortOrder,
+                assignee: step.assignee,
                 done: step.done,
                 doneBy: step.doneBy,
                 doneAt: step.doneAt,
                 createdAt: step.createdAt,
                 updatedAt: now
             )
-            // A create carries the step's title and its place, but not whether it is ticked.
+            // A create carries the step's title and its place, but not whether it is ticked or who owns it.
+            var pending: PatchFields = []
             if stepCopy.done {
-                stepCopy.pendingFields = .done
+                pending.insert(.done)
             }
+            if stepCopy.assignee != nil {
+                pending.insert(.assignee)
+            }
+            stepCopy.pendingFields = pending
             context.insert(stepCopy)
         }
         try context.save()

@@ -24,6 +24,7 @@ struct ProjectsScreen: View {
     @State private var steps = ""
     @FocusState private var titleFocused: Bool
     @State private var open: Set<String> = []
+    @State private var editingDue: ProjectRecord?
     @State private var openedFirst = false
     @State private var undo = ListUndo()
     /// Counters the taps bump, so nothing buzzes for a step the other phone ticked.
@@ -77,6 +78,11 @@ struct ProjectsScreen: View {
         .roostHaptic(.undo, trigger: uncheckedOff)
         .roostHaptic(.milestone, trigger: milestones)
         .undoBar(undo)
+        .sheet(item: $editingDue) { project in
+            DueDaySheet(initial: project.dueOn.flatMap { ProjectDates.day(from: $0) } ?? Date()) { picked in
+                setDueOn(project, ProjectDates.dayString(picked))
+            }
+        }
         .onChange(of: projects.map(\.id), initial: true) { _, ids in
             // The mockup opens the first card; do that once, then leave the choice to the user.
             if !openedFirst, let first = ids.first {
@@ -108,8 +114,13 @@ struct ProjectsScreen: View {
         let projectSteps = stepsByProject[project.id] ?? []
         let progress = ProjectProgress(steps: projectSteps, isDone: \.done)
         let isOpen = open.contains(project.id)
+        let now = Date()
+        let dueLabel = project.dueOn.flatMap { ProjectDates.label($0, now: now) }
+        let pastDue = !progress.isFinished && (project.dueOn.map { ProjectDates.isPast($0, now: now) } ?? false)
         Section {
-            ProjectRow(project: project, progress: progress, isOpen: isOpen) { toggleOpen(project) }
+            ProjectRow(project: project, progress: progress, isOpen: isOpen, dueLabel: dueLabel, pastDue: pastDue) {
+                toggleOpen(project)
+            }
                 .listRowBackground(RoostColor.Role.surface.color)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) { remove(project) } label: {
@@ -118,6 +129,11 @@ struct ProjectsScreen: View {
                     .tint(RoostColor.Role.danger.color)
                 }
                 .contextMenu {
+                    Button(project.dueOn == nil ? Strings.Projects.setDueDay : Strings.Projects.changeDueDay,
+                           systemImage: "calendar") { editingDue = project }
+                    if project.dueOn != nil {
+                        Button(Strings.Projects.clearDueDay, systemImage: "calendar.badge.minus") { setDueOn(project, nil) }
+                    }
                     Button(role: .destructive) { remove(project) } label: {
                         Label(
                             progress.isFinished ? Strings.Projects.archive : Strings.Projects.deleteProject,
@@ -134,7 +150,8 @@ struct ProjectsScreen: View {
                         moveUp: index > 0 ? { reorder(project, move: [index], to: index - 1) } : nil,
                         moveDown: index < projectSteps.count - 1
                             ? { reorder(project, move: [index], to: index + 2) } : nil,
-                        onToggle: { toggle(step) }
+                        onToggle: { toggle(step) },
+                        onAssign: { setAssignee(step, $0) }
                     )
                     .listRowBackground(RoostColor.Role.surface.color)
                     .roostTransition(.checkOff)
@@ -143,7 +160,7 @@ struct ProjectsScreen: View {
                 .onMove { source, destination in
                     reorder(project, move: source, to: destination)
                 }
-                SubtaskComposer { text in add(text, to: project) }
+                SubtaskComposer { text, owner in add(text, owner: owner, to: project) }
                     .listRowBackground(RoostColor.Role.surface.color)
                 if progress.isFinished {
                     ArchiveRow { remove(project) }
@@ -188,11 +205,16 @@ struct ProjectsScreen: View {
     }
 
     /// True when the step went into the store; the composer clears itself and keeps the keyboard.
-    private func add(_ text: String, to project: ProjectRecord) -> Bool {
-        guard (try? ListActions.addSubtask(text, to: project, in: context)) != nil else { return false }
+    private func add(_ text: String, owner: String?, to project: ProjectRecord) -> Bool {
+        guard (try? ListActions.addSubtask(text, to: project, assignee: owner, in: context)) != nil else { return false }
         added += 1
         sync.syncSoon()
         return true
+    }
+
+    private func setAssignee(_ step: SubtaskRecord, _ person: String?) {
+        try? ListActions.setAssignee(step, person, in: context)
+        sync.syncSoon()
     }
 
     private func toggle(_ step: SubtaskRecord) {
@@ -215,6 +237,11 @@ struct ProjectsScreen: View {
             of: project, move: source, to: destination, in: context
         )) ?? 0
         guard changed > 0 else { return }
+        sync.syncSoon()
+    }
+
+    private func setDueOn(_ project: ProjectRecord, _ day: String?) {
+        try? ListActions.setDueOn(project, day, in: context)
         sync.syncSoon()
     }
 
@@ -248,6 +275,8 @@ private struct ProjectRow: View {
     let project: ProjectRecord
     let progress: ProjectProgress
     let isOpen: Bool
+    let dueLabel: String?
+    let pastDue: Bool
     let onToggle: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -257,6 +286,12 @@ private struct ProjectRow: View {
             parts.append(Strings.Projects.finished)
         }
         parts.append(Strings.Projects.stepsDone(done: progress.done, total: progress.total))
+        if pastDue {
+            parts.append(Strings.Projects.pastDue)
+        }
+        if let dueLabel {
+            parts.append(dueLabel)
+        }
         if project.rejected {
             parts.append(Strings.Lists.didNotSyncValue)
         }
@@ -305,6 +340,12 @@ private struct ProjectRow: View {
                         .roostType(.monoTally)
                         .foregroundStyle(RoostColor.Role.textSecondary.color)
                         .contentTransition(.numericText(value: Double(progress.done)))
+                    if let dueLabel {
+                        Text(dueLabel)
+                            .roostType(.caption)
+                            .foregroundStyle(pastDue ? RoostColor.Role.danger.color : RoostColor.Role.textSecondary.color)
+                            .fixedSize()
+                    }
                 }
             }
             .padding(.vertical, RoostSpacing.xs)
@@ -362,12 +403,18 @@ private struct SubtaskRow: View {
     let moveUp: (() -> Void)?
     let moveDown: (() -> Void)?
     let onToggle: () -> Void
+    let onAssign: (String?) -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
     private var value: String {
-        let state = step.done ? Strings.Projects.stepDone : Strings.Projects.stepNotDone
-        guard step.rejected else { return state }
-        return state + Strings.Lists.metaSeparator + Strings.Lists.didNotSyncValue
+        var parts: [String] = [step.done ? Strings.Projects.stepDone : Strings.Projects.stepNotDone]
+        if let person = Person(rawValue: step.assignee ?? "") {
+            parts.append(Strings.Projects.ownedBy(person.displayName))
+        }
+        if step.rejected {
+            parts.append(Strings.Lists.didNotSyncValue)
+        }
+        return parts.joined(separator: Strings.Lists.metaSeparator)
     }
 
     private var title: some View {
@@ -376,6 +423,14 @@ private struct SubtaskRow: View {
             .foregroundStyle(step.done ? RoostColor.Role.textSecondary.color : RoostColor.Role.textPrimary.color)
             .strikethrough(step.done, color: RoostColor.Role.textSecondary.color)
             .multilineTextAlignment(.leading)
+    }
+
+    @ViewBuilder
+    private var ownerAvatar: some View {
+        if let owner = Person(rawValue: step.assignee ?? "") {
+            PersonAvatar(person: owner)
+                .accessibilityLabel(Strings.Projects.ownedBy(owner.displayName))
+        }
     }
 
     var body: some View {
@@ -390,12 +445,14 @@ private struct SubtaskRow: View {
                         }
                     }
                     Spacer(minLength: 0)
+                    ownerAvatar
                 } else {
                     title
                     Spacer(minLength: RoostSpacing.sm)
                     if step.rejected {
                         NotSyncedMarker()
                     }
+                    ownerAvatar
                 }
             }
             .padding(.vertical, RoostSpacing.xxs)
@@ -403,6 +460,14 @@ private struct SubtaskRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Picker(Strings.Projects.owner, selection: Binding(get: { step.assignee }, set: onAssign)) {
+                Text(Strings.Projects.nobody).tag(String?.none)
+                ForEach(Person.allCases, id: \.self) { person in
+                    Text(person.displayName).tag(Optional(person.rawValue))
+                }
+            }
+        }
         .accessibilityLabel(step.title)
         .accessibilityValue(value)
         .accessibilityHint(step.done ? Strings.Projects.markNotDone : Strings.Projects.markDone)
@@ -413,11 +478,14 @@ private struct SubtaskRow: View {
             if let moveDown {
                 Button(Strings.Projects.moveDown, action: moveDown)
             }
+            Button(Strings.Projects.nobody) { onAssign(nil) }
+            ForEach(Person.allCases, id: \.self) { person in
+                Button(person.displayName) { onAssign(person.rawValue) }
+            }
         }
     }
 }
 
-/// The one row a finished card adds: it leaves the list without losing what was done.
 private struct ArchiveRow: View {
     let onArchive: () -> Void
 
@@ -442,8 +510,9 @@ private struct ArchiveRow: View {
 
 private struct SubtaskComposer: View {
     /// Returns whether the step was added.
-    let onAdd: (String) -> Bool
+    let onAdd: (String, String?) -> Bool
     @State private var draft = ""
+    @State private var owner: String?
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -457,6 +526,27 @@ private struct SubtaskComposer: View {
                 .onSubmit(submit)
                 .accessibilityLabel(Strings.Projects.addStep)
                 .accessibilityHint(Strings.Lists.composerHint)
+            Menu {
+                Picker(Strings.Projects.owner, selection: $owner) {
+                    Text(Strings.Projects.nobody).tag(String?.none)
+                    ForEach(Person.allCases, id: \.self) { person in
+                        Text(person.displayName).tag(Optional(person.rawValue))
+                    }
+                }
+            } label: {
+                Group {
+                    if let person = Person(rawValue: owner ?? "") {
+                        PersonAvatar(person: person)
+                    } else {
+                        Image(systemName: "person.crop.circle")
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                    }
+                }
+                .frame(width: RoostSpacing.minTapTarget, height: RoostSpacing.minTapTarget)
+                .contentShape(Rectangle())
+            }
+            .accessibilityLabel(Strings.Projects.owner)
+            .accessibilityValue(owner.map { Person(rawValue: $0)?.displayName ?? $0 } ?? Strings.Projects.nobody)
         }
         .padding(.vertical, RoostSpacing.xxs)
         .frame(minHeight: RoostSpacing.minTapTarget)
@@ -467,8 +557,46 @@ private struct SubtaskComposer: View {
             draft = "" // blank: let Return put the keyboard away, and take the stray spaces with it
             return
         }
-        guard onAdd(draft) else { return } // the store refused; the line stays in the field
+        guard onAdd(draft, owner) else { return } // the store refused; the line stays in the field
         draft = ""
+        owner = nil
         refocus($focused) // keep the keyboard up: steps come in batches too
+    }
+}
+
+/// The date picker behind "Set a due day". Graphical, in the household's time zone, so the day picked is
+/// the day stored whatever zone the phone is in.
+private struct DueDaySheet: View {
+    let onPick: (Date) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var day: Date
+
+    init(initial: Date, onPick: @escaping (Date) -> Void) {
+        self.onPick = onPick
+        _day = State(initialValue: initial)
+    }
+
+    var body: some View {
+        NavigationStack {
+            DatePicker(Strings.Projects.dueDayPicker, selection: $day, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .environment(\.timeZone, HouseholdCalendar().calendar.timeZone)
+                .tint(RoostColor.Role.accent.color)
+                .padding(RoostSpacing.lg)
+                .navigationTitle(Strings.Projects.dueDayPicker)
+                .toolbarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(Strings.Settings.cancel) { dismiss() }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(Strings.Projects.dueDayDone) {
+                            onPick(day)
+                            dismiss()
+                        }
+                    }
+                }
+        }
+        .presentationDetents([.medium, .large])
     }
 }

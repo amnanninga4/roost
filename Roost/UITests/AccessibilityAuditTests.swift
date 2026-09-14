@@ -133,6 +133,8 @@ final class AccessibilityAuditTests: RoostUITestCase {
             app.buttons["Shelve what stays"].waitForExistence(timeout: Self.timeout),
             "the steps never appeared"
         )
+        let ownedValue = app.buttons["Shelve what stays"].value as? String ?? ""
+        XCTAssertTrue(ownedValue.contains("For Wes"), "the owner is spoken; got \(ownedValue)")
         try audit(app, allowing: [
             customFontScales("Archive"),
             textFieldScrolls("Start a project…"),

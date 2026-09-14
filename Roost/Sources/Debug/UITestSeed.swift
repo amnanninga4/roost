@@ -208,6 +208,7 @@
                 let record = ProjectRecord(
                     id: id,
                     title: project.title,
+                    dueOn: project.dueInDays.map { ProjectDates.dayString(day($0)) },
                     createdAt: day(-1).addingTimeInterval(Double(Self.projects.count - index)),
                     syncedAt: day(-1)
                 )
@@ -218,6 +219,7 @@
                         projectId: id,
                         title: step.title,
                         sortOrder: stepIndex,
+                        assignee: step.assignee?.rawValue,
                         done: step.done,
                         doneBy: step.done ? Person.anne.rawValue : nil,
                         doneAt: step.done ? day(-1) : nil,
@@ -379,15 +381,18 @@
         struct SeededStep {
             let title: String
             var done = false
+            var assignee: Person? = nil
         }
 
         struct SeededProject {
             let title: String
             let steps: [SeededStep]
+            var dueInDays: Int? = nil
         }
 
         /// The finished card is newest, so the screen's "open the first one" rule puts the DONE chip, the
-        /// full bar, and the Archive row on screen without a tap; the other card is one tap away at 2 of 4.
+        /// full bar, and the Archive row on screen without a tap; the other card is one tap away at 2 of 4,
+        /// due in three days, with one step that is Wes's.
         static var projects: [SeededProject] {
             [
                 SeededProject(title: "Hang the shelves", steps: [
@@ -397,9 +402,9 @@
                 SeededProject(title: "Clear out the garage", steps: [
                     SeededStep(title: "Sort the boxes", done: true),
                     SeededStep(title: "Book the dump run", done: true),
-                    SeededStep(title: "Shelve what stays"),
+                    SeededStep(title: "Shelve what stays", assignee: .wes),
                     SeededStep(title: "Sweep it out"),
-                ]),
+                ], dueInDays: 3),
             ]
         }
     }

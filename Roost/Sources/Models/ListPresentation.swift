@@ -7,9 +7,11 @@
 //   ProjectProgress done / total / fraction, and the one condition that makes a card finished
 //   SubtaskOrder    the sortOrder values a drag implies, changing as few other rows as possible
 //   MealDates       "last made today" / "yesterday" / "Tuesday" / "Jul 20"
+//   ProjectDates    a project's due day as "Due Sep 20", and whether it has passed
 //
 // None of it touches SwiftData or SwiftUI; the screens hand in what they already have from `@Query`.
 import Foundation
+import RoostCore
 
 /// Shopping rows in the order the screen draws them, in two groups.
 struct ShoppingSplit<Row> {
@@ -192,5 +194,40 @@ enum MealDates {
         case 2 ... 6: return date.formatted(.dateTime.weekday(.wide).locale(.autoupdatingCurrent))
         default: return date.formatted(.dateTime.month(.abbreviated).day().locale(.autoupdatingCurrent))
         }
+    }
+}
+
+
+/// A project's due day: the `YYYY-MM-DD` the server stores, read and written through the household
+/// calendar so the phone's own time zone never moves the day.
+enum ProjectDates {
+    /// "2026-09-20" for the Chicago day containing `date`.
+    static func dayString(_ date: Date, calendar: HouseholdCalendar = HouseholdCalendar()) -> String {
+        NotificationPlanner.dayKey(date, calendar: calendar)
+    }
+
+    /// The start of that day in Chicago, or nil for anything that is not a day.
+    static func day(from text: String, calendar: HouseholdCalendar = HouseholdCalendar()) -> Date? {
+        SyncAPI.parseActiveFrom(text, calendar: calendar)
+    }
+
+    /// "Due Sep 20", or "Due Jan 5, 2027" when the day is in another year. Nil for a day that does not parse.
+    static func label(
+        _ text: String, now: Date = Date(), locale: Locale = .autoupdatingCurrent,
+        calendar: HouseholdCalendar = HouseholdCalendar()
+    ) -> String? {
+        guard let day = day(from: text, calendar: calendar) else { return nil }
+        let sameYear = calendar.calendar.component(.year, from: day) == calendar.calendar.component(.year, from: now)
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = calendar.calendar.timeZone
+        formatter.setLocalizedDateFormatFromTemplate(sameYear ? "MMM d" : "MMM d y")
+        return Strings.Projects.due(formatter.string(from: day))
+    }
+
+    /// True once the day has ended: the morning after is the first moment it reads as past.
+    static func isPast(_ text: String, now: Date, calendar: HouseholdCalendar = HouseholdCalendar()) -> Bool {
+        guard let day = day(from: text, calendar: calendar) else { return false }
+        return calendar.startOfDay(now) > day
     }
 }

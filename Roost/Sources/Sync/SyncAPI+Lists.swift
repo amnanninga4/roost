@@ -49,6 +49,7 @@ extension SyncAPI {
         let projectId: String
         let title: String
         let sortOrder: Int
+        let assignee: String?
         let done: Bool
         let doneBy: String?
         let doneAt: String?
@@ -61,6 +62,8 @@ extension SyncAPI {
     struct ProjectDTO: Codable, Sendable, Equatable {
         let id: String
         let title: String
+        /// Absent from a server older than R-30, which decodes as nil.
+        let dueOn: String?
         let createdAt: String
         let updatedAt: String
         let deleted: Bool
@@ -183,9 +186,14 @@ extension SyncAPI {
         try await call("DELETE", "projects/\(id)")
     }
 
-    /// 400 when the project is unknown or deleted on the server.
-    func postSubtask(projectId: String, id: String, title: String, sortOrder: Int) async throws -> Posted<SubtaskDTO> {
-        let body: Fields = ["id": .string(id), "title": .string(title), "sortOrder": .int(sortOrder)]
+    /// 400 when the project is unknown or deleted. `assignee` rides the create (null for nobody).
+    func postSubtask(
+        projectId: String, id: String, title: String, sortOrder: Int, assignee: String?
+    ) async throws -> Posted<SubtaskDTO> {
+        let body: Fields = [
+            "id": .string(id), "title": .string(title), "sortOrder": .int(sortOrder),
+            "assignee": assignee.map { .string($0) } ?? .null,
+        ]
         return try await post("projects/\(projectId)/subtasks", body: body)
     }
 

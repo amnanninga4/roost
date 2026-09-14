@@ -19,6 +19,8 @@ struct PatchFields: OptionSet, Sendable, Hashable {
     static let done = PatchFields(rawValue: 1 << 5)
     static let sortOrder = PatchFields(rawValue: 1 << 6)
     static let price = PatchFields(rawValue: 1 << 7)
+    static let dueOn = PatchFields(rawValue: 1 << 8)
+    static let assignee = PatchFields(rawValue: 1 << 9)
 }
 
 /// The sync state machine every list record shares (the one CompletionRecord documents, plus PATCH):
@@ -215,10 +217,12 @@ final class MealRecord: ListRecord {
 }
 
 /// A multi-step job. Removing a project removes its subtasks locally too; the server cascades the same way.
+/// `dueOn` is a Chicago calendar day, `2026-09-20`, or nil: the same shape as the household start date.
 @Model
 final class ProjectRecord: ListRecord {
     @Attribute(.unique) var id: String
     var title: String
+    var dueOn: String?
     var createdAt: Date
     var updatedAt: Date
     var syncedAt: Date?
@@ -231,6 +235,7 @@ final class ProjectRecord: ListRecord {
     init(
         id: String,
         title: String,
+        dueOn: String? = nil,
         createdAt: Date,
         updatedAt: Date? = nil,
         syncedAt: Date? = nil,
@@ -238,6 +243,7 @@ final class ProjectRecord: ListRecord {
     ) {
         self.id = id
         self.title = title
+        self.dueOn = dueOn
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.syncedAt = syncedAt
@@ -247,12 +253,14 @@ final class ProjectRecord: ListRecord {
 
 /// One step of a project. `sortOrder` is the position within the project; `doneBy`/`doneAt` are stamped
 /// locally on check-off and replaced by the server's stamp when the PATCH is acknowledged.
+/// `assignee` is who the step is meant for (`anne`, `wes`, nil); `doneBy` is who ticked it, and the two can differ.
 @Model
 final class SubtaskRecord: ListRecord {
     @Attribute(.unique) var id: String
     var projectId: String
     var title: String
     var sortOrder: Int
+    var assignee: String?
     var done: Bool
     var doneBy: String?
     var doneAt: Date?
@@ -270,6 +278,7 @@ final class SubtaskRecord: ListRecord {
         projectId: String,
         title: String,
         sortOrder: Int,
+        assignee: String? = nil,
         done: Bool = false,
         doneBy: String? = nil,
         doneAt: Date? = nil,
@@ -282,6 +291,7 @@ final class SubtaskRecord: ListRecord {
         self.projectId = projectId
         self.title = title
         self.sortOrder = sortOrder
+        self.assignee = assignee
         self.done = done
         self.doneBy = doneBy
         self.doneAt = doneAt

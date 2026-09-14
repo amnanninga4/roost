@@ -180,6 +180,7 @@ extension ProjectRecord {
         self.init(
             id: dto.id,
             title: dto.title,
+            dueOn: dto.dueOn,
             createdAt: SyncAPI.parseDate(dto.createdAt) ?? now,
             updatedAt: SyncAPI.parseDate(dto.updatedAt) ?? now,
             syncedAt: now,
@@ -193,6 +194,9 @@ extension ProjectRecord {
         if !pendingFields.contains(.title) {
             title = dto.title
         }
+        if !pendingFields.contains(.dueOn) {
+            dueOn = dto.dueOn
+        }
         markSynced(seq: dto.seq, deleted: dto.deleted, updatedAt: dto.updatedAt, now: now)
     }
 
@@ -200,6 +204,9 @@ extension ProjectRecord {
         var body: SyncAPI.Fields = [:]
         if pendingFields.contains(.title) {
             body["title"] = .string(title)
+        }
+        if pendingFields.contains(.dueOn) {
+            body["dueOn"] = dueOn.map { .string($0) } ?? .null
         }
         return body
     }
@@ -212,6 +219,7 @@ extension SubtaskRecord {
             projectId: dto.projectId,
             title: dto.title,
             sortOrder: dto.sortOrder,
+            assignee: dto.assignee,
             done: dto.done,
             doneBy: dto.doneBy,
             doneAt: dto.doneAt.flatMap(SyncAPI.parseDate),
@@ -233,6 +241,9 @@ extension SubtaskRecord {
         if !dirty.contains(.sortOrder) {
             sortOrder = dto.sortOrder
         }
+        if !dirty.contains(.assignee) {
+            assignee = dto.assignee
+        }
         if !dirty.contains(.done) {
             done = dto.done
             doneBy = dto.doneBy
@@ -251,6 +262,9 @@ extension SubtaskRecord {
         }
         if pendingFields.contains(.sortOrder) {
             body["sortOrder"] = .int(sortOrder)
+        }
+        if pendingFields.contains(.assignee) {
+            body["assignee"] = assignee.map { .string($0) } ?? .null
         }
         return body
     }
