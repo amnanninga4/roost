@@ -1,4 +1,4 @@
-// The list half of a sync pass: shopping, meals, projects, subtasks. SyncClient.runOnce calls into here
+// The list half of a sync pass: shopping, wishlist, meals, projects, subtasks. SyncClient.runOnce calls into here
 // between its completion replay and the /sync pull, under the same policy:
 //
 //   replayLists()     POST every pending create (a project carries its pending steps in one request),
@@ -53,6 +53,7 @@ extension SyncClient {
     private func replayCreates(api: SyncAPI, now: Date) async throws -> Int {
         var posted = 0
         posted += try await postShoppingItems(api: api, now: now)
+        posted += try await postWishlistItems(api: api, now: now)
         posted += try await postMeals(api: api, now: now)
         posted += try await postProjects(api: api, now: now)
         posted += try await postSubtasks(api: api, now: now)
@@ -71,6 +72,28 @@ extension SyncClient {
                 if reply.isNew {
                     item.pendingFields
                         .remove(.title) // a pending `bought` waits for the edits: the POST has no such field
+                }
+                item.apply(reply.row, now: now)
+            }
+            if sent == .taken {
+                posted += 1
+            }
+        }
+        return posted
+    }
+
+
+    private func postWishlistItems(api: SyncAPI, now: Date) async throws -> Int {
+        let items = try fetch(
+            #Predicate<WishlistItemRecord> { $0.syncedAt == nil && !$0.rejected && !$0.removed },
+            sort: [SortDescriptor(\.createdAt)]
+        )
+        var posted = 0
+        for item in items {
+            let sent = try await outbound(item) {
+                let reply = try await api.postWishlist(id: item.id, title: item.title, priceCents: item.priceCents)
+                if reply.isNew {
+                    item.pendingFields.subtract([.title, .price]) // the create carried both; `bought` waits for the edits
                 }
                 item.apply(reply.row, now: now)
             }
@@ -190,6 +213,12 @@ extension SyncClient {
             },
             sort: [SortDescriptor(\.updatedAt)]
         )
+        let wishlist = try fetch(
+            #Predicate<WishlistItemRecord> {
+                $0.syncedAt != nil && $0.pendingPatch != 0 && !$0.rejected && !$0.removed
+            },
+            sort: [SortDescriptor(\.updatedAt)]
+        )
         let meals = try fetch(
             #Predicate<MealRecord> { $0.syncedAt != nil && $0.pendingPatch != 0 && !$0.rejected && !$0.removed },
             sort: [SortDescriptor(\.updatedAt)]
@@ -204,6 +233,8 @@ extension SyncClient {
         )
         var posted = 0
         posted += try await patch(items) { try await api.patchShopping(id: $0.id, $0.patchBody()) }
+            apply: { $0.apply($1, now: now) }
+        posted += try await patch(wishlist) { try await api.patchWishlist(id: $0.id, $0.patchBody()) }
             apply: { $0.apply($1, now: now) }
         posted += try await patch(meals) { try await api.patchMeal(id: $0.id, $0.patchBody()) }
             apply: { $0.apply($1, now: now) }
@@ -248,6 +279,9 @@ extension SyncClient {
         let items = try fetch(
             #Predicate<ShoppingItemRecord> { $0.removed && !$0.deleteSynced }, sort: [SortDescriptor(\.updatedAt)]
         )
+        let wishlist = try fetch(
+            #Predicate<WishlistItemRecord> { $0.removed && !$0.deleteSynced }, sort: [SortDescriptor(\.updatedAt)]
+        )
         let meals = try fetch(
             #Predicate<MealRecord> { $0.removed && !$0.deleteSynced }, sort: [SortDescriptor(\.updatedAt)]
         )
@@ -262,6 +296,7 @@ extension SyncClient {
             }
         }
         deleted += try await remove(items) { _ = try await api.deleteShopping(id: $0.id) }
+        deleted += try await remove(wishlist) { _ = try await api.deleteWishlist(id: $0.id) }
         deleted += try await remove(meals) { _ = try await api.deleteMeal(id: $0.id) }
         return deleted
     }
@@ -356,6 +391,12 @@ extension SyncClient {
                 ShoppingItemRecord(dto, now: now)
             } apply: { $0.apply(dto, now: now) }
         }
+        for dto in response.wishlist ?? [] {
+            let id = dto.id
+            try upsert(fetchOne(#Predicate<WishlistItemRecord> { $0.id == id }), seq: dto.seq, now: now) {
+                WishlistItemRecord(dto, now: now)
+            } apply: { $0.apply(dto, now: now) }
+        }
         for dto in response.meals ?? [] {
             let id = dto.id
             try upsert(fetchOne(#Predicate<MealRecord> { $0.id == id }), seq: dto.seq, now: now) {
@@ -379,6 +420,7 @@ extension SyncClient {
         }
         let counts = [
             response.shopping?.count,
+            response.wishlist?.count,
             response.meals?.count,
             response.projects?.count,
             response.subtasks?.count,
