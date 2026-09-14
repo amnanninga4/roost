@@ -57,9 +57,12 @@ struct ChoreRowView: View {
             .padding(.trailing, RoostSpacing.md)
             .padding(.vertical, RoostSpacing.xs)
             .frame(minHeight: RoostSpacing.minTapTarget)
+            .background(fill, in: RoostRadius.rowShape)
             .contentShape(Rectangle())
         }
-        .buttonStyle(ChoreRowButtonStyle(fill: fill))
+        // Quiet: the toggle already fires .checkOff / .undo on the same touch — the kit's press
+        // haptic on top of that would be two haptics for one finger.
+        .buttonStyle(.roostPressQuiet)
         .contextMenu { handoffMenu }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.chore.title)
@@ -224,30 +227,5 @@ private struct RowBadge: View {
     /// A hairline in the chip's own colour, so the chip survives on a fill of the same family.
     private var strokeOpacity: Double {
         fill == .surface ? 0.35 : 0
-    }
-}
-
-/// The press state: the fill steps up and the row gives a little, on the quick spring, which under
-/// Reduce Motion becomes no animation at all rather than a shortened one.
-private struct ChoreRowButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// The row's resting fill: the stage's soft colour, or clear for a row that is only due today.
-    let fill: Color
-
-    /// A press is felt, not watched: two percent is enough to register under a finger.
-    private let pressedScale: CGFloat = 0.98
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                configuration.isPressed ? RoostColor.Role.surfaceElevated.color : fill,
-                in: RoostRadius.rowShape
-            )
-            .scaleEffect(configuration.isPressed ? pressedScale : 1)
-            .animation(
-                RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion),
-                value: configuration.isPressed
-            )
     }
 }

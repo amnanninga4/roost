@@ -209,7 +209,8 @@ private struct ShoppingRow: View {
             .frame(minHeight: RoostSpacing.minTapTarget)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        // Quiet: the toggle already fires .checkOff / .undo on the same touch.
+        .buttonStyle(.roostPressQuiet)
         .accessibilityLabel(item.title)
         .accessibilityValue(value)
         .accessibilityHint(item.bought ? Strings.Shopping.markStillNeeded : Strings.Shopping.markBought)

@@ -29,6 +29,9 @@ private enum ComposerBorder {
 ///
 /// `alignment` is where the words sit inside the taller band — trailing for a button on the right of a
 /// section header, leading for one under a paragraph.
+///
+/// The press is the kit's vocabulary — `RoostButtonStyle`'s opacity and the `press` haptic — so a text
+/// action and a pill button feel the same under a finger.
 struct RoostTextActionStyle: ButtonStyle {
     var alignment: Alignment = .leading
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -37,10 +40,15 @@ struct RoostTextActionStyle: ButtonStyle {
         configuration.label
             .frame(minHeight: RoostSpacing.minTapTarget, alignment: alignment)
             .contentShape(Rectangle())
-            .opacity(configuration.isPressed ? 0.6 : 1)
+            .opacity(configuration.isPressed ? RoostButtonStyle.pressedOpacity : 1)
             .animation(
                 RoostMotion.reduceMotionAware(.quick, reduceMotion: reduceMotion),
                 value: configuration.isPressed
+            )
+            .sensoryFeedback(
+                RoostHaptic.press.feedback,
+                trigger: configuration.isPressed,
+                condition: { _, now in now }
             )
     }
 }
