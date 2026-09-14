@@ -67,10 +67,13 @@ final class ListsBehaviourTests: RoostUITestCase {
         // title, so typing goes straight in — tapping the field first would move the cursor mid-word.
         app.typeText(" (clumping)")
         app.buttons["Save"].tap()
-        XCTAssertTrue(
-            app.buttons["Cat litter (clumping)"].waitForExistence(timeout: Self.timeout),
-            "the renamed row never appeared"
+        let renamed = app.buttons["Cat litter (clumping)"]
+        XCTAssertTrue(renamed.waitForExistence(timeout: Self.timeout), "the renamed row never appeared")
+        // The fixture seeds "Dish soap" as rejected, so a "Didn't sync" marker is always somewhere on the
+        // page; the claim is about this row, whose VoiceOver value would carry the words if it were refused.
+        XCTAssertFalse(
+            (renamed.value as? String ?? "").contains("Didn't sync"),
+            "an edit queues a PATCH; it is not a refusal"
         )
-        XCTAssertFalse(app.staticTexts["Didn't sync"].exists, "an edit queues a PATCH; it is not a refusal")
     }
 }
