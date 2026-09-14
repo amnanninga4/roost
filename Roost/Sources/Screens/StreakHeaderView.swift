@@ -240,7 +240,7 @@ struct StreakSummaryView: View {
 
     /// "You 6 — 4 Anne · 12-day streak", each score in its person's colour.
     private var scoreText: Text {
-        var text = Text(score.first.label + " ")
+        let text = Text(score.first.label + " ")
             .foregroundStyle(RoostColor.Role.textPrimary.color)
             + Text("\(score.first.score)")
             .foregroundStyle(score.first.person.design.color)
@@ -250,11 +250,10 @@ struct StreakSummaryView: View {
             .foregroundStyle(score.second.person.design.color)
             + Text(" " + score.second.label)
             .foregroundStyle(RoostColor.Role.textPrimary.color)
-        if let streak = score.streak {
-            text = text + Text(Strings.Lists.metaSeparator + Strings.Streak.lineStreak(streak))
-                .foregroundStyle(RoostColor.Role.textSecondary.color)
-        }
-        return text.roostFont(.monoTally)
+        guard let streak = score.streak else { return text.roostFont(.monoTally) }
+        let clause = Text(Strings.Lists.metaSeparator + Strings.Streak.lineStreak(streak))
+            .foregroundStyle(RoostColor.Role.textSecondary.color)
+        return (text + clause).roostFont(.monoTally)
     }
 
     /// "You 6, Anne 4, 12-day streak" — spoken, the colours are useless, so the names stay in.
