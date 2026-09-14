@@ -104,4 +104,25 @@ final class SeedTests: XCTestCase {
         )
         XCTAssertThrowsError(try bad.toChore())
     }
+
+    func testSeasonAndTogetherRoundTripThroughTheRecord() throws {
+        let mowing = Chore(id: "mow-lawn", title: "Mow lawn", cadence: .weekly, fixedAssignee: .anne,
+                           category: .chore, season: Season(months: [4, 5, 6, 7, 8, 9, 10]))
+        let pantry = Chore(id: "clean-out-fridge-pantry", title: "Clean out fridge and pantry",
+                           cadence: .quarterly, category: .chore, together: true)
+        try ChoreSeeder.seed(ChoreList(version: 2, chores: [mowing, pantry]), into: context)
+        let rows = try activeChores()
+        XCTAssertEqual(try rows.map { try $0.toChore() }, [mowing, pantry])
+        XCTAssertEqual(rows[0].together, false)
+        XCTAssertEqual(rows[1].together, true)
+        XCTAssertEqual(rows[1].season, nil)
+        XCTAssertNotNil(rows[0].season)
+
+        // Re-seeding without the season clears it; a broken season text is a conversion error, not a crash.
+        let plain = Chore(id: "mow-lawn", title: "Mow lawn", cadence: .weekly, fixedAssignee: .anne, category: .chore)
+        try ChoreSeeder.seed(ChoreList(version: 3, chores: [plain, pantry]), into: context)
+        XCTAssertNil(try activeChores()[0].season)
+        rows[0].season = "{not json"
+        XCTAssertThrowsError(try rows[0].toChore())
+    }
 }
