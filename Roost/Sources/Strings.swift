@@ -62,6 +62,10 @@ enum Strings {
         static let undoHint = "Puts it back"
         /// VoiceOver, on the composer's text field.
         static let composerHint = "Return adds it and keeps the keyboard up"
+        /// The row menu's first item: retitle (and reprice, on the wishlist) in a small sheet.
+        static let edit = "Edit"
+        /// The edit sheet's confirming button.
+        static let save = "Save"
     }
 
     enum Shopping {
@@ -83,6 +87,8 @@ enum Strings {
         static let stillNeeded = "Still needed"
         static let markBought = "Marks it bought"
         static let markStillNeeded = "Marks it still needed"
+        /// The edit sheet's title.
+        static let editItem = "Edit item"
     }
 
 
@@ -107,6 +113,8 @@ enum Strings {
         static let stillWanted = "Still wanted"
         static let markBought = "Marks it bought"
         static let markStillWanted = "Marks it still wanted"
+        /// The edit sheet's title.
+        static let editItem = "Edit item"
         /// VoiceOver, after the state: "priced $599".
         static func priced(_ price: String) -> String {
             "priced \(price)"

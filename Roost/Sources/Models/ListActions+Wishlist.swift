@@ -46,6 +46,27 @@ extension ListActions {
         try context.save()
     }
 
+    /// Retitle and reprice a row (long-press → Edit). `priceCents: nil` clears the price; a blank
+    /// title keeps the old one, so a price-only edit still lands. Only what changed is flagged.
+    static func renameWishlistItem(
+        _ item: WishlistItemRecord, to title: String, priceCents: Int?, in context: ModelContext,
+        now: Date = Date()
+    ) throws {
+        var edited: PatchFields = []
+        if let title = cleaned(title), title != item.title {
+            item.title = title
+            edited.insert(.title)
+        }
+        let price = clampedPrice(priceCents)
+        if price != item.priceCents {
+            item.priceCents = price
+            edited.insert(.price)
+        }
+        guard !edited.isEmpty else { return }
+        item.markEdited(edited, at: now)
+        try context.save()
+    }
+
     static func removeWishlistItem(_ item: WishlistItemRecord, in context: ModelContext, now: Date = Date()) throws {
         item.markRemoved(at: now)
         try context.save()

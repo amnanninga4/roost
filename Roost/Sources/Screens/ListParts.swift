@@ -159,6 +159,62 @@ struct ListComposer<Extra: View>: View {
     }
 }
 
+/// The little sheet a Shopping or Wishlist row's Edit action presents: the composer's own field
+/// styling at the medium detent. Shopping edits its title; the wishlist adds the price line (the
+/// same parse-and-clamp path the composer's price field uses, applied by the caller's save).
+struct ListEditSheet: View {
+    let title: String
+    let fieldPlaceholder: String
+    @Binding var draft: String
+    /// The wishlist's price line; nil binding means Shopping (no price field).
+    var priceDraft: Binding<String?>?
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    @FocusState private var focused: Bool
+
+    private var priceText: Binding<String>? {
+        priceDraft.map { binding in
+            Binding(get: { binding.wrappedValue ?? "" }, set: { binding.wrappedValue = $0 })
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: RoostSpacing.md) {
+                ListComposer(placeholder: fieldPlaceholder, text: $draft, focused: $focused, onSubmit: onSave) {
+                    if let priceText {
+                        TextField(Strings.Wishlist.price, text: priceText)
+                            .roostType(.subheadline)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                            .keyboardType(.decimalPad)
+                            .submitLabel(.done)
+                            .onSubmit(onSave)
+                            .padding(.leading, RoostSpacing.xl + RoostSpacing.md)
+                            .accessibilityLabel(Strings.Wishlist.price)
+                    }
+                }
+                .listRowInsets(EdgeInsets())
+                Spacer(minLength: 0)
+            }
+            .padding(RoostSpacing.screenMargin)
+            .background(RoostColor.Role.background.color)
+            .navigationTitle(title)
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Strings.Settings.cancel, action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(Strings.Lists.save, action: onSave)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .onAppear { focused = true }
+    }
+}
+
 /// The composer's affordance: an outline while the field is empty, a filled accent circle once
 /// there is something Return would add.
 ///

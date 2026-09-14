@@ -48,4 +48,29 @@ final class ListsBehaviourTests: RoostUITestCase {
         app.buttons["listsPicker.shopping"].tap()
         app.terminate()
     }
+
+    /// Long-press a Shopping row: Edit opens the little sheet, Save writes through the store, and the
+    /// renamed row carries no "Didn't sync" marker — the edit is queued, not refused.
+    func testAShoppingRowEditsThroughItsMenu() {
+        let app = launch(.paired)
+        waitForTasks(in: app)
+        openList("Shopping", in: app)
+        let row = app.buttons["Cat litter"]
+        XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "the shopping rows never appeared")
+        row.press(forDuration: 1.2)
+        let edit = app.buttons["Edit"]
+        XCTAssertTrue(edit.waitForExistence(timeout: Self.timeout), "no Edit in the row's menu")
+        edit.tap()
+        let field = app.textFields["Add an item…"]
+        XCTAssertTrue(field.waitForExistence(timeout: Self.timeout), "the edit sheet never opened")
+        // The sheet focuses the field on appear, with the insertion point at the end of the existing
+        // title, so typing goes straight in — tapping the field first would move the cursor mid-word.
+        app.typeText(" (clumping)")
+        app.buttons["Save"].tap()
+        XCTAssertTrue(
+            app.buttons["Cat litter (clumping)"].waitForExistence(timeout: Self.timeout),
+            "the renamed row never appeared"
+        )
+        XCTAssertFalse(app.staticTexts["Didn't sync"].exists, "an edit queues a PATCH; it is not a refusal")
+    }
 }

@@ -97,6 +97,24 @@ final class WishlistCraftTests: XCTestCase {
         XCTAssertNil(item.boughtAt)
     }
 
+
+    func testRenameFlagsOnlyWhatChanged() throws {
+        let item = WishlistItemRecord(id: "w-9", title: "Kayak", priceCents: 89900, addedBy: "anne",
+                                      createdAt: clock, syncedAt: clock)
+        context.insert(item)
+        try context.save()
+        try ListActions.renameWishlistItem(item, to: "Kayak (tandem)", priceCents: 89900, in: context, now: clock)
+        XCTAssertEqual(item.title, "Kayak (tandem)")
+        XCTAssertEqual(item.pendingFields, [.title], "the price did not change, so it is not flagged")
+        try ListActions.renameWishlistItem(item, to: "Kayak (tandem)", priceCents: nil, in: context, now: clock)
+        XCTAssertNil(item.priceCents, "nil clears the price")
+        XCTAssertEqual(item.pendingFields, [.title, .price])
+        try ListActions.renameWishlistItem(item, to: "   ", priceCents: 500, in: context, now: clock)
+        XCTAssertEqual(item.title, "Kayak (tandem)", "a blank title keeps the old one, so a price-only edit still lands")
+        XCTAssertEqual(item.priceCents, 500)
+    }
+
+
     func testUndoAfterTheDeleteWentOutCopiesThePriceAndFlagsBought() throws {
         let item = WishlistItemRecord(id: "w-2", title: "Standing desk", priceCents: 45000, addedBy: "wes",
                                       bought: true, boughtBy: "anne", boughtAt: clock, createdAt: clock, syncedAt: clock)

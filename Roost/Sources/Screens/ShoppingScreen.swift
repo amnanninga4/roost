@@ -23,6 +23,8 @@ struct ShoppingScreen: View {
     @State private var added = 0
     @State private var checkedOff = 0
     @State private var uncheckedOff = 0
+    @State private var editing: ShoppingItemRecord?
+    @State private var editDraft = ""
 
     private var person: String? {
         syncStates.first?.person
@@ -74,6 +76,16 @@ struct ShoppingScreen: View {
         .roostHaptic(.checkOff, trigger: checkedOff)
         .roostHaptic(.undo, trigger: uncheckedOff)
         .undoBar(undo)
+        .sheet(item: $editing) { item in
+            ListEditSheet(
+                title: Strings.Shopping.editItem,
+                fieldPlaceholder: Strings.Shopping.add,
+                draft: $editDraft,
+                priceDraft: nil,
+                onSave: { saveEdit(item) },
+                onCancel: { editing = nil }
+            )
+        }
     }
 
     /// "Bought" over the action that empties it. The button is the only chrome in a section header,
@@ -93,7 +105,14 @@ struct ShoppingScreen: View {
     }
 
     private func row(_ item: ShoppingItemRecord) -> some View {
-        ShoppingRow(item: item) { toggle(item) }
+        ShoppingRow(
+            item: item,
+            onEdit: {
+                editDraft = item.title
+                editing = item
+            },
+            onDelete: { remove(item) }
+        ) { toggle(item) }
             .listRowBackground(RoostColor.Role.surface.color)
             .roostTransition(.checkOff)
             .swipeToDelete(rejected: item.rejected) { remove(item) }
@@ -150,10 +169,18 @@ struct ShoppingScreen: View {
             sync.syncSoon()
         })
     }
+
+    private func saveEdit(_ item: ShoppingItemRecord) {
+        try? ListActions.renameShoppingItem(item, to: editDraft, in: context)
+        editing = nil
+        sync.syncSoon()
+    }
 }
 
 private struct ShoppingRow: View {
     let item: ShoppingItemRecord
+    let onEdit: () -> Void
+    let onDelete: () -> Void
     let onToggle: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -214,5 +241,10 @@ private struct ShoppingRow: View {
         .accessibilityLabel(item.title)
         .accessibilityValue(value)
         .accessibilityHint(item.bought ? Strings.Shopping.markStillNeeded : Strings.Shopping.markBought)
+        .contextMenu {
+            Button(Strings.Lists.edit, systemImage: "pencil", action: onEdit)
+            Button(Strings.Lists.delete, systemImage: "trash", role: .destructive, action: onDelete)
+        }
+        .accessibilityAction(named: Text(Strings.Lists.edit), onEdit)
     }
 }
