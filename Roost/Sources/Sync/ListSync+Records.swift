@@ -71,6 +71,58 @@ extension ShoppingItemRecord {
     }
 }
 
+
+extension WishlistItemRecord {
+    convenience init(_ dto: SyncAPI.WishlistDTO, now: Date) {
+        self.init(
+            id: dto.id,
+            title: dto.title,
+            priceCents: dto.priceCents,
+            addedBy: dto.addedBy,
+            bought: dto.bought,
+            boughtBy: dto.boughtBy,
+            boughtAt: dto.boughtAt.flatMap(SyncAPI.parseDate),
+            createdAt: SyncAPI.parseDate(dto.createdAt) ?? now,
+            updatedAt: SyncAPI.parseDate(dto.updatedAt) ?? now,
+            syncedAt: now,
+            removed: dto.deleted
+        )
+        deleteSynced = dto.deleted
+        seq = dto.seq
+    }
+
+    func apply(_ dto: SyncAPI.WishlistDTO, now: Date) {
+        let dirty = pendingFields
+        if !dirty.contains(.title) {
+            title = dto.title
+        }
+        if !dirty.contains(.price) {
+            priceCents = dto.priceCents
+        }
+        if !dirty.contains(.bought) {
+            bought = dto.bought
+            boughtBy = dto.boughtBy
+            boughtAt = dto.boughtAt.flatMap(SyncAPI.parseDate)
+        }
+        addedBy = dto.addedBy
+        markSynced(seq: dto.seq, deleted: dto.deleted, updatedAt: dto.updatedAt, now: now)
+    }
+
+    func patchBody() -> SyncAPI.Fields {
+        var body: SyncAPI.Fields = [:]
+        if pendingFields.contains(.title) {
+            body["title"] = .string(title)
+        }
+        if pendingFields.contains(.price) {
+            body["priceCents"] = priceCents.map { .int($0) } ?? .null
+        }
+        if pendingFields.contains(.bought) {
+            body["bought"] = .bool(bought)
+        }
+        return body
+    }
+}
+
 extension MealRecord {
     convenience init(_ dto: SyncAPI.MealDTO, now: Date) {
         self.init(

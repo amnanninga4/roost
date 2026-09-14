@@ -2,11 +2,18 @@
 import XCTest
 
 final class RootTabsTests: XCTestCase {
-    func testRootHasFourTabsInOrder() {
-        XCTAssertEqual(RootTab.allCases.count, 4)
-        XCTAssertEqual(RootTab.allCases, [.tasks, .shopping, .meals, .projects])
-        XCTAssertEqual(RootTab.allCases.map(\.title), ["Tasks", "Shopping", "Meals", "Projects"])
-        XCTAssertEqual(RootTab.allCases.map(\.symbol), ["checklist", "cart", "fork.knife", "hammer"])
+    func testRootHasThreeTabsInOrder() {
+        XCTAssertEqual(RootTab.allCases, [.tasks, .lists, .more])
+        XCTAssertEqual(RootTab.allCases.map(\.title), ["Tasks", "Lists", "More"])
+        XCTAssertEqual(RootTab.allCases.map(\.symbol), ["checklist", "list.bullet.rectangle", "ellipsis.circle"])
+    }
+
+    func testListsPagesInOrderWithTheirSymbolsAndAStableStorageKey() {
+        XCTAssertEqual(ListPage.allCases, [.shopping, .meals, .projects, .wishlist])
+        XCTAssertEqual(ListPage.allCases.map(\.title), ["Shopping", "Meals", "Projects", "Wishlist"])
+        XCTAssertEqual(ListPage.allCases.map(\.symbol), ["cart", "fork.knife", "hammer", "gift"])
+        XCTAssertEqual(ListPage.storageKey, "roost.lists.page")
+        XCTAssertEqual(ListPage(rawValue: "wishlist"), .wishlist, "AppStorage writes the raw value; it must not change")
     }
 
     func testListHeadersReadLikeTheMockup() {

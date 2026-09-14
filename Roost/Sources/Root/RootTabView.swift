@@ -1,11 +1,12 @@
 import RoostDesign
 
-// The root of the app: four tabs. Tasks is the R-8 Today screen; Shopping, Meals, and Projects are the
-// R-11 list screens. The gear menu stays on Tasks.
+// The root of the app: three tabs. Tasks is the Today screen; Lists holds Shopping, Meals, Projects and
+// Wishlist behind a segmented control; More holds what the gear menu used to. Calendar arrives with the
+// reminders design and slots in second; nothing here reserves it a place.
 import SwiftUI
 
 enum RootTab: String, CaseIterable, Identifiable {
-    case tasks, shopping, meals, projects
+    case tasks, lists, more
 
     var id: String {
         rawValue
@@ -14,18 +15,16 @@ enum RootTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .tasks: Strings.Tabs.tasks
-        case .shopping: Strings.Tabs.shopping
-        case .meals: Strings.Tabs.meals
-        case .projects: Strings.Tabs.projects
+        case .lists: Strings.Tabs.lists
+        case .more: Strings.Tabs.more
         }
     }
 
     var symbol: String {
         switch self {
         case .tasks: "checklist"
-        case .shopping: "cart"
-        case .meals: "fork.knife"
-        case .projects: "hammer"
+        case .lists: "list.bullet.rectangle"
+        case .more: "ellipsis.circle"
         }
     }
 }
@@ -54,9 +53,8 @@ struct RootTabView: View {
     private func screen(for tab: RootTab) -> some View {
         switch tab {
         case .tasks: TodayScreen()
-        case .shopping: ShoppingScreen()
-        case .meals: MealsScreen()
-        case .projects: ProjectsScreen()
+        case .lists: ListsScreen()
+        case .more: MoreScreen()
         }
     }
 }

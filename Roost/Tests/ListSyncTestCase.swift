@@ -28,6 +28,18 @@ func shoppingJSON(
     ]
 }
 
+
+func wishlistJSON(
+    id: String, title: String, priceCents: Int? = nil, addedBy: String = "anne", bought: Bool = false,
+    boughtBy: String? = nil, boughtAt: String? = nil, seq: Int, deleted: Bool = false
+) -> [String: Any] {
+    [
+        "id": id, "title": title, "priceCents": priceCents.map { $0 as Any } ?? NSNull(), "addedBy": addedBy,
+        "bought": bought, "boughtBy": orNull(boughtBy), "boughtAt": orNull(boughtAt),
+        "createdAt": listStamp, "updatedAt": listStamp, "deleted": deleted, "seq": seq,
+    ]
+}
+
 func mealJSON(
     id: String, title: String, tag: String = "", lastMadeAt: String? = nil, nextUp: Bool = false,
     seq: Int, deleted: Bool = false
@@ -72,17 +84,18 @@ func handoffJSON(
     ]
 }
 
-/// A full /sync body: the completions helper plus the four list arrays and the handoffs.
+/// A full /sync body: the completions helper plus the five list arrays and the handoffs.
 /// `activeFrom` is omitted unless given, which is a server older than R-23 as far as the phone is concerned.
 func listsSyncJSON(
     person: String = "anne", cursor: Int, completions: [[String: Any]] = [], shopping: [[String: Any]] = [],
     meals: [[String: Any]] = [], projects: [[String: Any]] = [], subtasks: [[String: Any]] = [],
+    wishlist: [[String: Any]] = [],
     handoffs: [[String: Any]] = [], activeFrom: String? = nil
 ) -> Data {
     var body: [String: Any] = [
         "serverTime": listStamp, "person": person, "choresVersion": 1, "cursor": cursor,
         "completions": completions, "shopping": shopping, "meals": meals, "projects": projects,
-        "subtasks": subtasks, "handoffs": handoffs,
+        "subtasks": subtasks, "wishlist": wishlist, "handoffs": handoffs,
     ]
     if let activeFrom {
         body["activeFrom"] = activeFrom
@@ -118,6 +131,11 @@ class ListSyncTestCase: XCTestCase {
 
     func shoppingRow(_ id: String, in context: ModelContext? = nil) throws -> ShoppingItemRecord? {
         try (context ?? fresh()).fetch(FetchDescriptor<ShoppingItemRecord>(predicate: #Predicate { $0.id == id })).first
+    }
+
+
+    func wishlistRow(_ id: String, in context: ModelContext? = nil) throws -> WishlistItemRecord? {
+        try (context ?? fresh()).fetch(FetchDescriptor<WishlistItemRecord>(predicate: #Predicate { $0.id == id })).first
     }
 
     func mealRow(_ id: String, in context: ModelContext? = nil) throws -> MealRecord? {

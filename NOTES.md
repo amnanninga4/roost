@@ -37,7 +37,7 @@ Everything else is fair-game split; only those two weekly tasks are pinned.
 1. **Head-to-head day streak** (Anne vs Wes) + weekly tally of tasks done.
 2. **Bonus / first-to-claim** tasks (`+N pts`); past deadline → auto-assign (purple) so they can’t vanish.
 3. **Overdue escalation** (litter-box example): Due today → 1 day → 3 days → 5 days (shared red alert).
-4. **Tabs:** Tasks / Shopping / Meals / Projects (projects expand into subtasks).
+4. **Tabs:** Tasks / Lists (Shopping · Meals · Projects · Wishlist) / More. Calendar slots in second when the reminders design ships. (Decided 2026-09-13; spec in docs/superpowers/specs/2026-09-13-new-bar-lists-design.md.)
 5. **Cat care** called out as its own section (not buried in chores).
 
 Visual system already has light/dark tokens, Fraunces + IBM Plex Mono, accent / gold / meal / assign / alert colors — good seed for a real design system.

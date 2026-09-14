@@ -35,7 +35,7 @@ final class ScrollPerformanceTests: RoostUITestCase {
 
     /// The list itself. A SwiftUI `List` is a collection view, so this is what carries the scroll.
     private func shoppingList(in app: XCUIApplication) -> XCUIElement {
-        let list = app.collectionViews.firstMatch
+        let list = app.collectionViews["shoppingList"]
         XCTAssertTrue(list.waitForExistence(timeout: Self.timeout), "the Shopping list never appeared")
         return list
     }
@@ -43,7 +43,7 @@ final class ScrollPerformanceTests: RoostUITestCase {
     private func openLongShoppingList() -> XCUIApplication {
         let app = launch(.shoppingLarge)
         waitForTasks(in: app)
-        openTab("Shopping", in: app)
+        openList("Shopping", in: app)
         // The header's own count, which is the one thing on screen that proves all 204 rows are in the
         // store. One of them is in the Bought section, hence the 1.
         let header = "\(Self.rowCount) items · 1 already bought"
@@ -75,7 +75,7 @@ final class ScrollPerformanceTests: RoostUITestCase {
     /// ever replaced by a `ScrollView` and a `VStack`, or if `ForEach` is handed a non-lazy container.
     func testShoppingListStaysLazy() {
         let app = openLongShoppingList()
-        let cells = app.collectionViews.firstMatch.cells.count
+        let cells = shoppingList(in: app).cells.count
         print("scroll: \(cells) of \(Self.rowCount) rows built")
         XCTAssertLessThan(
             cells, Self.lazyCeiling,

@@ -105,6 +105,7 @@
 
             seedHandoffs(into: context, day: day, calendar: calendar)
             seedShopping(into: context, day: day)
+            seedWishlist(into: context, day: day)
             seedMeals(into: context, day: day)
             seedProjects(into: context, day: day)
             try context.save()
@@ -162,6 +163,22 @@
                     addedBy: (index.isMultiple(of: 2) ? Person.anne : Person.wes).rawValue,
                     createdAt: day(-2).addingTimeInterval(Double(Self.longListLength - index)),
                     syncedAt: day(-2)
+                )
+                context.insert(record)
+            }
+        }
+
+
+        @MainActor
+        private func seedWishlist(into context: ModelContext, day: (Int) -> Date) {
+            for (index, item) in Self.wishlist.enumerated() {
+                let record = WishlistItemRecord(
+                    id: "uitest-wishlist-\(index)",
+                    title: item.title,
+                    priceCents: item.priceCents,
+                    addedBy: item.addedBy.rawValue,
+                    createdAt: day(-1).addingTimeInterval(Double(Self.wishlist.count - index)),
+                    syncedAt: day(-1)
                 )
                 context.insert(record)
             }
@@ -324,6 +341,21 @@
             return index.isMultiple(of: 5)
                 ? "Item \(number) — the long one, so the row wraps onto a second line"
                 : "Item \(number)"
+        }
+
+
+        struct SeededWishlistItem {
+            let title: String
+            let addedBy: Person
+            var priceCents: Int?
+        }
+
+        /// Two rows: one with a price, so the chip and the header total are on screen, and one without.
+        static var wishlist: [SeededWishlistItem] {
+            [
+                SeededWishlistItem(title: "Bigger TV", addedBy: .anne, priceCents: 59900),
+                SeededWishlistItem(title: "A weekend away", addedBy: .wes),
+            ]
         }
 
         struct SeededMeal {

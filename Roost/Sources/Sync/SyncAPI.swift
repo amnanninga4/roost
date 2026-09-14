@@ -84,6 +84,8 @@ struct SyncAPI: Sendable {
         let meals: [MealDTO]?
         let projects: [ProjectDTO]?
         let subtasks: [SubtaskDTO]?
+        /// Optional so a server older than R-30, or a test stub, still decodes.
+        let wishlist: [WishlistDTO]?
         /// The handoff delta (SyncAPI+Handoffs.swift). Optional for the same reason.
         let handoffs: [HandoffDTO]?
     }

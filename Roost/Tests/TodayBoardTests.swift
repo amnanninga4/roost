@@ -216,6 +216,9 @@ final class TodayBoardTests: XCTestCase {
         XCTAssertEqual(notice, TodayBoard.Notice(tone: .notice, text: Strings.Tasks.notPaired))
         XCTAssertTrue(Strings.Tasks.notPaired.contains(Strings.Settings.title),
                       "the line has to name the gear-menu item that actually exists")
+        XCTAssertTrue(Strings.Tasks.notPaired.contains(Strings.Tabs.more), "the line points at the More tab now")
+        XCTAssertEqual(Strings.Tasks.notPaired, "Not paired yet · More → Settings")
+        XCTAssertEqual(Strings.Sync.notPaired, "Not paired · More → Settings")
 
         let unpaired = TodayBoard.notice(isPaired: true, outcome: .unpaired, lastSyncAt: Date(),
                                          statusLine: coordinatorLine, now: Date())

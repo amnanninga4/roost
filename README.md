@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/amnanninga4/roost/actions/workflows/ci.yml/badge.svg)](https://github.com/amnanninga4/roost/actions/workflows/ci.yml)
 
-A shared household app for Anne & Wes: chores, cat care, a head-to-head streak, shopping, meal ideas, and bigger projects broken into subtasks. Native iOS app, plus a small sync server the two phones share.
+A shared household app for Anne & Wes: chores, cat care, a head-to-head streak, shopping, a wishlist, meal ideas, and bigger projects broken into subtasks. Native iOS app, plus a small sync server the two phones share.
 
 ## What's in here
 
@@ -48,4 +48,4 @@ scripts/release.sh
 
 ## Status
 
-Early working build. The app runs in the simulator, pairs with the server by six-digit code, and syncs chores, shopping, meals, projects, bonus, and handoffs. The release mechanism exists (`docs/RELEASE.md`); nothing has been uploaded to TestFlight yet.
+Early working build. The app runs in the simulator, pairs with the server by six-digit code, and syncs chores, shopping, wishlist, meals, projects, bonus, and handoffs. The release mechanism exists (`docs/RELEASE.md`); nothing has been uploaded to TestFlight yet.

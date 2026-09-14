@@ -1,4 +1,4 @@
-// The list endpoints of server/ (shopping, meals, projects, subtasks; see server/README.md "Endpoints").
+// The list endpoints of server/ (shopping, wishlist, meals, projects, subtasks; see server/README.md "Endpoints").
 // Same rules as the completion calls in SyncAPI.swift: typed, no retries, no storage, SyncAPIError on
 // anything but 2xx. ListSync.swift decides what to do with the outcome.
 import Foundation
@@ -7,6 +7,21 @@ extension SyncAPI {
     struct ShoppingDTO: Codable, Sendable, Equatable {
         let id: String
         let title: String
+        let addedBy: String
+        let bought: Bool
+        let boughtBy: String?
+        let boughtAt: String?
+        let createdAt: String
+        let updatedAt: String
+        let deleted: Bool
+        let seq: Int
+    }
+
+
+    struct WishlistDTO: Codable, Sendable, Equatable {
+        let id: String
+        let title: String
+        let priceCents: Int?
         let addedBy: String
         let bought: Bool
         let boughtBy: String?
@@ -106,6 +121,27 @@ extension SyncAPI {
 
     func deleteShopping(id: String) async throws -> ShoppingDTO {
         try await call("DELETE", "shopping/\(id)")
+    }
+
+
+    // MARK: wishlist
+
+    /// 201 new, 200 replay. The create carries the price too (null for none), so a 201 leaves only a
+    /// pending `bought` to follow. `addedBy` comes back stamped from the token.
+    func postWishlist(id: String, title: String, priceCents: Int?) async throws -> Posted<WishlistDTO> {
+        let body: Fields = [
+            "id": .string(id), "title": .string(title),
+            "priceCents": priceCents.map { .int($0) } ?? .null,
+        ]
+        return try await post("wishlist", body: body)
+    }
+
+    func patchWishlist(id: String, _ fields: Fields) async throws -> WishlistDTO {
+        try await call("PATCH", "wishlist/\(id)", body: fields)
+    }
+
+    func deleteWishlist(id: String) async throws -> WishlistDTO {
+        try await call("DELETE", "wishlist/\(id)")
     }
 
     // MARK: meals

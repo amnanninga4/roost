@@ -102,7 +102,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
     func testShoppingAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openTab("Shopping", in: app)
+        openList("Shopping", in: app)
         try audit(app, allowing: [
             customFontScales("BOUGHT"),
             customFontScales("Clear bought"),
@@ -113,14 +113,14 @@ final class AccessibilityAuditTests: RoostUITestCase {
     func testMealsAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openTab("Meals", in: app)
+        openList("Meals", in: app)
         try audit(app, allowing: [textFieldScrolls("Add an idea…")])
     }
 
     func testProjectsAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openTab("Projects", in: app)
+        openList("Projects", in: app)
         // The finished card opens itself; open the other one too, so the audit sees a step row, the step
         // composer, and a bar that is not full.
         let second = app.buttons["Clear out the garage"]
@@ -128,7 +128,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
         second.tap()
         // A List only builds the rows it is about to draw, so the second card's steps are not in the
         // accessibility tree until they are on screen. One flick brings them up.
-        app.collectionViews.firstMatch.swipeUp()
+        app.collectionViews["projectsList"].swipeUp()
         XCTAssertTrue(
             app.buttons["Shelve what stays"].waitForExistence(timeout: Self.timeout),
             "the steps never appeared"
@@ -139,12 +139,36 @@ final class AccessibilityAuditTests: RoostUITestCase {
         ])
     }
 
-    // MARK: - behind the gear
+
+    func testWishlistAudit() throws {
+        let app = launch(.paired)
+        waitForTasks(in: app)
+        openList("Wishlist", in: app)
+        XCTAssertTrue(app.buttons["Bigger TV"].waitForExistence(timeout: Self.timeout), "the wishlist rows never appeared")
+        try audit(app, allowing: [
+            customFontScales("$599"),
+            textFieldScrolls("Add something you'd like…"),
+        ])
+    }
+
+    // MARK: - the More tab
+
+    func testMoreAudit() throws {
+        let app = launch(.paired)
+        waitForTasks(in: app)
+        openTab("More", in: app)
+        XCTAssertTrue(app.buttons["All chores"].waitForExistence(timeout: Self.timeout), "the More page never appeared")
+        try audit(app, allowing: [
+            customFontScales("HOUSEHOLD"),
+            customFontScales("THIS PHONE"),
+            customFontScales("Roost 0.1.0 (1)"),
+        ])
+    }
 
     func testSettingsAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openFromGearMenu("Settings", in: app)
+        openFromMore("Settings", in: app)
         XCTAssertTrue(
             app.staticTexts["Paired as"].waitForExistence(timeout: Self.timeout),
             "Settings never appeared"
@@ -154,11 +178,11 @@ final class AccessibilityAuditTests: RoostUITestCase {
             customFontScales("Roost 0.1.0 (1)"),
             customFontScales("Roost forgets the token on this phone. You'll need a new code to pair again."),
             customFontScales("Settings"),
-            // The navigation bar's own leading button. Bar items keep a fixed size on iOS whatever the
-            // reader's text setting says, and there is no modifier that changes that.
+            // The navigation bar's back button. Bar items keep a fixed size on iOS whatever the reader's
+            // text setting says, and there is no modifier that changes that.
             KnownIssue(
                 compact: "Dynamic Type font sizes are partially unsupported",
-                element: "Close",
+                element: "More",
                 reason: "a navigation bar button; iOS does not scale bar items with Dynamic Type"
             ),
             textFieldScrolls("Address"),
@@ -168,7 +192,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
     func testAllChoresAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openFromGearMenu("All chores", in: app)
+        openFromMore("All chores", in: app)
         XCTAssertTrue(
             app.staticTexts["HOUSEHOLD LIST"].waitForExistence(timeout: Self.timeout),
             "All chores never appeared"
@@ -179,7 +203,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
     func testKitchenModeAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
-        openFromGearMenu("Kitchen mode", in: app)
+        openFromMore("Kitchen mode", in: app)
         XCTAssertTrue(
             app.staticTexts["DUE TODAY"].waitForExistence(timeout: Self.timeout),
             "Kitchen mode never appeared"
