@@ -263,5 +263,11 @@ final class HandoffPlanningTests: XCTestCase {
         XCTAssertEqual(Cadence.monthly.periodPhrase, "this month")
         XCTAssertEqual(Cadence.bimonthly.periodPhrase, "these two months")
         XCTAssertEqual(Cadence.quarterly.periodPhrase, "this quarter")
+        // The whole table, so the server's PERIOD_PHRASES test and this one pin the same six lines.
+        XCTAssertEqual(
+            Dictionary(uniqueKeysWithValues: Cadence.allCases.map { ($0.rawValue, $0.periodPhrase) }),
+            ["daily": "today", "weekly": "this week", "biweekly": "this week", "monthly": "this month",
+             "bimonthly": "these two months", "quarterly": "this quarter"]
+        )
     }
 }

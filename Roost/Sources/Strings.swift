@@ -238,11 +238,16 @@ enum Strings {
         static func always(_ name: String) -> String {
             "Always \(name)"
         }
+
+        /// The chip on a together chore, where a pinned chore wears its person's name.
+        static let together = "TOGETHER"
+        /// VoiceOver value for a together row, after the state.
+        static let togetherValue = "Both of you"
     }
 
     /// Handing a turn over: the ask, the wait, the answer. One period at a time, never a rule change.
-    /// The "this week" / "today" wording matches the push the server sends, so the phone and the
-    /// notification say the same thing.
+    /// The period phrases (today / this week / this month / these two months / this quarter) match
+    /// `PERIOD_PHRASES` in `server/src/push.js`, so the phone and the notification say the same thing.
     enum Handoffs {
         /// The context-menu item on your own row: "Ask Wes to take this".
         static func ask(_ name: String) -> String {
@@ -318,6 +323,10 @@ enum Strings {
         static let monthly = "Monthly"
         static let bimonthly = "Every two months"
         static let quarterly = "Every three months"
+        /// Under a seasonal chore in All chores: "April to October".
+        static func season(from: String, to: String) -> String {
+            "\(from) to \(to)"
+        }
     }
 
     enum Streak {
@@ -377,6 +386,8 @@ enum Strings {
 
         static let syncedJustNow = "Synced just now"
         static let neverSynced = "Not synced yet"
+        /// On the banner line of a together chore, where a person's name goes otherwise.
+        static let together = "TOGETHER"
     }
 
     /// The one-line sync status under every tab header. `SyncStatusCopy` picks which of the
