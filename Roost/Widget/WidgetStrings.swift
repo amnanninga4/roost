@@ -18,9 +18,9 @@ enum WidgetStrings {
     static let dueLabel = "DUE"
     /// The hero line when a person owes nothing: the number would be a zero, and a zero reads as broken.
     static let allDone = "All done"
-    /// "1 late" / "4 late" — how many of the due rows are already past their day.
+    /// App lateness wording ("1 DAY LATE" / "4 DAYS LATE") via the shared copy — not a shorter widget dialect.
     static func late(_ count: Int) -> String {
-        "\(count) late"
+        RoostCopy.daysLate(count)
     }
 
     /// "9 day streak", under a person's count. "day streak" does not pluralize here — the app's own

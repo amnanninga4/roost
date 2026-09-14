@@ -287,5 +287,9 @@ final class TodayBoardTests: XCTestCase {
         XCTAssertEqual(Strings.Kitchen.daysLate(4), Strings.daysLate(4))
         XCTAssertEqual(Strings.Tasks.stateLate(1), "1 day late")
         XCTAssertEqual(Strings.Tasks.stateLate(5), "5 days late")
+        XCTAssertEqual(RoostCopy.daysLate(1), Strings.daysLate(1))
+        XCTAssertEqual(RoostCopy.daysLate(3), Strings.daysLate(3))
+        XCTAssertEqual(WidgetStrings.late(2), Strings.daysLate(2),
+                       "widget lateness uses the app wording, not a shorter dialect")
     }
 }

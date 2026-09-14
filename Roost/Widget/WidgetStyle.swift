@@ -32,3 +32,15 @@ extension RoostSnapshot.Person {
         RoostPerson(rawValue: id) ?? .anne
     }
 }
+
+extension RoostSnapshot.Person {
+    /// The stage of the most-overdue top row, or `.alert` when the overdue count is positive but the
+    /// top list is empty — the chip still needs a colour from the ladder.
+    var loudestOverdueStage: RoostSnapshot.Stage {
+        let overdue = top.filter { $0.daysOverdue > 0 }
+        guard let loudest = overdue.max(by: { $0.daysOverdue < $1.daysOverdue }) else {
+            return .alert
+        }
+        return loudest.stage
+    }
+}
