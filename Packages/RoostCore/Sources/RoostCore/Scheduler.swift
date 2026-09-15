@@ -14,9 +14,13 @@ public struct DueItem: Sendable, Hashable, Identifiable {
     public let periodIndex: Int
     /// Start of the first day of that period.
     public let periodStart: Date
-    /// Start of the last day of that period. Overdue counting begins the day after.
+    /// Start of the last day of that period.
     public let periodLastDay: Date
-    /// 0 while the period is still open; otherwise whole days past its last day.
+    /// The first and last day the chore is actually due inside that period — the period itself unless the
+    /// chore has a window (`weekdays` or `dueDay`). Overdue counting begins the day after `dueLastDay`.
+    public let dueFirstDay: Date
+    public let dueLastDay: Date
+    /// 0 while the window (or period) is still open; otherwise whole days past `dueLastDay`.
     public let daysOverdue: Int
     public var stage: EscalationStage {
         EscalationStage.stage(daysOverdue: daysOverdue)
@@ -32,6 +36,8 @@ extension DueItem {
             periodIndex: periodIndex,
             periodStart: periodStart,
             periodLastDay: periodLastDay,
+            dueFirstDay: dueFirstDay,
+            dueLastDay: dueLastDay,
             daysOverdue: daysOverdue
         )
     }
@@ -43,6 +49,11 @@ extension DueItem {
 /// for a period if any completion falls inside that period. The scheduler surfaces the OLDEST incomplete
 /// period on or after `activeFrom`, carried forward until someone completes the chore. Completing it in
 /// the current period clears all older missed periods (one nag, not a backlog).
+///
+/// Due windows (`Chore.weekdays` / `Chore.dueDay`) narrow when a chore is due inside its period and move
+/// when "late" starts (`daysOverdue` counts from `dueLastDay`). Two extra rules: **never owed** — a window
+/// that closed before `activeFrom` bumps the floor to the next period; **not yet** — when the oldest
+/// incomplete period is the current one and today is before `dueFirstDay`, the chore is not returned.
 ///
 /// Assignment, in order: an accepted `Handoff` for that exact period wins; otherwise the chore's pin; otherwise
 /// the `Rotation`. Handoffs are optional everywhere, so a caller that does not use them behaves as before.
@@ -159,6 +170,11 @@ public struct Scheduler: Sendable {
     ) -> DueItem? {
         let current = calendar.periodIndex(chore.cadence, containing: date)
         var floor = calendar.periodIndex(chore.cadence, containing: activeFrom)
+        // A window that closed before the household started was never owed: start at the next period.
+        if chore.hasWindow,
+           calendar.dueWindow(for: chore, periodIndex: floor).lastDay < calendar.startOfDay(activeFrom) {
+            floor += 1
+        }
         if let season = chore.season {
             guard let start = firstPeriod(inSeason: season, endingAt: current, notBefore: floor, cadence: chore.cadence)
             else { return nil }
@@ -172,7 +188,10 @@ public struct Scheduler: Sendable {
         guard oldestIncomplete <= current else { return nil }
 
         let bounds = calendar.periodBounds(chore.cadence, index: oldestIncomplete)
-        let daysOverdue = max(0, calendar.dayIndex(date) - calendar.dayIndex(bounds.lastDay))
+        let window = calendar.dueWindow(for: chore, periodIndex: oldestIncomplete)
+        // Not yet: this period's window has not opened. A missed window from an older period still shows.
+        if oldestIncomplete == current, calendar.startOfDay(date) < window.firstDay { return nil }
+        let daysOverdue = max(0, calendar.dayIndex(date) - calendar.dayIndex(window.lastDay))
         return DueItem(
             chore: chore,
             person: chore.together
@@ -181,6 +200,8 @@ public struct Scheduler: Sendable {
             periodIndex: oldestIncomplete,
             periodStart: bounds.firstDay,
             periodLastDay: bounds.lastDay,
+            dueFirstDay: window.firstDay,
+            dueLastDay: window.lastDay,
             daysOverdue: daysOverdue
         )
     }
