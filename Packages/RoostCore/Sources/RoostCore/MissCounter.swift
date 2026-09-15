@@ -7,6 +7,8 @@ import Foundation
 /// and carries no completion by anyone. A partner's cover clears the chore but does not un-miss the
 /// day for whoever owed it — the rule is about the person who owed it.
 public enum MissCounter {
+    // Plan interface: watched + bounds + asOf + activeFrom + completions + handoffs + calendar + fallback.
+    // swiftlint:disable:next function_parameter_count
     public static func misses(
         watched: Chore, from: Date, through: Date, asOf: Date,
         activeFrom: Date, completions: [Completion], handoffs: [Handoff],

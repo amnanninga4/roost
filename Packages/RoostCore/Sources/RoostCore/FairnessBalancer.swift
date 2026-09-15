@@ -125,7 +125,9 @@ public struct FairnessBalancer: Sendable {
         var reassigned: [String: Person] = [:]
 
         for chore in chores {
-            if chore.together { continue } // owed by both, moved by nobody, weighed by nobody
+            if chore.together {
+                continue
+            } // owed by both, moved by nobody, weighed by nobody
             let weight = weights.weight(for: chore.cadence)
 
             // Already done for this period: it is nobody's item any more, but it was this period's work and it

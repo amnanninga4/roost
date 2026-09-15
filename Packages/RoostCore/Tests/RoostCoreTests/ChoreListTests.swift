@@ -119,7 +119,10 @@ final class ChoreListTests: XCTestCase {
         let bare = try JSONDecoder().decode(Chore.self, from: Data(plain.utf8))
         XCTAssertNil(bare.rotation); XCTAssertNil(bare.missPenalty)
 
-        let cycle = #"{"id":"s","title":"S","cadence":"daily","fixedAssignee":null,"category":"cat_care","rotation":{"kind":"weekdayCycle","weeks":[["anne","wes","anne","wes","anne","wes","anne"]]}}"#
+        // Fixture JSON for a weekdayCycle rotation — kept on one line for a valid raw string.
+        // swiftlint:disable:next line_length
+        let cycle =
+            #"{"id":"s","title":"S","cadence":"daily","fixedAssignee":null,"category":"cat_care","rotation":{"kind":"weekdayCycle","weeks":[["anne","wes","anne","wes","anne","wes","anne"]]}}"#
         let scoop = try JSONDecoder().decode(Chore.self, from: Data(cycle.utf8))
         XCTAssertEqual(scoop.rotation, .weekdayCycle(weeks: [[.anne, .wes, .anne, .wes, .anne, .wes, .anne]]))
 

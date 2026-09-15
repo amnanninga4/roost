@@ -6,7 +6,9 @@ public enum Person: String, Codable, CaseIterable, Sendable, Hashable {
     case wes
 
     /// The other person in the household.
-    public var other: Person { self == .anne ? .wes : .anne }
+    public var other: Person {
+        self == .anne ? .wes : .anne
+    }
 }
 
 public enum Cadence: String, Codable, CaseIterable, Sendable, Hashable {
@@ -75,10 +77,14 @@ public enum ChoreRotation: Codable, Sendable, Hashable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         switch try c.decode(String.self, forKey: .kind) {
-        case "weekdayCycle": self = .weekdayCycle(weeks: try c.decode([[Person]].self, forKey: .weeks))
-        case "alternate": self = .alternate(start: try c.decode(Person.self, forKey: .start))
+        case "weekdayCycle": self = try .weekdayCycle(weeks: c.decode([[Person]].self, forKey: .weeks))
+        case "alternate": self = try .alternate(start: c.decode(Person.self, forKey: .start))
         case let other:
-            throw DecodingError.dataCorruptedError(forKey: .kind, in: c, debugDescription: "unknown rotation kind '\(other)'")
+            throw DecodingError.dataCorruptedError(
+                forKey: .kind,
+                in: c,
+                debugDescription: "unknown rotation kind '\(other)'"
+            )
         }
     }
 
@@ -97,7 +103,9 @@ public enum ChoreRotation: Codable, Sendable, Hashable {
 public struct MissPenalty: Codable, Sendable, Hashable {
     public let watch: String
     public let overMisses: Int
-    public init(watch: String, overMisses: Int) { self.watch = watch; self.overMisses = overMisses }
+    public init(watch: String, overMisses: Int) {
+        self.watch = watch; self.overMisses = overMisses
+    }
 }
 
 private func floorDiv(_ a: Int, _ b: Int) -> Int {
@@ -198,7 +206,9 @@ public struct Chore: Codable, Sendable, Hashable, Identifiable {
         fixedAssignee != nil
     }
 
-    public var hasWindow: Bool { !(weekdays ?? []).isEmpty || dueDay != nil }
+    public var hasWindow: Bool {
+        !(weekdays ?? []).isEmpty || dueDay != nil
+    }
 }
 
 /// A chore that was done. Mirrors the server's completion rows; soft-deleted rows are simply absent here.

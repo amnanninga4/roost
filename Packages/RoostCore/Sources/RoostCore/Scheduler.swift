@@ -93,8 +93,12 @@ public struct Scheduler: Sendable {
     /// injected default. Deliberately clock-free and completion-free — a streak walks history and must not
     /// re-derive penalties from a partial completion list.
     public func assignee(for chore: Chore, periodIndex: Int) -> Person {
-        if let pinned = chore.fixedAssignee { return pinned }
-        if let own = chore.rotation { return own.assignee(periodIndex: periodIndex) }
+        if let pinned = chore.fixedAssignee {
+            return pinned
+        }
+        if let own = chore.rotation {
+            return own.assignee(periodIndex: periodIndex)
+        }
         return rotation.assignee(for: chore, periodIndex: periodIndex)
     }
 
@@ -105,18 +109,25 @@ public struct Scheduler: Sendable {
         for chore: Chore, periodIndex: Int, on date: Date,
         completions: [Completion], handoffs: [Handoff]
     ) -> Person {
-        if let pinned = chore.fixedAssignee { return pinned }
+        if let pinned = chore.fixedAssignee {
+            return pinned
+        }
         if let penalty = chore.missPenalty,
-           let watched = chores.first(where: { $0.id == penalty.watch }) {
+           let watched = chores.first(where: { $0.id == penalty.watch })
+        {
             let bounds = calendar.periodBounds(chore.cadence, index: periodIndex)
             let counts = MissCounter.misses(
                 watched: watched, from: bounds.firstDay, through: bounds.lastDay, asOf: date,
                 activeFrom: activeFrom, completions: completions, handoffs: handoffs,
                 calendar: calendar, fallback: rotation
             )
-            if let moved = MissCounter.penalised(counts, overMisses: penalty.overMisses) { return moved }
+            if let moved = MissCounter.penalised(counts, overMisses: penalty.overMisses) {
+                return moved
+            }
         }
-        if let own = chore.rotation { return own.assignee(periodIndex: periodIndex) }
+        if let own = chore.rotation {
+            return own.assignee(periodIndex: periodIndex)
+        }
         return rotation.assignee(for: chore, periodIndex: periodIndex)
     }
 
@@ -235,7 +246,13 @@ public struct Scheduler: Sendable {
             chore: chore,
             person: chore.together
                 ? .anne // both of them owe it; `dueItems` hands out the second row
-                : assignee(for: chore, periodIndex: oldestIncomplete, on: date, handoffs: handoffs, completions: completions),
+                : assignee(
+                    for: chore,
+                    periodIndex: oldestIncomplete,
+                    on: date,
+                    handoffs: handoffs,
+                    completions: completions
+                ),
             periodIndex: oldestIncomplete,
             periodStart: bounds.firstDay,
             periodLastDay: bounds.lastDay,
