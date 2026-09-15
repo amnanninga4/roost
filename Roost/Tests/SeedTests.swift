@@ -50,7 +50,7 @@ final class SeedTests: XCTestCase {
 
         let state = try context.fetch(FetchDescriptor<SyncState>())
         XCTAssertEqual(state.count, 1)
-        XCTAssertEqual(state.first?.choresVersion, 4)
+        XCTAssertEqual(state.first?.choresVersion, 5)
         XCTAssertEqual(state.first?.cursor, 0)
     }
 
@@ -68,11 +68,11 @@ final class SeedTests: XCTestCase {
         let full = try ChoreList.load(from: bundledURL())
         try ChoreSeeder.seed(full, into: context)
 
-        let trimmed = ChoreList(version: 5, chores: full.chores.filter { $0.id != "scoop-litter" })
+        let trimmed = ChoreList(version: 6, chores: full.chores.filter { $0.id != "scoop-litter" })
         try ChoreSeeder.seed(trimmed, into: context)
         XCTAssertEqual(try activeChores().count, 40)
         XCTAssertEqual(try context.fetch(FetchDescriptor<ChoreRecord>()).count, 41, "retired row kept for history")
-        XCTAssertEqual(try context.fetch(FetchDescriptor<SyncState>()).first?.choresVersion, 5)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SyncState>()).first?.choresVersion, 6)
 
         try ChoreSeeder.seed(full, into: context)
         XCTAssertEqual(try activeChores().count, 41, "re-adding un-retires")
@@ -151,6 +151,54 @@ final class SeedTests: XCTestCase {
         try ChoreSeeder.seed(ChoreList(version: 5, chores: [plainCan, litter, laundry]), into: context)
         XCTAssertNil(try activeChores()[0].weekdays)
         rows[0].weekdays = "[not json"
+        XCTAssertThrowsError(try rows[0].toChore())
+    }
+
+    func testRotationsRoundTripThroughTheRecord() throws {
+        let scoop = Chore(
+            id: "scoop-litter", title: "Scoop litter", cadence: .daily, category: .catCare,
+            rotation: .weekdayCycle(weeks: [
+                [.anne, .wes, .anne, .wes, .anne, .wes, .anne],
+                [.wes, .anne, .wes, .anne, .wes, .anne, .wes],
+            ])
+        )
+        let change = Chore(
+            id: "change-litter", title: "Change litter", cadence: .monthly, category: .catCare, dueDay: 25,
+            rotation: .alternate(start: .wes), missPenalty: MissPenalty(watch: "scoop-litter", overMisses: 2)
+        )
+        let laundry = Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore)
+        try ChoreSeeder.seed(ChoreList(version: 5, chores: [scoop, change, laundry]), into: context)
+        let rows = try activeChores()
+        XCTAssertEqual(try rows.map { try $0.toChore() }, [scoop, change, laundry])
+        XCTAssertNotNil(rows[0].rotation)
+        XCTAssertNil(rows[0].missPenalty)
+        XCTAssertEqual(
+            try JSONDecoder().decode(ChoreRotation.self, from: Data(rows[0].rotation!.utf8)),
+            scoop.rotation
+        )
+        XCTAssertNotNil(rows[1].rotation)
+        XCTAssertNotNil(rows[1].missPenalty)
+        XCTAssertEqual(
+            try JSONDecoder().decode(ChoreRotation.self, from: Data(rows[1].rotation!.utf8)),
+            change.rotation
+        )
+        XCTAssertEqual(
+            try JSONDecoder().decode(MissPenalty.self, from: Data(rows[1].missPenalty!.utf8)),
+            change.missPenalty
+        )
+        XCTAssertNil(rows[2].rotation)
+        XCTAssertNil(rows[2].missPenalty)
+
+        // Re-seeding without the keys clears them; broken rotation text is a conversion error, not a crash.
+        let plainScoop = Chore(id: scoop.id, title: scoop.title, cadence: .daily, category: .catCare)
+        let plainChange = Chore(id: change.id, title: change.title, cadence: .monthly, category: .catCare, dueDay: 25)
+        try ChoreSeeder.seed(ChoreList(version: 6, chores: [plainScoop, plainChange, laundry]), into: context)
+        let cleared = try activeChores()
+        XCTAssertNil(cleared[0].rotation)
+        XCTAssertNil(cleared[0].missPenalty)
+        XCTAssertNil(cleared[1].rotation)
+        XCTAssertNil(cleared[1].missPenalty)
+        rows[0].rotation = "{not json"
         XCTAssertThrowsError(try rows[0].toChore())
     }
 }

@@ -72,6 +72,9 @@ struct SyncAPI: Sendable {
         /// Optional so a server older than due-windows, or a test stub, still decodes.
         let weekdays: [Int]?
         let dueDay: Int?
+        /// Optional so a server older than litter-rotations, or a test stub, still decodes.
+        let rotation: ChoreRotation?
+        let missPenalty: MissPenalty?
     }
 
     struct SyncResponse: Codable, Sendable {

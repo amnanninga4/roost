@@ -9,6 +9,8 @@ enum ConversionError: Error, CustomStringConvertible {
     case badState(String, id: String)
     case badSeason(String, id: String)
     case badWeekdays(String, id: String)
+    case badRotation(String, id: String)
+    case badMissPenalty(String, id: String)
 
     var description: String {
         switch self {
@@ -18,6 +20,8 @@ enum ConversionError: Error, CustomStringConvertible {
         case let .badState(v, id): "handoff \(id): unknown state '\(v)'"
         case let .badSeason(v, id): "chore \(id): unreadable season '\(v)'"
         case let .badWeekdays(v, id): "chore \(id): unreadable weekdays '\(v)'"
+        case let .badRotation(v, id): "chore \(id): unreadable rotation '\(v)'"
+        case let .badMissPenalty(v, id): "chore \(id): unreadable missPenalty '\(v)'"
         }
     }
 }
@@ -34,7 +38,9 @@ extension ChoreRecord {
             season: Self.seasonText(chore.season),
             together: chore.together,
             weekdays: Self.weekdaysText(chore.weekdays),
-            dueDay: chore.dueDay
+            dueDay: chore.dueDay,
+            rotation: Self.rotationText(chore.rotation),
+            missPenalty: Self.penaltyText(chore.missPenalty)
         )
     }
 
@@ -50,6 +56,8 @@ extension ChoreRecord {
         together = chore.together
         weekdays = Self.weekdaysText(chore.weekdays)
         dueDay = chore.dueDay
+        rotation = Self.rotationText(chore.rotation)
+        missPenalty = Self.penaltyText(chore.missPenalty)
     }
 
     func toChore() throws -> Chore {
@@ -75,9 +83,24 @@ extension ChoreRecord {
             }
             weekdays = decoded
         }
+        var rotation: ChoreRotation? = nil
+        if let text = self.rotation {
+            guard let decoded = try? JSONDecoder().decode(ChoreRotation.self, from: Data(text.utf8)) else {
+                throw ConversionError.badRotation(text, id: id)
+            }
+            rotation = decoded
+        }
+        var missPenalty: MissPenalty? = nil
+        if let text = self.missPenalty {
+            guard let decoded = try? JSONDecoder().decode(MissPenalty.self, from: Data(text.utf8)) else {
+                throw ConversionError.badMissPenalty(text, id: id)
+            }
+            missPenalty = decoded
+        }
         return Chore(
             id: id, title: title, cadence: cadence, fixedAssignee: person, category: category,
-            season: season, together: together, weekdays: weekdays, dueDay: dueDay
+            season: season, together: together, weekdays: weekdays, dueDay: dueDay,
+            rotation: rotation, missPenalty: missPenalty
         )
     }
 
@@ -90,6 +113,18 @@ extension ChoreRecord {
     /// The stored form of the weekday list: its JSON (`[5,6]`), or nil.
     static func weekdaysText(_ weekdays: [Int]?) -> String? {
         guard let weekdays, !weekdays.isEmpty, let data = try? JSONEncoder().encode(weekdays) else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// The stored form of a rotation: its JSON, or nil.
+    static func rotationText(_ rotation: ChoreRotation?) -> String? {
+        guard let rotation, let data = try? JSONEncoder().encode(rotation) else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// The stored form of a miss penalty: its JSON, or nil.
+    static func penaltyText(_ penalty: MissPenalty?) -> String? {
+        guard let penalty, let data = try? JSONEncoder().encode(penalty) else { return nil }
         return String(decoding: data, as: UTF8.self)
     }
 }
