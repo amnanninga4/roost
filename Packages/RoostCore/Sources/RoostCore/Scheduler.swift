@@ -144,11 +144,11 @@ public struct Scheduler: Sendable {
     /// Everything due on `date`, keyed by person. Items are ordered most overdue first, then by chore order.
     /// With a `balancer`, the day's reassignable items are spread across the two of them before the split.
     public func plan(on date: Date, completions: [Completion], handoffs: [Handoff] = []) -> [Person: [DueItem]] {
-        let byChore = Dictionary(grouping: completions, by: \.choreId)
+        // Pass the full completion list: dueItem filters by chore for "last done", but a missPenalty
+        // needs the watched chore's completions too.
         var items: [DueItem] = []
         for chore in chores {
-            let forChore = byChore[chore.id] ?? []
-            items += dueItems(for: chore, on: date, completions: forChore, handoffs: handoffs)
+            items += dueItems(for: chore, on: date, completions: completions, handoffs: handoffs)
         }
         if let balancer {
             items = balancer.balance(
