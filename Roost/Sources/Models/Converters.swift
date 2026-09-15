@@ -8,6 +8,7 @@ enum ConversionError: Error, CustomStringConvertible {
     case badPerson(String, id: String)
     case badState(String, id: String)
     case badSeason(String, id: String)
+    case badWeekdays(String, id: String)
 
     var description: String {
         switch self {
@@ -16,6 +17,7 @@ enum ConversionError: Error, CustomStringConvertible {
         case let .badPerson(v, id): "record \(id): unknown person '\(v)'"
         case let .badState(v, id): "handoff \(id): unknown state '\(v)'"
         case let .badSeason(v, id): "chore \(id): unreadable season '\(v)'"
+        case let .badWeekdays(v, id): "chore \(id): unreadable weekdays '\(v)'"
         }
     }
 }
@@ -30,7 +32,9 @@ extension ChoreRecord {
             category: chore.category.rawValue,
             sortOrder: sortOrder,
             season: Self.seasonText(chore.season),
-            together: chore.together
+            together: chore.together,
+            weekdays: Self.weekdaysText(chore.weekdays),
+            dueDay: chore.dueDay
         )
     }
 
@@ -44,6 +48,8 @@ extension ChoreRecord {
         retired = false
         season = Self.seasonText(chore.season)
         together = chore.together
+        weekdays = Self.weekdaysText(chore.weekdays)
+        dueDay = chore.dueDay
     }
 
     func toChore() throws -> Chore {
@@ -62,15 +68,28 @@ extension ChoreRecord {
             }
             season = decoded
         }
+        var weekdays: [Int]? = nil
+        if let text = self.weekdays {
+            guard let decoded = try? JSONDecoder().decode([Int].self, from: Data(text.utf8)) else {
+                throw ConversionError.badWeekdays(text, id: id)
+            }
+            weekdays = decoded
+        }
         return Chore(
             id: id, title: title, cadence: cadence, fixedAssignee: person, category: category,
-            season: season, together: together
+            season: season, together: together, weekdays: weekdays, dueDay: dueDay
         )
     }
 
     /// The stored form of a season: its JSON, or nil. Month order in the text is unspecified (it is a set).
     static func seasonText(_ season: Season?) -> String? {
         guard let season, let data = try? JSONEncoder().encode(season) else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// The stored form of the weekday list: its JSON (`[5,6]`), or nil.
+    static func weekdaysText(_ weekdays: [Int]?) -> String? {
+        guard let weekdays, !weekdays.isEmpty, let data = try? JSONEncoder().encode(weekdays) else { return nil }
         return String(decoding: data, as: UTF8.self)
     }
 }

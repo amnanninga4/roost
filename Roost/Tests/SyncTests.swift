@@ -306,10 +306,12 @@ final class SyncTests: XCTestCase {
                 "category": $0.category.rawValue,
                 "season": $0.season.map { ["months": Array($0.months)] } as Any,
                 "together": $0.together,
+                "weekdays": $0.weekdays as Any,
+                "dueDay": $0.dueDay as Any,
             ] }
-        StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 4, chores: trimmed)) }
+        StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 5, chores: trimmed)) }
         _ = await client.syncNow()
-        XCTAssertEqual(try state().choresVersion, 4)
+        XCTAssertEqual(try state().choresVersion, 5)
         let active = try fresh().fetch(FetchDescriptor<ChoreRecord>(predicate: #Predicate { !$0.retired }))
         XCTAssertEqual(active.count, 40)
     }
@@ -334,6 +336,30 @@ final class SyncTests: XCTestCase {
         XCTAssertEqual(active[1].together, true)
         XCTAssertEqual(active[2].together, false)
         XCTAssertNil(active[2].season)
+    }
+
+    func testServerSentChoresCarryWindows() async throws {
+        try await pairAsAnne()
+        let chores: [[String: Any]] = [
+            ["id": "garbage-can-to-street-sunday", "title": "Garbage can to street, Sunday", "cadence": "weekly",
+             "fixedAssignee": "wes", "category": "chore", "weekdays": [7]],
+            ["id": "change-litter", "title": "Change litter", "cadence": "monthly",
+             "fixedAssignee": NSNull(), "category": "cat_care", "dueDay": 25],
+            ["id": "scoop-litter", "title": "Scoop litter", "cadence": "daily", "fixedAssignee": NSNull(),
+             "category": "cat_care"], // an older server: no keys at all
+        ]
+        StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 4, chores: chores)) }
+        _ = await client.syncNow()
+        let active = try fresh().fetch(FetchDescriptor<ChoreRecord>(
+            predicate: #Predicate { !$0.retired }, sortBy: [SortDescriptor(\.sortOrder)]
+        ))
+        XCTAssertEqual(active.map(\.id), ["garbage-can-to-street-sunday", "change-litter", "scoop-litter"])
+        XCTAssertEqual(active[0].weekdays, "[7]")
+        XCTAssertNil(active[0].dueDay)
+        XCTAssertNil(active[1].weekdays)
+        XCTAssertEqual(active[1].dueDay, 25)
+        XCTAssertNil(active[2].weekdays)
+        XCTAssertNil(active[2].dueDay)
     }
 
     func testOverlappingSyncsCoalesce() async throws {

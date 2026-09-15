@@ -30,6 +30,10 @@ final class ChoreRecord {
     var retired: Bool
     var season: String?
     var together: Bool = false
+    /// JSON text of the weekday list (`[5,6]`), the `season` pattern; nil for a whole-week chore.
+    var weekdays: String?
+    /// 1...28, the day of the period's last month the chore is due by; nil for a whole-period chore.
+    var dueDay: Int?
 
     init(
         id: String,
@@ -40,7 +44,9 @@ final class ChoreRecord {
         sortOrder: Int,
         retired: Bool = false,
         season: String? = nil,
-        together: Bool = false
+        together: Bool = false,
+        weekdays: String? = nil,
+        dueDay: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -51,6 +57,8 @@ final class ChoreRecord {
         self.retired = retired
         self.season = season
         self.together = together
+        self.weekdays = weekdays
+        self.dueDay = dueDay
     }
 }
 
