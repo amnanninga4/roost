@@ -1,8 +1,8 @@
 {
-  "version": 3,
+  "version": 4,
   "source": "chore-master-list.html",
-  "locked": "2026-09-13",
-  "notes": "Version 3, 2026-09-14: v3 = 2026-09-14 pins + two cat dailies from Anne. 41 tasks (13 daily + 12 weekly + 5 biweekly + 7 monthly + 1 bimonthly + 3 quarterly). Grouped by cadence; the order is sortOrder. Pins: change-bed-sheets→anne, am-wet-cat-food→wes, pm-wet-cat-food→anne, charge-cat-play-device→wes, put-toy-out-for-cats→anne (plus the five earlier pins). Mockup sample rows are illustrative and must not be merged in.",
+  "locked": "2026-09-14",
+  "notes": "Version 4, 2026-09-14: due windows from Anne's feedback on issue #1. weekdays (Mon=1…Sun=7) on the three take-out-garbage rows [5, 6] and garbage-can-to-street-sunday [7]; a dueDay on every monthly, bimonthly and quarterly chore (window = the 7 days ending on it), change-litter on the 25th. 41 tasks (13 daily + 12 weekly + 5 biweekly + 7 monthly + 1 bimonthly + 3 quarterly). Grouped by cadence; the order is sortOrder. Mockup sample rows are illustrative and must not be merged in.",
   "chores": [
     {
       "id": "load-dishwasher",
@@ -114,28 +114,43 @@
       "title": "Take out garbage: basement",
       "cadence": "weekly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "weekdays": [
+        5,
+        6
+      ]
     },
     {
       "id": "take-out-garbage-bathroom",
       "title": "Take out garbage: bathroom",
       "cadence": "weekly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "weekdays": [
+        5,
+        6
+      ]
     },
     {
       "id": "take-out-garbage-kitchen",
       "title": "Take out garbage: kitchen",
       "cadence": "weekly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "weekdays": [
+        5,
+        6
+      ]
     },
     {
       "id": "garbage-can-to-street-sunday",
       "title": "Garbage can to street, Sunday",
       "cadence": "weekly",
       "fixedAssignee": "wes",
-      "category": "chore"
+      "category": "chore",
+      "weekdays": [
+        7
+      ]
     },
     {
       "id": "laundry",
@@ -146,7 +161,7 @@
     },
     {
       "id": "wipe-cabinet-doors",
-      "title": "Wipe down outer cabinet doors \u2014 kitchen and bathroom",
+      "title": "Wipe down outer cabinet doors — kitchen and bathroom",
       "cadence": "weekly",
       "fixedAssignee": null,
       "category": "chore"
@@ -178,7 +193,17 @@
       "cadence": "weekly",
       "fixedAssignee": "anne",
       "category": "chore",
-      "season": { "months": [4, 5, 6, 7, 8, 9, 10] }
+      "season": {
+        "months": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
+        ]
+      }
     },
     {
       "id": "scrub-clean-shower",
@@ -220,70 +245,80 @@
       "title": "Change litter",
       "cadence": "monthly",
       "fixedAssignee": null,
-      "category": "cat_care"
+      "category": "cat_care",
+      "dueDay": 25
     },
     {
       "id": "clean-inside-ovens",
-      "title": "Clean inside ovens \u2014 basement and kitchen",
+      "title": "Clean inside ovens — basement and kitchen",
       "cadence": "monthly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 12
     },
     {
       "id": "clean-under-cushions",
       "title": "Clean/vacuum under cushions",
       "cadence": "monthly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 5
     },
     {
       "id": "clean-under-couches",
       "title": "Move and clean under couches",
       "cadence": "monthly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 19
     },
     {
       "id": "wipe-dust-bar-cart",
       "title": "Wipe down/dust bar cart",
       "cadence": "monthly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 15
     },
     {
       "id": "clean-medicine-cabinet",
       "title": "Clean inside medicine cabinet",
       "cadence": "monthly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 22
     },
     {
       "id": "wash-all-rugs",
       "title": "Wash all rugs (washer)",
       "cadence": "monthly",
       "fixedAssignee": "anne",
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 8
     },
     {
       "id": "trim-wes-hair",
       "title": "Trim Wes's hair",
       "cadence": "bimonthly",
       "fixedAssignee": "anne",
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 10
     },
     {
       "id": "clean-garbage-cans",
       "title": "Clean garbage cans",
       "cadence": "quarterly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 14
     },
     {
       "id": "wipe-down-doors",
       "title": "Wipe down doors",
       "cadence": "quarterly",
       "fixedAssignee": null,
-      "category": "chore"
+      "category": "chore",
+      "dueDay": 21
     },
     {
       "id": "clean-out-fridge-pantry",
@@ -291,6 +326,7 @@
       "cadence": "quarterly",
       "fixedAssignee": null,
       "category": "chore",
+      "dueDay": 28,
       "together": true
     }
   ]

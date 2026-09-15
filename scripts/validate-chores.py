@@ -3,7 +3,7 @@
 
 Schema (simple, Swift/SwiftData-friendly):
   Root object:
-    version: int          # 3 since the 2026-09-14 update
+    version: int          # 4 since the 2026-09-14 due-windows update
     source: str           # e.g. "chore-master-list.html"
     locked: str           # ISO date the list was settled
     notes: str            # optional human note
@@ -18,6 +18,8 @@ Schema (simple, Swift/SwiftData-friendly):
     season: {"months": [int]}  # optional: 1..12, non-empty, unique; not on a together chore; not on a
                                # cadence longer than monthly
     together: bool             # optional: both people owe it; fixedAssignee must be null
+    weekdays: [int]            # optional: weekly only, Mon=1…Sun=7, ascending unique; window = min…max
+    dueDay: int                # optional/required on monthly|bimonthly|quarterly: 1..28; window = 7 days ending on it
 
 The file is grouped by cadence in CADENCE_ORDER and the order is meaning: it becomes `sortOrder` on
 both stores. Counts and pins below are the list Anne and Wes settled on 2026-09-14 (41 chores).
@@ -42,9 +44,30 @@ SEASON_CADENCES = frozenset({"daily", "weekly", "biweekly", "monthly"})
 VALID_ASSIGNEES = frozenset({"anne", "wes"})
 VALID_CATEGORIES = frozenset({"chore", "cat_care"})
 REQUIRED_CHORE_KEYS = ("id", "title", "cadence", "fixedAssignee", "category")
-OPTIONAL_CHORE_KEYS = ("season", "together")
+OPTIONAL_CHORE_KEYS = ("season", "together", "weekdays", "dueDay")
+WINDOW_MONTH_CADENCES = frozenset({"monthly", "bimonthly", "quarterly"})
 
-EXPECTED_VERSION = 3
+EXPECTED_VERSION = 4
+# EXPECTED_COUNTS / EXPECTED_COUNT / EXPECTED_PINNED unchanged (41, ten pins)
+EXPECTED_WEEKDAYS = {
+    "take-out-garbage-basement": [5, 6],
+    "take-out-garbage-bathroom": [5, 6],
+    "take-out-garbage-kitchen": [5, 6],
+    "garbage-can-to-street-sunday": [7],
+}
+EXPECTED_DUE_DAYS = {
+    "clean-under-cushions": 5,
+    "wash-all-rugs": 8,
+    "trim-wes-hair": 10,
+    "clean-inside-ovens": 12,
+    "clean-garbage-cans": 14,
+    "wipe-dust-bar-cart": 15,
+    "clean-under-couches": 19,
+    "wipe-down-doors": 21,
+    "clean-medicine-cabinet": 22,
+    "change-litter": 25,
+    "clean-out-fridge-pantry": 28,
+}
 EXPECTED_COUNTS = {"daily": 13, "weekly": 12, "biweekly": 5, "monthly": 7, "bimonthly": 1, "quarterly": 3}
 EXPECTED_COUNT = sum(EXPECTED_COUNTS.values())  # 41
 EXPECTED_PINNED = {
@@ -83,6 +106,25 @@ def check_season(loc: str, season: object, chore: dict) -> None:
         fail(f"{loc}: a together chore cannot have a season")
 
 
+def check_weekdays(loc: str, days: object, chore: dict) -> None:
+    if not isinstance(days, list) or not days:
+        fail(f"{loc}.weekdays must be a non-empty list")
+    for d in days:
+        if not isinstance(d, int) or isinstance(d, bool) or not 1 <= d <= 7:
+            fail(f"{loc}.weekdays has a value outside 1..7 (Monday = 1 … Sunday = 7): {d!r}")
+    if days != sorted(set(days)):
+        fail(f"{loc}.weekdays must be ascending and unique")
+    if chore["cadence"] != "weekly":
+        fail(f"{loc}: weekdays only belong on a weekly chore, got {chore['cadence']!r}")
+
+
+def check_due_day(loc: str, day: object, chore: dict) -> None:
+    if not isinstance(day, int) or isinstance(day, bool) or not 1 <= day <= 28:
+        fail(f"{loc}.dueDay must be an integer 1..28, got {day!r}")
+    if chore["cadence"] not in WINDOW_MONTH_CADENCES:
+        fail(f"{loc}: dueDay only belongs on a monthly, bimonthly or quarterly chore, got {chore['cadence']!r}")
+
+
 def main() -> None:
     if not CHORES_PATH.is_file():
         fail(f"missing file: {CHORES_PATH}")
@@ -113,6 +155,8 @@ def main() -> None:
     seen_ids: set[str] = set()
     by_cadence = {c: 0 for c in CADENCE_ORDER}
     pinned: dict[str, str] = {}
+    weekdays: dict[str, list[int]] = {}
+    due_days: dict[str, int] = {}
     last_rank = 0
 
     for i, chore in enumerate(chores):
@@ -162,11 +206,23 @@ def main() -> None:
 
         if "season" in chore:
             check_season(loc, chore["season"], chore)
+        if "weekdays" in chore:
+            check_weekdays(loc, chore["weekdays"], chore)
+            weekdays[cid] = chore["weekdays"]
+        if "dueDay" in chore:
+            check_due_day(loc, chore["dueDay"], chore)
+            due_days[cid] = chore["dueDay"]
+        elif cadence in WINDOW_MONTH_CADENCES:
+            fail(f"{loc} ({cid}): every {cadence} chore needs a dueDay (1..28) so nothing bunches on the 1st")
 
     if by_cadence != EXPECTED_COUNTS:
         fail(f"per-cadence counts {by_cadence} do not match {EXPECTED_COUNTS}")
     if pinned != EXPECTED_PINNED:
         fail(f"pinned chores {pinned} do not match {EXPECTED_PINNED}")
+    if weekdays != EXPECTED_WEEKDAYS:
+        fail(f"weekday windows {weekdays} do not match {EXPECTED_WEEKDAYS}")
+    if due_days != EXPECTED_DUE_DAYS:
+        fail(f"due days {due_days} do not match {EXPECTED_DUE_DAYS}")
 
     print(f"OK: {CHORES_PATH.relative_to(REPO_ROOT)}")
     print(f"  version: {data['version']}")
@@ -176,6 +232,8 @@ def main() -> None:
     print("  pinned: " + ", ".join(f"{cid}→{who}" for cid, who in pinned.items()))
     print("  season: " + ", ".join(c["id"] for c in chores if "season" in c))
     print("  together: " + ", ".join(c["id"] for c in chores if c.get("together")))
+    print("  weekdays: " + ", ".join(f"{cid}→{d}" for cid, d in weekdays.items()))
+    print("  dueDay: " + ", ".join(f"{cid}→{d}" for cid, d in due_days.items()))
 
 
 if __name__ == "__main__":
