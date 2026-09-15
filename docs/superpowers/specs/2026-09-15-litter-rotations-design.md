@@ -18,13 +18,13 @@ Three additions, all driven by data in `data/chores.json` (version 5). Nothing i
 A chore may carry an optional `rotation` object instead of taking the default hash-and-alternate. Two kinds:
 
 - **`{"kind": "weekdayCycle", "weeks": [[…], […]]}`** — allowed only on a `daily` chore. `weeks` is a list of 1 to 4 week tables; each table is seven entries, Monday first, each `"anne"` or `"wes"`. The table used for a given day is `weeks[weekIndex mod weeks.count]`, where `weekIndex` is the chore's week number from the household anchor (`periodIndex(.weekly, containing: day)`), and the entry used is that day's ISO weekday minus one. Scooping gets two tables, so a week of Anne-heavy alternates with a week of Wes-heavy.
-- **`{"kind": "alternate", "start": "wes"}`** — allowed on any cadence. `start` owns the period containing `activeFrom`'s first period floor, and the two alternate from there: `start` when `(periodIndex − floorPeriod)` is even, the other person when it is odd. This is the default rotation with the hash replaced by a stated person, which is what Anne asked for on the monthly change.
+- **`{"kind": "alternate", "start": "wes"}`** — allowed on any cadence. `start` owns every period whose index is even, the other person owns the odd ones. Period indexes count from the fixed household anchor (January 2026 is monthly period 0), so September 2026 is period 8, an even one, and Wes owns September's change with Anne taking October. This is the default rotation with the hash replaced by a stated person. It deliberately does **not** key off `activeFrom`: a rotation that shifted when the household start date was corrected would silently reassign months that had already happened. To flip the order, swap the person in `start`.
 
 A chore with a `rotation` has no `fixedAssignee` (a pin and a rotation would contradict each other), and it is never moved by the fairness balancer even when the balancer is on — an explicit rotation is a decision, not a default to be optimised.
 
 ### 2. `missPenalty` on a chore
 
-A chore may carry `{"missPenalty": {"watch": "<chore id>", "overMisses": 2}}`. The rule: within the penalised chore's own period, count each person's **missed days** on the watched chore; if exactly one person is over `overMisses`, that person owes the penalised chore for that period, whoever the rotation named; if both are over, the one with more misses owes it; on a tie, or if neither is over, the rotation stands.
+A chore may carry `{"missPenalty": {"watch": "<chore id>", "overMisses": 2}}`. The rule: within the penalised chore's own period — its calendar period, not its due window, so "this month" means the whole month — count each person's **missed days** on the watched chore; if exactly one person is over `overMisses`, that person owes the penalised chore for that period, whoever the rotation named; if both are over, the one with more misses owes it; on a tie, or if neither is over, the rotation stands.
 
 A **missed day** on a watched chore is a period of that chore which (a) ended before today, (b) began on or after `activeFrom`, (c) was assigned to that person by the watched chore's own rotation or pin (handoffs count: if Wes accepted Tuesday, Tuesday is Wes's to miss), and (d) has no completion inside it by anyone. Today is never a miss until it is over — the same rule streaks use. A partner's cover does not erase the miss: Anne's rule is about the person who owed the day, and a completion by the partner still clears the chore itself, it just does not un-miss the day for the person who owed it.
 
@@ -69,7 +69,7 @@ Week 0 (the week of Monday 2026-09-14, weekly period 36, an even index) is Anne 
   "missPenalty": { "watch": "scoop-litter", "overMisses": 2 }
 ```
 
-September 2026 is the period containing `activeFrom` (2026-09-14), so Wes owns September's change, Anne October's, Wes November's, absent a penalty.
+September 2026 is monthly period 8, so Wes owns September's change, Anne October's (period 9), Wes November's, absent a penalty.
 
 The validator learns both keys: shape, the allowed kinds, `weeks` of 1–4 tables of exactly seven valid people, `weekdayCycle` only on `daily`, `start` a valid person, `overMisses` an integer 0–30, `watch` an id that exists in the file, no `rotation` on a pinned chore, no `missPenalty` on a chore whose watched chore is itself penalised (no chains). It pins the two chores' rotation and penalty the way it pins the window map, so a silent edit fails loudly.
 
