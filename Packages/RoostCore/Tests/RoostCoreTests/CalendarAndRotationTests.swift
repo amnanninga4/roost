@@ -75,6 +75,44 @@ final class CalendarTests: XCTestCase {
         let after = cal.date(year: 2026, month: 11, day: 2)
         XCTAssertEqual(cal.dayIndex(after) - cal.dayIndex(before), 2)
     }
+
+    func testDueWindowInsideThePeriod() {
+        // Week of Mon 2026-09-14 is weekly period 36 (dayIndex 252 / 7).
+        XCTAssertEqual(cal.periodIndex(.weekly, containing: cal.date(year: 2026, month: 9, day: 14)), 36)
+        let garbage = Chore(id: "g", title: "G", cadence: .weekly, category: .chore, weekdays: [5, 6])
+        let g = cal.dueWindow(for: garbage, periodIndex: 36)
+        XCTAssertEqual(g.firstDay, cal.date(year: 2026, month: 9, day: 18, hour: 0))
+        XCTAssertEqual(g.lastDay, cal.date(year: 2026, month: 9, day: 19, hour: 0))
+
+        let can = Chore(id: "c", title: "C", cadence: .weekly, fixedAssignee: .wes, category: .chore, weekdays: [7])
+        let s = cal.dueWindow(for: can, periodIndex: 36)
+        XCTAssertEqual(s.firstDay, cal.date(year: 2026, month: 9, day: 20, hour: 0))
+        XCTAssertEqual(s.lastDay, s.firstDay)
+
+        // September 2026 is monthly period 8, bimonthly 4 (Sep–Oct), quarterly 2 (Jul–Sep).
+        let litter = Chore(id: "l", title: "L", cadence: .monthly, category: .catCare, dueDay: 25)
+        let m = cal.dueWindow(for: litter, periodIndex: 8)
+        XCTAssertEqual(m.firstDay, cal.date(year: 2026, month: 9, day: 19, hour: 0))
+        XCTAssertEqual(m.lastDay, cal.date(year: 2026, month: 9, day: 25, hour: 0))
+
+        let hair = Chore(id: "h", title: "H", cadence: .bimonthly, fixedAssignee: .anne, category: .chore, dueDay: 10)
+        let b = cal.dueWindow(for: hair, periodIndex: 4)
+        XCTAssertEqual(b.firstDay, cal.date(year: 2026, month: 10, day: 4, hour: 0))
+        XCTAssertEqual(b.lastDay, cal.date(year: 2026, month: 10, day: 10, hour: 0))
+
+        let pantry = Chore(id: "p", title: "P", cadence: .quarterly, category: .chore, together: true, dueDay: 28)
+        let q = cal.dueWindow(for: pantry, periodIndex: 2)
+        XCTAssertEqual(q.firstDay, cal.date(year: 2026, month: 9, day: 22, hour: 0))
+        XCTAssertEqual(q.lastDay, cal.date(year: 2026, month: 9, day: 28, hour: 0))
+
+        // No window: the period itself. A dueDay early in a month reaches back into the month before.
+        let laundry = Chore(id: "w", title: "W", cadence: .weekly, fixedAssignee: .anne, category: .chore)
+        let w = cal.dueWindow(for: laundry, periodIndex: 36)
+        XCTAssertEqual(w.firstDay, cal.date(year: 2026, month: 9, day: 14, hour: 0))
+        XCTAssertEqual(w.lastDay, cal.date(year: 2026, month: 9, day: 20, hour: 0))
+        let cushions = Chore(id: "u", title: "U", cadence: .monthly, category: .chore, dueDay: 5)
+        XCTAssertEqual(cal.dueWindow(for: cushions, periodIndex: 9).firstDay, cal.date(year: 2026, month: 9, day: 29, hour: 0))
+    }
 }
 
 final class RotationTests: XCTestCase {

@@ -12,9 +12,9 @@ func repoChoresURL(file: String = #filePath) -> URL {
 }
 
 final class ChoreListTests: XCTestCase {
-    func testRealSeedHas41ChoresAndTenPinned() throws {
+    func testRealSeedHas41ChoresTenPinsAndFifteenWindows() throws {
         let list = try ChoreList.load(from: repoChoresURL())
-        XCTAssertEqual(list.version, 3)
+        XCTAssertEqual(list.version, 4)
         XCTAssertEqual(list.chores.count, 41)
         XCTAssertEqual(Set(list.chores.map(\.id)).count, 41, "ids unique")
 
@@ -37,6 +37,20 @@ final class ChoreListTests: XCTestCase {
         // Grouped by cadence in Cadence.allCases order: the order is sortOrder on both stores.
         let ranks = list.chores.map { Cadence.allCases.firstIndex(of: $0.cadence)! }
         XCTAssertEqual(ranks, ranks.sorted())
+
+        let weekdays = Dictionary(uniqueKeysWithValues: list.chores.compactMap { c in c.weekdays.map { (c.id, $0) } })
+        XCTAssertEqual(weekdays, [
+            "take-out-garbage-basement": [5, 6], "take-out-garbage-bathroom": [5, 6],
+            "take-out-garbage-kitchen": [5, 6], "garbage-can-to-street-sunday": [7],
+        ])
+        let dueDays = Dictionary(uniqueKeysWithValues: list.chores.compactMap { c in c.dueDay.map { (c.id, $0) } })
+        XCTAssertEqual(dueDays, [
+            "clean-under-cushions": 5, "wash-all-rugs": 8, "trim-wes-hair": 10, "clean-inside-ovens": 12,
+            "clean-garbage-cans": 14, "wipe-dust-bar-cart": 15, "clean-under-couches": 19, "wipe-down-doors": 21,
+            "clean-medicine-cabinet": 22, "change-litter": 25, "clean-out-fridge-pantry": 28,
+        ])
+        XCTAssertTrue(list.chores.filter { $0.cadence.monthsPerPeriod != nil }.allSatisfy { $0.dueDay != nil })
+        XCTAssertEqual(list.chores.filter(\.hasWindow).count, 15)
     }
 
     func testSeasonAndTogetherDecodeAndDefault() throws {
@@ -71,5 +85,19 @@ final class ChoreListTests: XCTestCase {
         // Round trip: what we encode, we decode.
         let data = try JSONEncoder().encode(list.chores)
         XCTAssertEqual(try JSONDecoder().decode([Chore].self, from: data), list.chores)
+    }
+
+    func testWindowKeysDecodeAndDefault() throws {
+        let v3 = #"{"id":"x","title":"X","cadence":"weekly","fixedAssignee":null,"category":"chore"}"#
+        let plain = try JSONDecoder().decode(Chore.self, from: Data(v3.utf8))
+        XCTAssertNil(plain.weekdays); XCTAssertNil(plain.dueDay); XCTAssertFalse(plain.hasWindow)
+
+        let v4 = #"{"id":"g","title":"G","cadence":"weekly","fixedAssignee":null,"category":"chore","weekdays":[5,6]}"#
+        let garbage = try JSONDecoder().decode(Chore.self, from: Data(v4.utf8))
+        XCTAssertEqual(garbage.weekdays, [5, 6]); XCTAssertTrue(garbage.hasWindow)
+
+        let litter = Chore(id: "l", title: "L", cadence: .monthly, category: .catCare, dueDay: 25)
+        let round = try JSONDecoder().decode(Chore.self, from: JSONEncoder().encode(litter))
+        XCTAssertEqual(round.dueDay, 25); XCTAssertEqual(round, litter)
     }
 }

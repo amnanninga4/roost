@@ -19,6 +19,8 @@ Shared household app for Anne & Wes: recurring chores + cat care, light competit
 
 **2026-09-13, Anne + Wes:** six more chores, one replaced, one split; two new cadences (every two months, every three months, month-based like monthly); a seasonal pause (`season.months`); together chores (`together: true`, both boards, one check-off, credit for both, no handoffs). Spec: docs/superpowers/specs/2026-09-13-chores-update-design.md.
 
+**2026-09-14 — Due windows:** weekdays on weekly chores, a dueDay on every month-based chore (window = 7 days ending on it, in the period's last month); never-owed and not-yet rules; overdue counts from the window end. Spec docs/superpowers/specs/2026-09-14-due-windows-design.md.
+
 **Source of truth for task data:** `chore-master-list.html` (locked Sep 13, 2026). Seed from this list only.
 
 | Cadence   | Count | Notes |

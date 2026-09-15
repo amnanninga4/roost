@@ -26,11 +26,22 @@ final class TodayPlannerTests: XCTestCase {
         XCTAssertTrue(wes.contains("garbage-can-to-street-sunday"))
         XCTAssertFalse(anne.contains("garbage-can-to-street-sunday"))
 
-        // every active chore is due for exactly one person on day one — except the together chore, due for both
-        XCTAssertEqual(Set(anne).intersection(wes), ["clean-out-fridge-pantry"])
-        XCTAssertEqual(anne.count + wes.count, 42, "41 chores, one of them twice")
-        XCTAssertEqual(plan.dueCount(for: .anne) + plan.dueCount(for: .wes), 42)
+        // every active chore is due for exactly one person on day one — except the together chore, due for both,
+        // and the eleven windowed chores whose window is not open on Sep 13 (pantry counts twice): 42 - 12.
+        XCTAssertEqual(Set(anne).intersection(wes), [], "the together chore's window (Sep 22–28) is not open")
+        XCTAssertEqual(anne.count + wes.count, 30, "41 chores, 12 rows outside their window on Sep 13")
+        XCTAssertEqual(plan.dueCount(for: .anne) + plan.dueCount(for: .wes), 30)
+        XCTAssertTrue(wes.contains("garbage-can-to-street-sunday"), "Sunday is the can's day")
+        XCTAssertFalse((anne + wes).contains("take-out-garbage-kitchen"), "Fri–Sat window closed before the household started")
+        XCTAssertFalse((anne + wes).contains("change-litter"), "due the 19th–25th")
         XCTAssertTrue(anne.contains("mow-lawn"), "September is in season")
+
+        // Two Sundays on: the together chore is inside its window and lands on both.
+        let sep27 = cal.date(year: 2026, month: 9, day: 27)
+        let later = try TodayPlanner.plan(chores: chores(), completions: [], asOf: sep27,
+                                          activeFrom: cal.startOfDay(sunday), calendar: cal)
+        XCTAssertEqual(Set(later.rows(for: .anne).map(\.chore.id)).intersection(later.rows(for: .wes).map(\.chore.id)),
+                       ["clean-out-fridge-pantry"])
     }
 
     func testCatCareRowsComeFirstWithinEachPerson() throws {

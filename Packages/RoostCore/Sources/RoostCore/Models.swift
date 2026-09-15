@@ -57,6 +57,12 @@ public struct Chore: Codable, Sendable, Hashable, Identifiable {
     /// Owed by both people at once: a row in each column, one check-off clears both, credit for both,
     /// no handoffs and no balancing. Never pinned (`fixedAssignee` is nil).
     public let together: Bool
+    /// Weekly only: ISO weekdays (Monday = 1 … Sunday = 7) the chore is due on; the window runs from the
+    /// earliest to the latest. Nil for a whole-week chore.
+    public let weekdays: [Int]?
+    /// Monthly, bimonthly and quarterly: the day of the period's last month the chore is due by (1...28);
+    /// the window is the seven days ending on it. Nil for a whole-period chore.
+    public let dueDay: Int?
 
     public init(
         id: String,
@@ -65,7 +71,9 @@ public struct Chore: Codable, Sendable, Hashable, Identifiable {
         fixedAssignee: Person? = nil,
         category: ChoreCategory,
         season: Season? = nil,
-        together: Bool = false
+        together: Bool = false,
+        weekdays: [Int]? = nil,
+        dueDay: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -74,13 +82,15 @@ public struct Chore: Codable, Sendable, Hashable, Identifiable {
         self.category = category
         self.season = season
         self.together = together
+        self.weekdays = weekdays
+        self.dueDay = dueDay
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, cadence, fixedAssignee, category, season, together
+        case id, title, cadence, fixedAssignee, category, season, together, weekdays, dueDay
     }
 
-    /// The two optional keys default when absent, so a version-1 file and every fixture keep decoding.
+    /// Optional keys default when absent, so a version-1–3 file and every fixture keep decoding.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
@@ -90,11 +100,28 @@ public struct Chore: Codable, Sendable, Hashable, Identifiable {
         category = try c.decode(ChoreCategory.self, forKey: .category)
         season = try c.decodeIfPresent(Season.self, forKey: .season)
         together = try c.decodeIfPresent(Bool.self, forKey: .together) ?? false
+        weekdays = try c.decodeIfPresent([Int].self, forKey: .weekdays)
+        dueDay = try c.decodeIfPresent(Int.self, forKey: .dueDay)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(title, forKey: .title)
+        try c.encode(cadence, forKey: .cadence)
+        try c.encodeIfPresent(fixedAssignee, forKey: .fixedAssignee)
+        try c.encode(category, forKey: .category)
+        try c.encodeIfPresent(season, forKey: .season)
+        try c.encode(together, forKey: .together)
+        try c.encodeIfPresent(weekdays, forKey: .weekdays)
+        try c.encodeIfPresent(dueDay, forKey: .dueDay)
     }
 
     public var isPinned: Bool {
         fixedAssignee != nil
     }
+
+    public var hasWindow: Bool { !(weekdays ?? []).isEmpty || dueDay != nil }
 }
 
 /// A chore that was done. Mirrors the server's completion rows; soft-deleted rows are simply absent here.

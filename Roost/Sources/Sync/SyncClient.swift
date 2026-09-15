@@ -276,7 +276,9 @@ actor SyncClient {
                     fixedAssignee: dto.fixedAssignee.flatMap(Person.init(rawValue:)),
                     category: category,
                     season: dto.season,
-                    together: dto.together ?? false
+                    together: dto.together ?? false,
+                    weekdays: dto.weekdays,
+                    dueDay: dto.dueDay
                 )
             })
             try ChoreSeeder.seed(list, into: modelContext)

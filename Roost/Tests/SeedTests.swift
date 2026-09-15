@@ -50,7 +50,7 @@ final class SeedTests: XCTestCase {
 
         let state = try context.fetch(FetchDescriptor<SyncState>())
         XCTAssertEqual(state.count, 1)
-        XCTAssertEqual(state.first?.choresVersion, 3)
+        XCTAssertEqual(state.first?.choresVersion, 4)
         XCTAssertEqual(state.first?.cursor, 0)
     }
 
@@ -68,11 +68,11 @@ final class SeedTests: XCTestCase {
         let full = try ChoreList.load(from: bundledURL())
         try ChoreSeeder.seed(full, into: context)
 
-        let trimmed = ChoreList(version: 4, chores: full.chores.filter { $0.id != "scoop-litter" })
+        let trimmed = ChoreList(version: 5, chores: full.chores.filter { $0.id != "scoop-litter" })
         try ChoreSeeder.seed(trimmed, into: context)
         XCTAssertEqual(try activeChores().count, 40)
         XCTAssertEqual(try context.fetch(FetchDescriptor<ChoreRecord>()).count, 41, "retired row kept for history")
-        XCTAssertEqual(try context.fetch(FetchDescriptor<SyncState>()).first?.choresVersion, 4)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SyncState>()).first?.choresVersion, 5)
 
         try ChoreSeeder.seed(full, into: context)
         XCTAssertEqual(try activeChores().count, 41, "re-adding un-retires")
@@ -128,6 +128,29 @@ final class SeedTests: XCTestCase {
         try ChoreSeeder.seed(ChoreList(version: 3, chores: [plain, pantry]), into: context)
         XCTAssertNil(try activeChores()[0].season)
         rows[0].season = "{not json"
+        XCTAssertThrowsError(try rows[0].toChore())
+    }
+
+    func testWindowsRoundTripThroughTheRecord() throws {
+        let can = Chore(id: "garbage-can-to-street-sunday", title: "Garbage can to street, Sunday", cadence: .weekly,
+                        fixedAssignee: .wes, category: .chore, weekdays: [7])
+        let litter = Chore(id: "change-litter", title: "Change litter", cadence: .monthly, category: .catCare, dueDay: 25)
+        let laundry = Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore)
+        try ChoreSeeder.seed(ChoreList(version: 4, chores: [can, litter, laundry]), into: context)
+        let rows = try activeChores()
+        XCTAssertEqual(try rows.map { try $0.toChore() }, [can, litter, laundry])
+        XCTAssertEqual(rows[0].weekdays, "[7]")
+        XCTAssertNil(rows[0].dueDay)
+        XCTAssertNil(rows[1].weekdays)
+        XCTAssertEqual(rows[1].dueDay, 25)
+        XCTAssertNil(rows[2].weekdays)
+        XCTAssertNil(rows[2].dueDay)
+
+        // Re-seeding without the window clears it; broken weekday text is a conversion error, not a crash.
+        let plainCan = Chore(id: can.id, title: can.title, cadence: .weekly, fixedAssignee: .wes, category: .chore)
+        try ChoreSeeder.seed(ChoreList(version: 5, chores: [plainCan, litter, laundry]), into: context)
+        XCTAssertNil(try activeChores()[0].weekdays)
+        rows[0].weekdays = "[not json"
         XCTAssertThrowsError(try rows[0].toChore())
     }
 }

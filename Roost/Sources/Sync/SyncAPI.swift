@@ -69,6 +69,9 @@ struct SyncAPI: Sendable {
         /// Both optional so a server older than R-29, or a test stub, still decodes.
         let season: Season?
         let together: Bool?
+        /// Optional so a server older than due-windows, or a test stub, still decodes.
+        let weekdays: [Int]?
+        let dueDay: Int?
     }
 
     struct SyncResponse: Codable, Sendable {

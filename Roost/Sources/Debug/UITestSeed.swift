@@ -28,6 +28,8 @@
         case paired
         /// `paired`, plus 200 shopping items — the scroll-performance fixture.
         case shoppingLarge = "shopping-large"
+        /// `paired`, plus one quarterly chore with a dueDay so All chores can show a window line.
+        case pairedWindows = "paired-windows"
 
         /// `-roostUITestState <name>`.
         static let launchArgumentName = "roostUITestState"
@@ -79,7 +81,17 @@
                 calendar.adding(days: offset, to: today).addingTimeInterval(12 * 60 * 60)
             }
 
-            try ChoreSeeder.seed(Self.chores, into: context)
+            var choreList = Self.chores
+            var seededCompletions = Self.completions
+            if self == .pairedWindows {
+                choreList = ChoreList(version: choreList.version, chores: choreList.chores + [
+                    Chore(id: "uitest-deep-clean", title: "Deep-clean the fridge", cadence: .quarterly,
+                          category: .chore, dueDay: 28),
+                ])
+                // Anne completed it today so Today never shows it, whatever the real date.
+                seededCompletions.append(SeededCompletion(choreId: "uitest-deep-clean", person: .anne, daysAgo: 0))
+            }
+            try ChoreSeeder.seed(choreList, into: context)
 
             let state = try ChoreSeeder.syncState(in: context)
             // `person` without `baseURL` is the whole trick: the app knows who it is, and the sync pass has
@@ -94,7 +106,7 @@
                 return
             }
 
-            for (index, seeded) in Self.completions.enumerated() {
+            for (index, seeded) in seededCompletions.enumerated() {
                 let record = CompletionRecord(
                     id: "uitest-completion-\(index)",
                     choreId: seeded.choreId,
