@@ -118,11 +118,38 @@ jobs:
           echo "$changed" | sed 's/^/  /'
           printf '%s\n' "$changed" | tr '\n' '\0' | xargs -0 swiftlint lint --quiet
 
-      # iPhone 17 Pro is on every iOS runtime the image ships (26.2, 26.4, 26.5),
-      # so the destination resolves without pinning an OS; it is also the device
-      # CLAUDE.md names for the local run. The app's deployment target is iOS 26,
-      # well under any of them. -skipPackagePluginValidation keeps the local path
-      # packages from prompting about plugin trust on a fresh machine.
+      # The destination is a device NAME, not a UDID, so it only resolves if the image
+      # actually has an iPhone 17 Pro. On 2026-09-14 a runner came up with none and
+      # xcodebuild failed with "Unable to find a device matching the provided
+      # destination specifier" after a full package resolve — a red build that had
+      # nothing to do with the diff. Create it on the newest installed iOS runtime
+      # when it is missing, and always print what we ended up with.
+      - name: Ensure an iPhone 17 Pro simulator exists
+        run: |
+          set -o pipefail
+          if xcrun simctl list devices available | grep -q 'iPhone 17 Pro ('; then
+            echo "iPhone 17 Pro is already on this image."
+          else
+            echo "No iPhone 17 Pro on this image; creating one."
+            runtime=$(xcrun simctl list runtimes available \
+              | sed -n 's/.*\(com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]*\).*/\1/p' \
+              | sort -V | tail -1)
+            if [ -z "$runtime" ]; then
+              echo "::error::no iOS simulator runtime is installed on this runner" >&2
+              xcrun simctl list runtimes
+              exit 1
+            fi
+            echo "Using runtime $runtime"
+            xcrun simctl create 'iPhone 17 Pro' \
+              com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "$runtime"
+          fi
+          echo "Simulators the destination can resolve to:"
+          xcrun simctl list devices available | grep 'iPhone 17 Pro (' | sed 's/^/  /'
+
+      # iPhone 17 Pro is the device CLAUDE.md names for the local run, and the step
+      # above guarantees the image has one. The app's deployment target is iOS 26,
+      # well under any runtime the image ships. -skipPackagePluginValidation keeps
+      # the local path packages from prompting about plugin trust on a fresh machine.
       - name: xcodebuild test
         run: |
           set -o pipefail
