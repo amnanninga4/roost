@@ -12,6 +12,7 @@ enum UITestState: String {
     case onboarding
     case paired
     case shoppingLarge = "shopping-large"
+    case pairedWindows = "paired-windows"
 }
 
 class RoostUITestCase: XCTestCase {
