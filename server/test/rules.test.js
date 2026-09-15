@@ -838,7 +838,7 @@ test("misses: nothing before activeFrom, today is never a miss, anyone's complet
 test("penalisedPerson: over the line, further over, tied", () => {
   assert.equal(penalisedPerson({ anne: 2, wes: 2 }, 2), null);
   assert.equal(penalisedPerson({ anne: 3, wes: 1 }, 2), "anne");
-  assert.equal(penalisedPerson({ anne: 4, wes: 5 }, 2), "wes");
+  assert.equal(penalisedPerson({ anne: 4, wes: 5 }, 2), null, "both over: the rotation stands");
   assert.equal(penalisedPerson({ anne: 4, wes: 4 }, 2), null);
 });
 

@@ -71,7 +71,7 @@ final class LitterRotationTests: XCTestCase {
     func testPenalisedPicksTheOneOverTheLine() {
         XCTAssertNil(MissCounter.penalised([.anne: 2, .wes: 2], overMisses: 2), "neither is over")
         XCTAssertEqual(MissCounter.penalised([.anne: 3, .wes: 1], overMisses: 2), .anne)
-        XCTAssertEqual(MissCounter.penalised([.anne: 4, .wes: 5], overMisses: 2), .wes, "both over, more misses")
+        XCTAssertNil(MissCounter.penalised([.anne: 4, .wes: 5], overMisses: 2), "both over: the rotation stands")
         XCTAssertNil(MissCounter.penalised([.anne: 4, .wes: 4], overMisses: 2), "both over and tied")
     }
 

@@ -42,14 +42,16 @@ public enum MissCounter {
         return counts
     }
 
-    /// The person a penalty moves the chore to: the only one over the line, or the one further over.
-    /// Nil when neither is over or they are tied, which leaves the rotation's answer standing.
+    /// The person a penalty moves the chore to: the one and only one who is over the line.
+    ///
+    /// When BOTH are over, the rotation stands. That is not a tie-break dodge — it is the rule. The
+    /// penalty exists to move a chore onto someone who let the other carry it, and when both let it
+    /// slide there is no fairness claim to act on. Picking "whoever is further over" instead looks
+    /// reasonable and is unusable: a watched chore that alternates daily makes the miss lead alternate
+    /// daily too, so the penalised chore would change owner every single day (26 flips in 35 days on
+    /// the real litter data).
     public static func penalised(_ counts: [Person: Int], overMisses: Int) -> Person? {
         let over = Person.allCases.filter { (counts[$0] ?? 0) > overMisses }
-        guard let first = over.first else { return nil }
-        guard over.count > 1 else { return first }
-        let ranked = over.sorted { (counts[$0] ?? 0) > (counts[$1] ?? 0) }
-        guard (counts[ranked[0]] ?? 0) != (counts[ranked[1]] ?? 0) else { return nil }
-        return ranked[0]
+        return over.count == 1 ? over[0] : nil
     }
 }

@@ -317,12 +317,12 @@ export function missesFor(watched, { from, through, asOf, activeFrom, completion
 
 /** The person a penalty moves a chore to, or null. Mirrors MissCounter.penalised. */
 export function penalisedPerson(counts, overMisses) {
+  // Exactly one person over the line, or nobody. When both are over, the rotation stands: the penalty
+  // moves a chore onto whoever let the other carry it, and when both let it slide there is no claim to
+  // act on. "Whoever is further over" would flip the owner daily, because the watched chore alternates
+  // daily and so does the miss lead. Mirrors MissCounter.penalised.
   const over = PEOPLE.filter((p) => (counts[p] ?? 0) > overMisses);
-  if (over.length === 0) return null;
-  if (over.length === 1) return over[0];
-  const ranked = [...over].sort((a, b) => (counts[b] ?? 0) - (counts[a] ?? 0));
-  if ((counts[ranked[0]] ?? 0) === (counts[ranked[1]] ?? 0)) return null;
-  return ranked[0];
+  return over.length === 1 ? over[0] : null;
 }
 
 /**

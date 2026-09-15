@@ -16,7 +16,7 @@
 - `rotation` is `{"kind": "weekdayCycle", "weeks": [[7 people], …1–4 tables]}` (daily only) or `{"kind": "alternate", "start": "anne"|"wes"}` (any cadence). Never on a pinned chore.
 - `weekdayCycle` lookup: for a daily chore the period index **is** the day index from the household anchor, and the anchor is a Monday, so `week = weeks[floorDiv(periodIndex, 7) mod weeks.count]` and the entry is `week[periodIndex mod 7]` with index 0 = Monday.
 - `alternate`: `start` owns every **even** period index, the other person the odd ones. Never keyed off `activeFrom`.
-- `missPenalty` is `{"watch": "<chore id>", "overMisses": <int 0–30>}`. Counted over the penalised chore's **calendar period** (`periodBounds`, not the due window). A missed day is a period of the watched chore that ended before today, started on or after `activeFrom`, was owed by that person (handoff, then pin, then rotation), and has no completion inside it by anyone. Over the threshold by exactly one person → that person; both over → more misses; tie or neither → the rotation stands.
+- `missPenalty` is `{"watch": "<chore id>", "overMisses": <int 0–30>}`. Counted over the penalised chore's **calendar period** (`periodBounds`, not the due window). A missed day is a period of the watched chore that ended before today, started on or after `activeFrom`, was owed by that person (handoff, then pin, then rotation), and has no completion inside it by anyone. Over the threshold by **exactly one** person → that person; both over, or neither → the rotation stands (picking "further over" makes the owner flip daily, because the watched chore alternates daily).
 - Assignment order everywhere: accepted handoff → `fixedAssignee` → `missPenalty` → `rotation` (chore's own, else the injected default round-robin).
 - A chore with an explicit `rotation` is never moved by `FairnessBalancer`, even when the balancer is on.
 - Both sides must agree: every Swift test date in this plan has a Node twin on the same date.
@@ -362,8 +362,8 @@ final class LitterRotationTests: XCTestCase {
     func testPenalisedPicksTheOneOverTheLine() {
         XCTAssertNil(MissCounter.penalised([.anne: 2, .wes: 2], overMisses: 2), "neither is over")
         XCTAssertEqual(MissCounter.penalised([.anne: 3, .wes: 1], overMisses: 2), .anne)
-        XCTAssertEqual(MissCounter.penalised([.anne: 4, .wes: 5], overMisses: 2), .wes, "both over, more misses")
-        XCTAssertNil(MissCounter.penalised([.anne: 4, .wes: 4], overMisses: 2), "both over and tied")
+        XCTAssertNil(MissCounter.penalised([.anne: 4, .wes: 5], overMisses: 2), "both over: the rotation stands")
+        XCTAssertNil(MissCounter.penalised([.anne: 4, .wes: 4], overMisses: 2), "both over")
     }
 }
 ```
@@ -413,11 +413,7 @@ public enum MissCounter {
     /// Nil when neither is over or they are tied, which leaves the rotation's answer standing.
     public static func penalised(_ counts: [Person: Int], overMisses: Int) -> Person? {
         let over = Person.allCases.filter { (counts[$0] ?? 0) > overMisses }
-        guard let first = over.first else { return nil }
-        guard over.count > 1 else { return first }
-        let ranked = over.sorted { (counts[$0] ?? 0) > (counts[$1] ?? 0) }
-        guard (counts[ranked[0]] ?? 0) != (counts[ranked[1]] ?? 0) else { return nil }
-        return ranked[0]
+        return over.count == 1 ? over[0] : nil
     }
 }
 ```
@@ -629,7 +625,7 @@ test("misses: nothing before activeFrom, today is never a miss, anyone's complet
 test("penalisedPerson: over the line, further over, tied", () => {
   assert.equal(penalisedPerson({ anne: 2, wes: 2 }, 2), null);
   assert.equal(penalisedPerson({ anne: 3, wes: 1 }, 2), "anne");
-  assert.equal(penalisedPerson({ anne: 4, wes: 5 }, 2), "wes");
+  assert.equal(penalisedPerson({ anne: 4, wes: 5 }, 2), null, "both over: the rotation stands");
   assert.equal(penalisedPerson({ anne: 4, wes: 4 }, 2), null);
 });
 
