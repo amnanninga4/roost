@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
-# Writes STATUS.md at the repo root: the plain-language answer to "what is going on with Roost".
+# Writes docs/STATUS.md: the plain-language answer to "what is going on with Roost".
 #
 # This exists because a PR number is not information. Wes has no way to look up "#61", so a status
 # update that says "#61 is green" tells him nothing. Everything here is pulled live — open PRs from
 # GitHub, the running build from the server's own /health, the phones from devicectl — so it cannot
 # drift the way a hand-written list does. Regenerate it, do not edit it.
 #
-# It lives in the repo, next to the work, because that is the folder Wes is already standing in —
-# not in ~/claude-reports with the dated one-off deliverables. Stable filename, and committed, so it
+# It lives in docs/ with RELEASE.md and FIRST-USE-TEST.md — the folder you go to when you want to
+# know something, rather than loose at the repo root or off in ~/claude-reports with the dated
+# one-off deliverables. Stable filename, and committed, so it
 # is also readable on GitHub from a phone. The generated-at stamp at the top is how you know it is
 # fresh; regenerate before trusting it.
 set -uo pipefail
 
 cd "$(dirname "$0")/.." || exit 1
-OUT="$PWD/STATUS.md"
+OUT="$PWD/docs/STATUS.md"
 
 health=$(curl -fsS --max-time 10 https://roost.hinescreative.xyz/health 2>/dev/null || echo '{}')
 field() { printf '%s' "$health" | python3 -c "import json,sys;print(json.load(sys.stdin).get('$1','?'))" 2>/dev/null || echo '?'; }
