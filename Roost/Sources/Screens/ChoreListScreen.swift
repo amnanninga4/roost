@@ -94,7 +94,17 @@ private struct ChoreListRow: View {
     }
 
     private var chore: Chore? { try? record.toChore() }
+    private var windowLine: String? { chore.flatMap { WindowCopy.line($0) } }
     private var seasonLine: String? { chore?.season.flatMap { SeasonCopy.line($0) } }
+    /// Window first, then season, joined when both exist (only mow-lawn has a season and it has no window).
+    private var captionLine: String? {
+        switch (windowLine, seasonLine) {
+        case let (w?, s?): w + Strings.Lists.metaSeparator + s
+        case let (w?, nil): w
+        case let (nil, s?): s
+        case (nil, nil): nil
+        }
+    }
 
     var body: some View {
         // One line normally. At accessibility sizes the badge and the pinned chip each take a fixed
@@ -104,8 +114,8 @@ private struct ChoreListRow: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: RoostSpacing.sm))
         var a11yValue = record.together ? Strings.Tasks.togetherValue : (pinnedTo.map { Strings.Tasks.always($0.displayName) } ?? "")
-        if let seasonLine {
-            a11yValue = a11yValue.isEmpty ? seasonLine : a11yValue + Strings.Lists.metaSeparator + seasonLine
+        if let captionLine {
+            a11yValue = a11yValue.isEmpty ? captionLine : a11yValue + Strings.Lists.metaSeparator + captionLine
         }
         return layout {
             // The cat/house badge is a tint, not information — it is the first thing to go.
@@ -122,8 +132,8 @@ private struct ChoreListRow: View {
                     .roostType(.rowTitle)
                     .foregroundStyle(RoostColor.Role.textPrimary.color)
                     .fixedSize(horizontal: false, vertical: true)
-                if let seasonLine {
-                    Text(seasonLine)
+                if let captionLine {
+                    Text(captionLine)
                         .roostType(.caption)
                         .foregroundStyle(RoostColor.Role.textSecondary.color)
                 }
@@ -196,11 +206,14 @@ private enum PreviewStore {
             Chore(id: "scoop-litter", title: "Scoop litter", cadence: .daily, category: .catCare),
             Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore),
             Chore(id: "garbage", title: "Garbage can to street, Sunday", cadence: .weekly, fixedAssignee: .wes,
-                  category: .chore),
+                  category: .chore, weekdays: [7]),
+            Chore(id: "take-out-garbage", title: "Take out garbage (kitchen)", cadence: .weekly, category: .chore,
+                  weekdays: [5, 6]),
             Chore(id: "mow-lawn", title: "Mow lawn", cadence: .weekly, fixedAssignee: .anne, category: .chore,
                   season: Season(months: [4, 5, 6, 7, 8, 9, 10])),
+            Chore(id: "change-litter", title: "Change litter", cadence: .monthly, category: .catCare, dueDay: 25),
             Chore(id: "pantry", title: "Clean out fridge and pantry", cadence: .quarterly, category: .chore,
-                  together: true),
+                  together: true, dueDay: 28),
         ])
         try! ChoreSeeder.seed(sample, into: container.mainContext)
         return container
