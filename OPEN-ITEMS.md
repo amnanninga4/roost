@@ -8,7 +8,7 @@ tracks the lane in flight; anything that outlives the lane belongs here instead.
 An item that has not moved gets louder, not quieter. Delete an item only when it is done or
 explicitly dropped; say which in the commit message.
 
-_Last swept: 2026-09-15 12:35 CDT (Fable)_
+_Last swept: 2026-09-15 13:28 CDT (Fable)_
 
 ## Blocked on Wes
 
@@ -20,7 +20,6 @@ _Last swept: 2026-09-15 12:35 CDT (Fable)_
 | PR #61 — CI: swiftlint whole tree | 2026-09-13 | Green, and now safe to land: #88 (merged 2026-09-15) excludes the packages' nested `.build`, which was the only thing that made a whole-tree gate fail on a built checkout. Carries the swiftlint-config decision. |
 | PR #65 — Appearance choice in Settings | 2026-09-14 | Green. Unreviewed. |
 | Anne's three questions on issue #1 | 2026-09-13 | Garbage third location; which months mowing runs; whether the hair chore is right as every-two-months pinned to Anne. Asked 09-13, re-asked 09-15 twice. Chore data is not final until these land. |
-| `gh auth refresh -h github.com -s workflow` | 2026-09-15 | Pushing any change under `.github/workflows/` is refused: "refusing to allow an OAuth App to create or update workflow ... without `workflow` scope". The CI simulator fix is committed locally on `ci/ensure-simulator` @ b66ba9e and cannot leave this machine until the scope is granted. Blocks every future CI change too. |
 | `TAILSCALE_API_KEY` in `~/.fleet-secrets/live/integrations.env` is invalid | 2026-09-14 | Needs minting. Nothing currently depends on it; `fssh` works. |
 | peers-fleet decisions | 2026-09-14 | Report `~/claude-reports/peers-fleet-2026-09-14.md`. Open: ponytail cuts, dashboard LaunchAgent, Kimi bridge, clarsmini push key. No sessions are running; that lead is stopped, not working. |
 
@@ -28,7 +27,8 @@ _Last swept: 2026-09-15 12:35 CDT (Fable)_
 
 | Item | Since | Note |
 |---|---|---|
-| CI runner sometimes has no iPhone 17 Pro simulator | 2026-09-14 | Seen once: `xcodebuild` found no matching destination on the macos-26 image. Permanent fix is a workflow step that creates the simulator on the newest installed runtime when it is missing. **Written and verified locally** on branch `ci/ensure-simulator` @ b66ba9e; blocked on the `workflow` OAuth scope above. |
+| Push over SSH, not HTTPS, for anything under `.github/workflows/` | 2026-09-15 | `remote.origin.pushurl` is now `git@github.com:amnanninga4/roost.git` in this clone. The HTTPS remote uses gh's OAuth token, which is refused on workflow files without the `workflow` scope; an SSH key is not an OAuth app and is not checked. This sat on the blocked-on-Wes list for an hour as "needs `gh auth refresh`" — it was never his to unblock. Wes caught it: "you literally have ssh". |
+| CI runner sometimes has no iPhone 17 Pro simulator | 2026-09-14 | Seen once: `xcodebuild` found no matching destination on the macos-26 image. Fix is a step that creates the simulator on the newest installed runtime when it is missing. **PR #90, open.** |
 | Handoffs ignore early due windows | 2026-09-15 | Shipped knowingly. `HandoffRules` counts calendar periods, so a chore with a `dueDay` of 1–6 (window opens in the previous month) refuses a handoff until the 1st. Documented in the due-windows spec. |
 | Density scorecard test unowned | 2026-09-13 | Flagged in the UX audit, never picked up. |
 | This Mac is on Xcode 27.0 / Swift 6.4; CI is on 26.6 | 2026-09-15 | Local green no longer proves CI green. CI is the authority on disagreement. |
