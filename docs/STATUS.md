@@ -1,6 +1,6 @@
 # Roost — what's going on
 
-_Generated Tuesday September 15, 2026 at 2:46 PM CDT. Regenerate with `scripts/status-report.sh`._
+_Generated Tuesday September 15, 2026 at 6:13 PM CDT. Regenerate with `scripts/status-report.sh`._
 
 ## Running right now
 
@@ -10,7 +10,7 @@ _Generated Tuesday September 15, 2026 at 2:46 PM CDT. Regenerate with `scripts/s
 | Latest code on main | `657ac1d` |
 | Chores loaded | 41, list version 5 |
 | Phones paired | 2 |
-| Push notifications | no key |
+| Push notifications | sandbox |
 | Last morning digest | 2026-09-15 |
 | Last backup | ok — 2026-09-15 09:37 UTC |
 
@@ -28,6 +28,7 @@ Things only you can do, that are not code, live in the *Blocked on Wes* table of
 
 Here so you can see them, not so you can do them. No action needed.
 
+- Home screen design  [#93](https://github.com/amnanninga4/roost/pull/93)
 - A status report Wes can actually read  [#92](https://github.com/amnanninga4/roost/pull/92)
 
 ## Waiting on Anne
@@ -43,11 +44,12 @@ Thread: **Apple Dev 3.0 ↔ Anne Claude — roost kickoff**  [#1](https://github
 
 ## The phones
 
-- iPhone                     00008140-000A48800AEB001C (UDID)              connected   iPhone 16 (iPhone17,3)       physical 
+- iPhone iPhone17,3 — connected
 
 ## Open items, counted
 
-- blocked on Wes: 6
-- owned by Fable: 4
+- blocked on Wes: 4
+- waiting on Anne: 1
+- owned by Fable: 6
 
 Full text and the reasons: `OPEN-ITEMS.md` in the repo.

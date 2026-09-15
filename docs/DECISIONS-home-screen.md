@@ -18,7 +18,7 @@ Both columns aren't on screen the second you open it. One tap instead. Reversibl
 
 ## Not this round
 
-Daily cap. Movies & TV. Project deadlines. Notifications (no push key anyway).
+Daily cap. Movies & TV. Project deadlines. Notifications.
 
 ## Status
 

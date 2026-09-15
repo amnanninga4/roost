@@ -10,7 +10,7 @@ The grounding dig is `~/claude-reports/roost-home-page-dig-2026-09-15.md`.
 ## What is true today
 
 `RootTabView` has three tabs — Tasks, Lists, More — and opens on Tasks
-(`Roost/Sources/Root/RootTabView.swift:8`, `:39`). Tasks is `TodayScreen`: a header, then both
+(`Roost/Sources/Root/RootTabView.swift:9`, `:37`). Tasks is `TodayScreen`: a header, then both
 people's columns, always both on screen so nobody can filter the other away
 (`Roost/Sources/Screens/TodayScreen.swift:4-5`).
 
@@ -29,7 +29,7 @@ said he did not want.
 ### Tab one
 
 `RootTab.tasks` becomes `RootTab.home` (title "Home", symbol `house`). Still first, still the
-default, still where a push lands (`RootTabView.swift:69-73` is unchanged in behaviour). **No
+default, still where a push lands (the push-routing `onChange` in `RootTabView.swift` is unchanged in behaviour). **No
 fourth tab.** A fourth root tab would make Home read as a promotion and the board as a demotion,
 and would spend a tab on a foyer.
 
@@ -101,7 +101,7 @@ counts stay honest (`TodayScreen.swift:8-9`). Home inherits that. Therefore:
 - Each Home section is its **own extracted subview**, so a minute tick cannot rebuild the whole
   screen. Extraction is what lets SwiftUI skip a body whose inputs did not change.
 - The segment selection lives in `RootNavigation` (already `@Observable`,
-  `RootTabView.swift:36`), not in a new environment key. Do not put frequently-changing values
+  `RootTabView.swift:37`), not in a new environment key. Do not put frequently-changing values
   in the environment: every write to any environment key forces every reader in the subtree to be
   checked.
 - Home and the board must not both build a full plan. `TodayPlanner` runs **once** per tick and
@@ -131,7 +131,7 @@ clear → `Nothing left for you. Anne still has 4.`; fresh household before anyt
 ### Accessibility
 
 - The sentence carries `.isHeader`, replacing the trait currently on "Today"
-  (`TodayHeaderView.swift:25`).
+  (`TodayHeaderView.swift:27`).
 - The segmented control is reachable and labelled; the existing
   `Roost/UITests/AccessibilityAuditTests.swift` must cover Home as it covers Today.
 - A collapsed section announces its count and its state, not just "3 more".
@@ -152,7 +152,8 @@ a real question and a less frequent one than "what do I have to do right now."
 
 - The daily cap and the bonus list. The collapse threshold above anticipates it and defers to it.
 - Movies & TV as a fifth door.
-- Project step deadlines, and any notification work — the server still reports `push: "no key"`.
+- Project step deadlines, and any notification work. (The APNs key went in on 2026-09-15 and
+  `/health` now reports `push: "sandbox"`, so these are unblocked — they are simply not this lane.)
 - Turning on the fairness balancer, which is built and tested and off
   (`TodayPlanner.swift:85`, `balancer: nil`).
 - `tabBarMinimizeBehavior(.onScrollDown)` and other iOS 26 tab chrome. Real, free, and a separate

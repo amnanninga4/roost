@@ -74,13 +74,30 @@ field() { printf '%s' "$health" | python3 -c "import json,sys;print(json.load(sy
   echo
   echo "## The phones"
   echo
-  xcrun devicectl list devices 2>/dev/null | awk 'NR>2 && $0 ~ /physical/ {print "- " $0}' || echo "- none attached"
+  # Model and state only. A UDID is a stable hardware identifier and this file is committed to a
+  # public repo, so the raw `devicectl` line must never be echoed here.
+  xcrun devicectl list devices 2>/dev/null \
+    | awk 'NR>2 && /physical/ { model=""; state=""
+        if (match($0, /\(iPhone[0-9]+,[0-9]+\)/)) model=substr($0, RSTART+1, RLENGTH-2)
+        if (index($0, "available")) state="connected"; else state="not connected"
+        printf "- iPhone %s — %s\n", model, state }' \
+    || echo "- none attached"
   echo
   echo "## Open items, counted"
   echo
   if [ -f OPEN-ITEMS.md ]; then
-    echo "- blocked on Wes: $(awk '/^## Blocked on Wes/,/^## Owned by Fable/' OPEN-ITEMS.md | grep -c '^| .* |' | awk '{print $1-2}')"
-    echo "- owned by Fable: $(awk '/^## Owned by Fable/,/^## In flight/' OPEN-ITEMS.md | grep -c '^| .* |' | awk '{print $1-2}')"
+    # Count data rows in one section: every table line that is not the header and not the
+    # |---|---| separator. The range ends at the NEXT `## ` heading, whatever it is called —
+    # naming the following section by hand broke the moment a section was inserted between them.
+    count_rows() {
+      awk -v want="$1" '
+        /^## / { inside = ($0 == "## " want) ; next }
+        inside && /^\|/ && !/^\|[[:space:]]*-/ && !/^\| Item \|/ && !/^\| \| \|/ { n++ }
+        END { print n + 0 }' OPEN-ITEMS.md
+    }
+    echo "- blocked on Wes: $(count_rows "Blocked on Wes")"
+    echo "- waiting on Anne: $(count_rows "Waiting on Anne")"
+    echo "- owned by Fable: $(count_rows "Owned by Fable")"
     echo
     echo "Full text and the reasons: \`OPEN-ITEMS.md\` in the repo."
   fi
