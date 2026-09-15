@@ -1,5 +1,10 @@
 excluded:
+  # Both forms: a bare `.build` only matches the one at the repo root, and the Swift
+  # packages each grow their own once anyone runs `swift test`. Without the glob,
+  # linting a tree that has been built reports 25 errors in generated code
+  # (RoostCoreTests test_entry_point.swift) that do not exist in any source file.
   - .build
+  - "**/.build"
   - DerivedData
   - .claude
   - "**/*.xcodeproj"
