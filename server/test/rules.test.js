@@ -9,6 +9,9 @@ import {
   periodBounds,
   fnv1a,
   rotationAssignee,
+  rotationFor,
+  missesFor,
+  penalisedPerson,
   assigneeFor,
   escalationStage,
   dueItemFor,
@@ -793,4 +796,55 @@ test("an unwindowed chore is unchanged and reports its period as its window", ()
   assert.equal(item.daysOverdue, 0);
   assert.deepEqual([item.dueFirstDay, item.dueLastDay], [item.periodStart, item.periodLastDay]);
   assert.equal(od(toilet, at(9, 21)), 1);
+});
+
+// --- Litter rotations / miss penalty (W-2 Task 6) ---
+
+const scoopL = { id: "scoop-litter", title: "Scoop litter", cadence: "daily", fixedAssignee: null, category: "cat_care",
+  rotation: { kind: "weekdayCycle", weeks: [["anne","wes","anne","wes","anne","wes","anne"], ["wes","anne","wes","anne","wes","anne","wes"]] } };
+const changeL = { id: "change-litter", title: "Change litter", cadence: "monthly", fixedAssignee: null, category: "cat_care",
+  dueDay: 25, rotation: { kind: "alternate", start: "wes" }, missPenalty: { watch: "scoop-litter", overMisses: 2 } };
+
+test("scooping runs four/three and swaps each week", () => {
+  const week1 = [[14,"anne"],[15,"wes"],[16,"anne"],[17,"wes"],[18,"anne"],[19,"wes"],[20,"anne"]];
+  const week2 = [[21,"wes"],[22,"anne"],[23,"wes"],[24,"anne"],[25,"wes"],[26,"anne"],[27,"wes"]];
+  for (const [d, who] of [...week1, ...week2]) {
+    assert.equal(rotationFor(scoopL, periodIndex("daily", at(9, d))), who, `Sep ${d}`);
+  }
+  assert.equal(rotationFor(scoopL, periodIndex("daily", at(9, 28))), "anne");
+});
+
+test("the change alternates from Wes", () => {
+  assert.equal(rotationFor(changeL, periodIndex("monthly", at(9, 25))), "wes");
+  assert.equal(rotationFor(changeL, periodIndex("monthly", at(10, 25))), "anne");
+  assert.equal(rotationFor(changeL, periodIndex("monthly", at(11, 25))), "wes");
+});
+
+test("misses: nothing before activeFrom, today is never a miss, anyone's completion clears the day", () => {
+  const bounds = periodBounds("monthly", periodIndex("monthly", at(9, 15)));
+  const count = (completions, asOf, handoffs = []) => missesFor(scoopL, {
+    from: bounds.firstDay, through: bounds.lastDay, asOf, activeFrom: start14, completions, handoffs });
+  assert.deepEqual(count([], at(9, 15)), { anne: 1 });
+  assert.deepEqual(count([], at(9, 20)), { anne: 3, wes: 3 });
+  const covered = [{ choreId: "scoop-litter", person: "wes", completedAt: at(9, 14).toISOString() },
+                   { choreId: "scoop-litter", person: "anne", completedAt: at(9, 16).toISOString() }];
+  assert.deepEqual(count(covered, at(9, 20)), { anne: 1, wes: 3 });
+  const taken = [{ id: "h1", choreId: "scoop-litter", fromPerson: "anne", toPerson: "wes",
+                   periodIndex: periodIndex("daily", at(9, 16)), cadence: "daily", state: "accepted",
+                   createdAt: at(9, 16).toISOString() }];
+  assert.deepEqual(count([], at(9, 20), taken), { anne: 2, wes: 4 });
+});
+
+test("penalisedPerson: over the line, further over, tied", () => {
+  assert.equal(penalisedPerson({ anne: 2, wes: 2 }, 2), null);
+  assert.equal(penalisedPerson({ anne: 3, wes: 1 }, 2), "anne");
+  assert.equal(penalisedPerson({ anne: 4, wes: 5 }, 2), "wes");
+  assert.equal(penalisedPerson({ anne: 4, wes: 4 }, 2), null);
+});
+
+test("the change moves to whoever missed more than two scoops", () => {
+  const completions = [15, 17, 19, 21, 23].map((d) => ({ choreId: "scoop-litter", person: "wes", completedAt: at(9, d).toISOString() }));
+  const plan = dueItems({ chores: [scoopL, changeL], completions, asOf: at(9, 25), activeFrom: start14 });
+  assert.ok(plan.anne.some((i) => i.chore.id === "change-litter"), "Anne missed five scoops");
+  assert.ok(!plan.wes.some((i) => i.chore.id === "change-litter"));
 });
