@@ -16,12 +16,15 @@ _Last swept: 2026-09-15 13:28 CDT (Fable)_
 |---|---|---|
 | APNs key not installed — `/health` reports `push: "no key"` | 2026-09-13 | Every notification path is a no-op in production: morning digest, red alerts, handoff offers, completion pings. Two planned lanes (step deadlines, Movies & TV monthly nudge) are **only** notifications and cannot pay off until this exists. |
 | Anne's phone has never appeared on this Mac | 2026-09-13 | Wes's phone now runs main (installed 2026-09-15 12:32, build f5aff0e). Anne's is still on whatever it had on 09-13. It needs its own install session: unlock the phone, have it on this network, then `./scripts/install-device.sh <id>`. |
-| PR #60 — CI: swiftformat --lint fatal | 2026-09-13 | Green. Would have caught the formatting slips hand-patched twice on 2026-09-14. |
-| PR #61 — CI: swiftlint whole tree | 2026-09-13 | Green, and now safe to land: #88 (merged 2026-09-15) excludes the packages' nested `.build`, which was the only thing that made a whole-tree gate fail on a built checkout. Carries the swiftlint-config decision. |
 | PR #65 — Appearance choice in Settings | 2026-09-14 | Green. Unreviewed. |
-| Anne's three questions on issue #1 | 2026-09-13 | Garbage third location; which months mowing runs; whether the hair chore is right as every-two-months pinned to Anne. Asked 09-13, re-asked 09-15 twice. Chore data is not final until these land. |
 | `TAILSCALE_API_KEY` in `~/.fleet-secrets/live/integrations.env` is invalid | 2026-09-14 | Needs minting. Nothing currently depends on it; `fssh` works. |
 | peers-fleet decisions | 2026-09-14 | Report `~/claude-reports/peers-fleet-2026-09-14.md`. Open: ponytail cuts, dashboard LaunchAgent, Kimi bridge, clarsmini push key. No sessions are running; that lead is stopped, not working. |
+
+## Waiting on Anne
+
+| Item | Since | Why it matters |
+|---|---|---|
+| Three questions on issue #1 | 2026-09-13 | Garbage third location; which months mowing runs; whether the hair chore is right as every-two-months pinned to Anne. Asked 09-13, re-asked 09-15 twice, no reply. Chore data is not final until these land. This sat under **Blocked on Wes** for two days, which was simply wrong — Wes cannot answer them for her. |
 
 ## Owned by Fable
 
