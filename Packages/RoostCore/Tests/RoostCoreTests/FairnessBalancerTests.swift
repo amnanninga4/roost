@@ -259,7 +259,8 @@ final class FairnessBalancerTests: XCTestCase {
         let balanced = scheduler(dailies).plan(on: wed, completions: yesterdayAllAnne)
         XCTAssertEqual(ids(balanced, .wes), Set(dailies.map(\.id)), "she did all four yesterday; today they are his")
     }
-    func testTogetherChoresAreNeitherMovedNorWeighed() {
+
+    func testTogetherChoresAreNeitherMovedNorWeighed() throws {
         let pantry = Chore(id: "clean-out-fridge-pantry", title: "Clean out fridge and pantry",
                            cadence: .quarterly, category: .chore, together: true)
         let chores = [toilet, pantry] + dailies
@@ -268,14 +269,13 @@ final class FairnessBalancerTests: XCTestCase {
         let plan = scheduler.plan(on: wed, completions: [])
         XCTAssertEqual(plan[.anne]?.filter { $0.chore.id == pantry.id }.count, 1)
         XCTAssertEqual(plan[.wes]?.filter { $0.chore.id == pantry.id }.count, 1)
-        let item = plan[.anne]!.first { $0.chore.id == pantry.id }!
+        let item = try XCTUnwrap(plan[.anne]?.first { $0.chore.id == pantry.id })
         XCTAssertFalse(FairnessBalancer().isReassignable(item, on: wed, calendar: cal))
         // A together completion is not a weight on anybody's side of the scale.
         let loads = FairnessBalancer().windowLoads(chores: chores, completions: [done(pantry, .wes, day: 14)],
                                                    asOf: wed, calendar: cal)
         XCTAssertEqual(loads, [.anne: 0, .wes: 0])
     }
-
 }
 
 /// The load numbers on their own: what a chore is worth, which days count, and which ones the walk sees up front.

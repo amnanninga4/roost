@@ -129,7 +129,6 @@ struct TodayScreen: View {
         .refreshable { await sync.syncNow() }
     }
 
-
     // MARK: - Derived state
 
     private func plan(asOf now: Date) -> TodayPlan {

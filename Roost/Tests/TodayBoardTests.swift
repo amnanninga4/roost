@@ -270,7 +270,6 @@ final class TodayBoardTests: XCTestCase {
         XCTAssertTrue(never.text.hasPrefix(Strings.Sync.neverSynced), never.text)
     }
 
-
     // MARK: - Column order
 
     func testOwnColumnComesFirst() {

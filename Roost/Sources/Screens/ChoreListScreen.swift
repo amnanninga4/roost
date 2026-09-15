@@ -93,9 +93,18 @@ private struct ChoreListRow: View {
         record.fixedAssignee.flatMap(Person.init(rawValue:))
     }
 
-    private var chore: Chore? { try? record.toChore() }
-    private var windowLine: String? { chore.flatMap { WindowCopy.line($0) } }
-    private var seasonLine: String? { chore?.season.flatMap { SeasonCopy.line($0) } }
+    private var chore: Chore? {
+        try? record.toChore()
+    }
+
+    private var windowLine: String? {
+        chore.flatMap { WindowCopy.line($0) }
+    }
+
+    private var seasonLine: String? {
+        chore?.season.flatMap { SeasonCopy.line($0) }
+    }
+
     /// Window first, then season, joined when both exist (only mow-lawn has a season and it has no window).
     private var captionLine: String? {
         switch (windowLine, seasonLine) {
@@ -113,7 +122,8 @@ private struct ChoreListRow: View {
         let layout = typeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
             : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: RoostSpacing.sm))
-        var a11yValue = record.together ? Strings.Tasks.togetherValue : (pinnedTo.map { Strings.Tasks.always($0.displayName) } ?? "")
+        var a11yValue = record.together ? Strings.Tasks
+            .togetherValue : (pinnedTo.map { Strings.Tasks.always($0.displayName) } ?? "")
         if let captionLine {
             a11yValue = a11yValue.isEmpty ? captionLine : a11yValue + Strings.Lists.metaSeparator + captionLine
         }

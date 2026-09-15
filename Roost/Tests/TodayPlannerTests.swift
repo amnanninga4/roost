@@ -32,7 +32,10 @@ final class TodayPlannerTests: XCTestCase {
         XCTAssertEqual(anne.count + wes.count, 30, "41 chores, 12 rows outside their window on Sep 13")
         XCTAssertEqual(plan.dueCount(for: .anne) + plan.dueCount(for: .wes), 30)
         XCTAssertTrue(wes.contains("garbage-can-to-street-sunday"), "Sunday is the can's day")
-        XCTAssertFalse((anne + wes).contains("take-out-garbage-kitchen"), "Fri–Sat window closed before the household started")
+        XCTAssertFalse(
+            (anne + wes).contains("take-out-garbage-kitchen"),
+            "Fri–Sat window closed before the household started"
+        )
         XCTAssertFalse((anne + wes).contains("change-litter"), "due the 19th–25th")
         XCTAssertTrue(anne.contains("mow-lawn"), "September is in season")
 

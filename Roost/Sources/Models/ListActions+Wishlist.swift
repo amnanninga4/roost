@@ -4,7 +4,6 @@ import Foundation
 import SwiftData
 
 extension ListActions {
-
     // MARK: wishlist
 
     /// The server's ceiling for a price, in cents ($999,999.99).
@@ -120,5 +119,4 @@ extension ListActions {
     static func clampedPrice(_ cents: Int?) -> Int? {
         cents.map { min(max($0, 0), priceLimit) }
     }
-
 }

@@ -150,12 +150,14 @@ final class AccessibilityAuditTests: RoostUITestCase {
         ])
     }
 
-
     func testWishlistAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
         openList("Wishlist", in: app)
-        XCTAssertTrue(app.buttons["Bigger TV"].waitForExistence(timeout: Self.timeout), "the wishlist rows never appeared")
+        XCTAssertTrue(
+            app.buttons["Bigger TV"].waitForExistence(timeout: Self.timeout),
+            "the wishlist rows never appeared"
+        )
         try audit(app, allowing: [
             customFontScales("$599"),
             textFieldScrolls("Add something you'd like…"),

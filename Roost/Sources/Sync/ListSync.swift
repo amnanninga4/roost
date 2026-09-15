@@ -82,7 +82,6 @@ extension SyncClient {
         return posted
     }
 
-
     private func postWishlistItems(api: SyncAPI, now: Date) async throws -> Int {
         let items = try fetch(
             #Predicate<WishlistItemRecord> { $0.syncedAt == nil && !$0.rejected && !$0.removed },
@@ -93,7 +92,10 @@ extension SyncClient {
             let sent = try await outbound(item) {
                 let reply = try await api.postWishlist(id: item.id, title: item.title, priceCents: item.priceCents)
                 if reply.isNew {
-                    item.pendingFields.subtract([.title, .price]) // the create carried both; `bought` waits for the edits
+                    item.pendingFields.subtract([
+                        .title,
+                        .price,
+                    ]) // the create carried both; `bought` waits for the edits
                 }
                 item.apply(reply.row, now: now)
             }

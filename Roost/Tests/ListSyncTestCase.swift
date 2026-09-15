@@ -28,7 +28,6 @@ func shoppingJSON(
     ]
 }
 
-
 func wishlistJSON(
     id: String, title: String, priceCents: Int? = nil, addedBy: String = "anne", bought: Bool = false,
     boughtBy: String? = nil, boughtAt: String? = nil, seq: Int, deleted: Bool = false
@@ -54,7 +53,8 @@ func projectJSON(
     id: String, title: String, dueOn: String? = nil, seq: Int, deleted: Bool = false, subtasks: [[String: Any]]? = nil
 ) -> [String: Any] {
     var row: [String: Any] = [
-        "id": id, "title": title, "dueOn": orNull(dueOn), "createdAt": listStamp, "updatedAt": listStamp, "deleted": deleted, "seq": seq,
+        "id": id, "title": title, "dueOn": orNull(dueOn), "createdAt": listStamp, "updatedAt": listStamp,
+        "deleted": deleted, "seq": seq,
     ]
     if let subtasks {
         row["subtasks"] = subtasks
@@ -132,7 +132,6 @@ class ListSyncTestCase: XCTestCase {
     func shoppingRow(_ id: String, in context: ModelContext? = nil) throws -> ShoppingItemRecord? {
         try (context ?? fresh()).fetch(FetchDescriptor<ShoppingItemRecord>(predicate: #Predicate { $0.id == id })).first
     }
-
 
     func wishlistRow(_ id: String, in context: ModelContext? = nil) throws -> WishlistItemRecord? {
         try (context ?? fresh()).fetch(FetchDescriptor<WishlistItemRecord>(predicate: #Predicate { $0.id == id })).first

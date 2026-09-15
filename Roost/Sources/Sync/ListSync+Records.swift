@@ -71,7 +71,6 @@ extension ShoppingItemRecord {
     }
 }
 
-
 extension WishlistItemRecord {
     convenience init(_ dto: SyncAPI.WishlistDTO, now: Date) {
         self.init(

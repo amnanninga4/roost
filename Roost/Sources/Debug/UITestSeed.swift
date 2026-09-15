@@ -183,7 +183,6 @@
             }
         }
 
-
         @MainActor
         private func seedWishlist(into context: ModelContext, day: (Int) -> Date) {
             for (index, item) in Self.wishlist.enumerated() {
@@ -373,7 +372,6 @@
                 : "Item \(number)"
         }
 
-
         struct SeededWishlistItem {
             let title: String
             let addedBy: Person
@@ -409,13 +407,13 @@
         struct SeededStep {
             let title: String
             var done = false
-            var assignee: Person? = nil
+            var assignee: Person?
         }
 
         struct SeededProject {
             let title: String
             let steps: [SeededStep]
-            var dueInDays: Int? = nil
+            var dueInDays: Int?
         }
 
         /// The finished card is newest, so the screen's "open the first one" rule puts the DONE chip, the

@@ -1,4 +1,5 @@
-// Shopping page: the running list. Hosted by ListsScreen, which owns the NavigationStack and chrome. Type at the top, tick what was bought and it sinks into the Bought
+// Shopping page: the running list. Hosted by ListsScreen, which owns the NavigationStack and chrome. Type at the top,
+// tick what was bought and it sinks into the Bought
 // section, clear that section when the trip is over, swipe a row away with five seconds to take it
 // back. Every write goes to the store first, then kicks a sync, so a tap is on screen before the
 // network is involved and works the same offline.
@@ -37,38 +38,38 @@ struct ShoppingScreen: View {
     var body: some View {
         let rows = split
         List {
-                Section {
-                    ListScreenHeader(
-                        title: Strings.Tabs.shopping,
-                        line: Strings.Shopping.header(items: rows.total, bought: rows.boughtCount),
-                        status: sync.statusLine
+            Section {
+                ListScreenHeader(
+                    title: Strings.Tabs.shopping,
+                    line: Strings.Shopping.header(items: rows.total, bought: rows.boughtCount),
+                    status: sync.statusLine
+                )
+                .listHeaderRow()
+            }
+            Section {
+                ListComposer(
+                    placeholder: Strings.Shopping.add, text: $draft, focused: $draftFocused, onSubmit: add
+                )
+            }
+            Section {
+                if items.isEmpty {
+                    ListEmptyState(
+                        symbol: "cart", line: Strings.Shopping.empty, hint: Strings.Shopping.emptyHint
                     )
-                    .listHeaderRow()
                 }
-                Section {
-                    ListComposer(
-                        placeholder: Strings.Shopping.add, text: $draft, focused: $draftFocused, onSubmit: add
-                    )
+                ForEach(rows.toBuy) { item in
+                    row(item)
                 }
+            }
+            if !rows.bought.isEmpty {
                 Section {
-                    if items.isEmpty {
-                        ListEmptyState(
-                            symbol: "cart", line: Strings.Shopping.empty, hint: Strings.Shopping.emptyHint
-                        )
-                    }
-                    ForEach(rows.toBuy) { item in
+                    ForEach(rows.bought) { item in
                         row(item)
                     }
+                } header: {
+                    boughtHeader
                 }
-                if !rows.bought.isEmpty {
-                    Section {
-                        ForEach(rows.bought) { item in
-                            row(item)
-                        }
-                    } header: {
-                        boughtHeader
-                    }
-                }
+            }
         }
         .accessibilityIdentifier("shoppingList")
         .roostAnimation(.standard, value: items.map(\.bought))

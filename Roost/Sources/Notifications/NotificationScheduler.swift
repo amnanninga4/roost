@@ -121,7 +121,7 @@ final class NotificationScheduler {
         let dated = try context.fetch(FetchDescriptor<ProjectRecord>(
             predicate: #Predicate { !$0.removed && $0.dueOn != nil }
         ))
-        let steps = Dictionary(grouping: try context.fetch(FetchDescriptor<SubtaskRecord>(
+        let steps = try Dictionary(grouping: context.fetch(FetchDescriptor<SubtaskRecord>(
             predicate: #Predicate { !$0.removed }
         )), by: \.projectId)
         let dueProjects = dated.compactMap { project -> DueProject? in

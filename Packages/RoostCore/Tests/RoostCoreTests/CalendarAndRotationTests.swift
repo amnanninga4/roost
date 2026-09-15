@@ -111,7 +111,10 @@ final class CalendarTests: XCTestCase {
         XCTAssertEqual(w.firstDay, cal.date(year: 2026, month: 9, day: 14, hour: 0))
         XCTAssertEqual(w.lastDay, cal.date(year: 2026, month: 9, day: 20, hour: 0))
         let cushions = Chore(id: "u", title: "U", cadence: .monthly, category: .chore, dueDay: 5)
-        XCTAssertEqual(cal.dueWindow(for: cushions, periodIndex: 9).firstDay, cal.date(year: 2026, month: 9, day: 29, hour: 0))
+        XCTAssertEqual(
+            cal.dueWindow(for: cushions, periodIndex: 9).firstDay,
+            cal.date(year: 2026, month: 9, day: 29, hour: 0)
+        )
     }
 }
 

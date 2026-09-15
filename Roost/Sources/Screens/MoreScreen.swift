@@ -33,7 +33,11 @@ struct MoreScreen: View {
                     }
                     .listRowBackground(RoostColor.Role.surface.color)
                     Button { sync.syncSoon() } label: {
-                        MoreRow(title: Strings.Tasks.syncNow, symbol: "arrow.triangle.2.circlepath", detail: sync.statusLine)
+                        MoreRow(
+                            title: Strings.Tasks.syncNow,
+                            symbol: "arrow.triangle.2.circlepath",
+                            detail: sync.statusLine
+                        )
                     }
                     .buttonStyle(.plain)
                     .listRowBackground(RoostColor.Role.surface.color)

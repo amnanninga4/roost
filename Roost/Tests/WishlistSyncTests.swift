@@ -8,7 +8,13 @@ final class WishlistSyncTests: ListSyncTestCase {
     func testAddWithAPriceIsPostedOnceWithThePriceAndMarkedSynced() async throws {
         try await pairAsAnne()
         let ctx = fresh()
-        let item = try XCTUnwrap(try ListActions.addWishlistItem("Bigger TV", priceCents: 59900, by: nil, in: ctx, now: listClock))
+        let item = try XCTUnwrap(try ListActions.addWishlistItem(
+            "Bigger TV",
+            priceCents: 59900,
+            by: nil,
+            in: ctx,
+            now: listClock
+        ))
         let id = item.id
         StubURLProtocol.reset { req in
             let row = wishlistJSON(id: id, title: "Bigger TV", priceCents: 59900, seq: 8)
@@ -39,14 +45,30 @@ final class WishlistSyncTests: ListSyncTestCase {
     func testAddWithoutAPriceSendsNullAndABoughtBeforeTheCreateFollowsAsAPatch() async throws {
         try await pairAsAnne()
         let ctx = fresh()
-        let item = try XCTUnwrap(try ListActions.addWishlistItem("A weekend away", priceCents: nil, by: nil, in: ctx, now: listClock))
+        let item = try XCTUnwrap(try ListActions.addWishlistItem(
+            "A weekend away",
+            priceCents: nil,
+            by: nil,
+            in: ctx,
+            now: listClock
+        ))
         try ListActions.setWishlistBought(item, true, by: "anne", in: ctx, now: listClock)
         let id = item.id
         StubURLProtocol.reset { req in
             switch req.httpMethod {
-            case "POST": return (201, json(wishlistJSON(id: id, title: "A weekend away", seq: 3)))
-            case "PATCH": return (200, json(wishlistJSON(id: id, title: "A weekend away", bought: true, boughtBy: "anne", boughtAt: listStamp, seq: 4)))
-            default: return (200, listsSyncJSON(cursor: 4))
+            case "POST": (201, json(wishlistJSON(id: id, title: "A weekend away", seq: 3)))
+            case "PATCH": (
+                    200,
+                    json(wishlistJSON(
+                        id: id,
+                        title: "A weekend away",
+                        bought: true,
+                        boughtBy: "anne",
+                        boughtAt: listStamp,
+                        seq: 4
+                    ))
+                )
+            default: (200, listsSyncJSON(cursor: 4))
             }
         }
         _ = await client.syncNow()
@@ -62,7 +84,14 @@ final class WishlistSyncTests: ListSyncTestCase {
     func testPricePatchSendsOnlyThePriceAndClearingSendsNull() async throws {
         try await pairAsAnne()
         let ctx = fresh()
-        let item = WishlistItemRecord(id: "w-1", title: "Kayak", priceCents: 89900, addedBy: "wes", createdAt: listClock, syncedAt: listClock)
+        let item = WishlistItemRecord(
+            id: "w-1",
+            title: "Kayak",
+            priceCents: 89900,
+            addedBy: "wes",
+            createdAt: listClock,
+            syncedAt: listClock
+        )
         item.seq = 5
         ctx.insert(item)
         try ctx.save()
@@ -97,17 +126,33 @@ final class WishlistSyncTests: ListSyncTestCase {
     func testDeleteReplaysAsDELETEAndARefusedCreateIsKeptAndNeverRetried() async throws {
         try await pairAsAnne()
         let ctx = fresh()
-        let synced = WishlistItemRecord(id: "w-2", title: "Standing desk", priceCents: 45000, addedBy: "anne", createdAt: listClock, syncedAt: listClock)
+        let synced = WishlistItemRecord(
+            id: "w-2",
+            title: "Standing desk",
+            priceCents: 45000,
+            addedBy: "anne",
+            createdAt: listClock,
+            syncedAt: listClock
+        )
         synced.seq = 6
         ctx.insert(synced)
         try ctx.save()
         try ListActions.removeWishlistItem(synced, in: ctx, now: listClock)
-        let refused = try XCTUnwrap(try ListActions.addWishlistItem("x", priceCents: nil, by: nil, in: ctx, now: listClock))
+        let refused = try XCTUnwrap(try ListActions.addWishlistItem(
+            "x",
+            priceCents: nil,
+            by: nil,
+            in: ctx,
+            now: listClock
+        ))
         StubURLProtocol.reset { req in
             switch req.httpMethod {
-            case "DELETE": return (200, json(wishlistJSON(id: "w-2", title: "Standing desk", priceCents: 45000, seq: 11, deleted: true)))
-            case "POST": return (400, json(["error": "title required: 1-200 chars"]))
-            default: return (200, listsSyncJSON(cursor: 11))
+            case "DELETE": (
+                    200,
+                    json(wishlistJSON(id: "w-2", title: "Standing desk", priceCents: 45000, seq: 11, deleted: true))
+                )
+            case "POST": (400, json(["error": "title required: 1-200 chars"]))
+            default: (200, listsSyncJSON(cursor: 11))
             }
         }
         let outcome = await client.syncNow()
@@ -144,7 +189,15 @@ final class WishlistSyncTests: ListSyncTestCase {
 
         StubURLProtocol.reset { _ in
             (200, listsSyncJSON(cursor: 21, wishlist: [
-                wishlistJSON(id: "w-a", title: "Bigger TV", priceCents: 54999, bought: true, boughtBy: "wes", boughtAt: listStamp, seq: 21),
+                wishlistJSON(
+                    id: "w-a",
+                    title: "Bigger TV",
+                    priceCents: 54999,
+                    bought: true,
+                    boughtBy: "wes",
+                    boughtAt: listStamp,
+                    seq: 21
+                ),
             ]))
         }
         _ = await client.syncNow()

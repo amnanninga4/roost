@@ -11,7 +11,8 @@ enum WindowCopy {
         shortWeekdaySymbols: [String] = Calendar.autoupdatingCurrent.shortWeekdaySymbols
     ) -> String? {
         if let days = chore.weekdays, let first = days.min(), let last = days.max() {
-            guard (1 ... 7).contains(first), (1 ... 7).contains(last), shortWeekdaySymbols.count == 7 else { return nil }
+            guard (1 ... 7).contains(first), (1 ... 7).contains(last),
+                  shortWeekdaySymbols.count == 7 else { return nil }
             let from = shortWeekdaySymbols[first % 7] // ISO Monday = 1 → index 1; Sunday = 7 → index 0
             let to = shortWeekdaySymbols[last % 7]
             return first == last ? from : Strings.Chores.window(from: from, to: to)

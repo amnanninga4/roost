@@ -1,4 +1,5 @@
-// Meals page: the bank of ideas. Hosted by ListsScreen, which owns the NavigationStack and chrome. Add a title and, if you like, a tag; mark one NEXT UP so the badge
+// Meals page: the bank of ideas. Hosted by ListsScreen, which owns the NavigationStack and chrome. Add a title and, if
+// you like, a tag; mark one NEXT UP so the badge
 // moves to it; say "Made it" and the row remembers when. Swipe a row away with five seconds to take
 // it back. Writes go to the store first, then kick a sync.
 import RoostCore
@@ -30,37 +31,37 @@ struct MealsScreen: View {
 
     var body: some View {
         List {
-                Section {
-                    ListScreenHeader(
-                        title: Strings.Tabs.meals,
-                        line: Strings.Meals.header(count: meals.count),
-                        status: sync.statusLine
+            Section {
+                ListScreenHeader(
+                    title: Strings.Tabs.meals,
+                    line: Strings.Meals.header(count: meals.count),
+                    status: sync.statusLine
+                )
+                .listHeaderRow()
+            }
+            Section {
+                ListComposer(placeholder: Strings.Meals.add, text: $title, focused: $titleFocused, onSubmit: add) {
+                    if !title.isEmpty {
+                        TextField(Strings.Meals.tag, text: $tag)
+                            .roostType(.subheadline)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                            .submitLabel(.done)
+                            .onSubmit(add)
+                            .padding(.leading, RoostSpacing.xl + RoostSpacing.md)
+                            .accessibilityLabel(Strings.Meals.tag)
+                    }
+                }
+            }
+            Section {
+                if meals.isEmpty {
+                    ListEmptyState(
+                        symbol: "fork.knife", line: Strings.Meals.empty, hint: Strings.Meals.emptyHint
                     )
-                    .listHeaderRow()
                 }
-                Section {
-                    ListComposer(placeholder: Strings.Meals.add, text: $title, focused: $titleFocused, onSubmit: add) {
-                        if !title.isEmpty {
-                            TextField(Strings.Meals.tag, text: $tag)
-                                .roostType(.subheadline)
-                                .foregroundStyle(RoostColor.Role.textSecondary.color)
-                                .submitLabel(.done)
-                                .onSubmit(add)
-                                .padding(.leading, RoostSpacing.xl + RoostSpacing.md)
-                                .accessibilityLabel(Strings.Meals.tag)
-                        }
-                    }
+                ForEach(ordered) { meal in
+                    row(meal)
                 }
-                Section {
-                    if meals.isEmpty {
-                        ListEmptyState(
-                            symbol: "fork.knife", line: Strings.Meals.empty, hint: Strings.Meals.emptyHint
-                        )
-                    }
-                    ForEach(ordered) { meal in
-                        row(meal)
-                    }
-                }
+            }
         }
         .roostAnimation(.standard, value: ordered.map(\.id))
         .roostHaptic(.selection, trigger: added)
