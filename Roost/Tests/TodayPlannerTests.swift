@@ -28,8 +28,8 @@ final class TodayPlannerTests: XCTestCase {
 
         // every active chore is due for exactly one person on day one — except the together chore, due for both
         XCTAssertEqual(Set(anne).intersection(wes), ["clean-out-fridge-pantry"])
-        XCTAssertEqual(anne.count + wes.count, 40, "39 chores, one of them twice")
-        XCTAssertEqual(plan.dueCount(for: .anne) + plan.dueCount(for: .wes), 40)
+        XCTAssertEqual(anne.count + wes.count, 42, "41 chores, one of them twice")
+        XCTAssertEqual(plan.dueCount(for: .anne) + plan.dueCount(for: .wes), 42)
         XCTAssertTrue(anne.contains("mow-lawn"), "September is in season")
     }
 
@@ -111,7 +111,11 @@ final class TodayPlannerTests: XCTestCase {
         let after = TodayPlanner.plan(chores: [litter, pantry], completions: [done], asOf: day,
                                       activeFrom: cal.startOfDay(day), calendar: cal)
         XCTAssertFalse(after.rows(for: .anne).contains { $0.chore.id == pantry.id && !$0.isDone })
-        XCTAssertEqual(after.rows(for: .wes).first { $0.chore.id == pantry.id }?.isDone, true, "the done row sits in the tapper's column")
+        XCTAssertEqual(
+            after.rows(for: .wes).first { $0.chore.id == pantry.id }?.isDone,
+            true,
+            "the done row sits in the tapper's column"
+        )
         XCTAssertEqual(after.doneThisWeek, [.anne: 1, .wes: 1], "credit for both")
     }
 }

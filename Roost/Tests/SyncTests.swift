@@ -307,11 +307,11 @@ final class SyncTests: XCTestCase {
                 "season": $0.season.map { ["months": Array($0.months)] } as Any,
                 "together": $0.together,
             ] }
-        StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 3, chores: trimmed)) }
+        StubURLProtocol.reset { _ in (200, syncJSON(cursor: 7, choresVersion: 4, chores: trimmed)) }
         _ = await client.syncNow()
-        XCTAssertEqual(try state().choresVersion, 3)
+        XCTAssertEqual(try state().choresVersion, 4)
         let active = try fresh().fetch(FetchDescriptor<ChoreRecord>(predicate: #Predicate { !$0.retired }))
-        XCTAssertEqual(active.count, 38)
+        XCTAssertEqual(active.count, 40)
     }
 
     func testServerSentChoresCarrySeasonAndTogether() async throws {

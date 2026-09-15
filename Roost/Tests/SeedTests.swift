@@ -59,8 +59,8 @@ final class SeedTests: XCTestCase {
         try ChoreSeeder.seedIfNeeded(into: context, from: bundledURL())
         try ChoreSeeder.seedIfNeeded(into: context, from: bundledURL())
 
-        XCTAssertEqual(try activeChores().count, 39)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<ChoreRecord>()).count, 39, "no duplicate rows")
+        XCTAssertEqual(try activeChores().count, 41)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<ChoreRecord>()).count, 41, "no duplicate rows")
         XCTAssertEqual(try context.fetch(FetchDescriptor<SyncState>()).count, 1, "single SyncState row")
     }
 
@@ -68,14 +68,14 @@ final class SeedTests: XCTestCase {
         let full = try ChoreList.load(from: bundledURL())
         try ChoreSeeder.seed(full, into: context)
 
-        let trimmed = ChoreList(version: 3, chores: full.chores.filter { $0.id != "scoop-litter" })
+        let trimmed = ChoreList(version: 4, chores: full.chores.filter { $0.id != "scoop-litter" })
         try ChoreSeeder.seed(trimmed, into: context)
-        XCTAssertEqual(try activeChores().count, 38)
-        XCTAssertEqual(try context.fetch(FetchDescriptor<ChoreRecord>()).count, 39, "retired row kept for history")
-        XCTAssertEqual(try context.fetch(FetchDescriptor<SyncState>()).first?.choresVersion, 3)
+        XCTAssertEqual(try activeChores().count, 40)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<ChoreRecord>()).count, 41, "retired row kept for history")
+        XCTAssertEqual(try context.fetch(FetchDescriptor<SyncState>()).first?.choresVersion, 4)
 
         try ChoreSeeder.seed(full, into: context)
-        XCTAssertEqual(try activeChores().count, 39, "re-adding un-retires")
+        XCTAssertEqual(try activeChores().count, 41, "re-adding un-retires")
     }
 
     func testConverterRoundTrip() throws {

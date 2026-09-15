@@ -18,11 +18,11 @@ Each chore:
 | `season` | object \| absent | Optional `{"months":[1..12]}`; not on a together chore; cadence at most monthly |
 | `together` | bool \| absent | Optional; both people owe it; `fixedAssignee` must be null |
 
-Pinned: **Laundry → anne**, **Wash all rugs → anne**, **Mow lawn → anne**, **Trim Wes's hair → anne**, **Garbage can to street, Sunday → wes**.
+Pinned: **Laundry → anne**, **Wash all rugs → anne**, **Mow lawn → anne**, **Trim Wes's hair → anne**, **Garbage can to street, Sunday → wes**, **Change bed sheets → anne**, **AM wet cat food → wes**, **PM wet cat food → anne**, **Charge the cat play device → wes**, **Put the toy out for the cats → anne**.
 
 Do **not** seed from `roost-app-mockup.html` sample rows.
 
-Count: **39** items (11+12+5+7+1+3), version 2 since 2026-09-13; the previous list was 31 (11+9+5+6).
+Count: **41** items (13+12+5+7+1+3), version 3 since 2026-09-14; the previous lists were 39 (11+12+5+7+1+3, version 2, 2026-09-13) and 31 (11+9+5+6).
 
 ## Validate
 
