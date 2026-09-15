@@ -80,4 +80,4 @@ cd Packages/RoostCore
 swift build && swift test
 ```
 
-The tests read the real `data/chores.json` from the repo (39 chores, 5 pinned) via a path computed from `#filePath`, so moving the package or the data file will fail loudly.
+The tests read the real `data/chores.json` from the repo (41 chores, 10 pinned) via a path computed from `#filePath`, so moving the package or the data file will fail loudly.

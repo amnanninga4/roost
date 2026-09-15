@@ -29,26 +29,28 @@ final class SeedTests: XCTestCase {
         ))
     }
 
-    func testSeedLoads39RowsAnd5Pinned() throws {
+    func testSeedLoads41RowsAnd10Pinned() throws {
         let count = try ChoreSeeder.seedIfNeeded(into: context, from: bundledURL())
-        XCTAssertEqual(count, 39)
+        XCTAssertEqual(count, 41)
 
         let rows = try activeChores()
-        XCTAssertEqual(rows.count, 39)
+        XCTAssertEqual(rows.count, 41)
 
         let pinned = rows.filter { $0.fixedAssignee != nil }.map { ($0.id, $0.fixedAssignee!) }
-        XCTAssertEqual(pinned.count, 5)
+        XCTAssertEqual(pinned.count, 10)
         XCTAssertEqual(
             Dictionary(uniqueKeysWithValues: pinned),
             [
                 "laundry": "anne", "wash-all-rugs": "anne", "mow-lawn": "anne", "trim-wes-hair": "anne",
                 "garbage-can-to-street-sunday": "wes",
+                "change-bed-sheets": "anne", "am-wet-cat-food": "wes", "pm-wet-cat-food": "anne",
+                "charge-cat-play-device": "wes", "put-toy-out-for-cats": "anne",
             ]
         )
 
         let state = try context.fetch(FetchDescriptor<SyncState>())
         XCTAssertEqual(state.count, 1)
-        XCTAssertEqual(state.first?.choresVersion, 2)
+        XCTAssertEqual(state.first?.choresVersion, 3)
         XCTAssertEqual(state.first?.cursor, 0)
     }
 

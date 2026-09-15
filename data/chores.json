@@ -1,8 +1,8 @@
 {
-  "version": 2,
+  "version": 3,
   "source": "chore-master-list.html",
   "locked": "2026-09-13",
-  "notes": "Version 2, 2026-09-13: Anne's additions on issue #1. 39 tasks (11 daily + 12 weekly + 5 biweekly + 7 monthly + 1 bimonthly + 3 quarterly). Grouped by cadence; the order is sortOrder. take-out-garbages became three weekly chores; clean-out-fridge became clean-out-fridge-pantry (quarterly, together). Mockup sample rows are illustrative and must not be merged in.",
+  "notes": "Version 3, 2026-09-14: v3 = 2026-09-14 pins + two cat dailies from Anne. 41 tasks (13 daily + 12 weekly + 5 biweekly + 7 monthly + 1 bimonthly + 3 quarterly). Grouped by cadence; the order is sortOrder. Pins: change-bed-sheets→anne, am-wet-cat-food→wes, pm-wet-cat-food→anne, charge-cat-play-device→wes, put-toy-out-for-cats→anne (plus the five earlier pins). Mockup sample rows are illustrative and must not be merged in.",
   "chores": [
     {
       "id": "load-dishwasher",
@@ -50,14 +50,28 @@
       "id": "am-wet-cat-food",
       "title": "AM wet cat food",
       "cadence": "daily",
-      "fixedAssignee": null,
+      "fixedAssignee": "wes",
       "category": "cat_care"
     },
     {
       "id": "pm-wet-cat-food",
       "title": "PM wet cat food",
       "cadence": "daily",
-      "fixedAssignee": null,
+      "fixedAssignee": "anne",
+      "category": "cat_care"
+    },
+    {
+      "id": "charge-cat-play-device",
+      "title": "Charge the cat play device (AM)",
+      "cadence": "daily",
+      "fixedAssignee": "wes",
+      "category": "cat_care"
+    },
+    {
+      "id": "put-toy-out-for-cats",
+      "title": "Put the toy out for the cats (on arriving home)",
+      "cadence": "daily",
+      "fixedAssignee": "anne",
       "category": "cat_care"
     },
     {
@@ -141,7 +155,7 @@
       "id": "change-bed-sheets",
       "title": "Change bed sheets",
       "cadence": "weekly",
-      "fixedAssignee": null,
+      "fixedAssignee": "anne",
       "category": "chore"
     },
     {
