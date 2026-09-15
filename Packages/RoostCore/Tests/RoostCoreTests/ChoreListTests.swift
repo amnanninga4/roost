@@ -12,21 +12,23 @@ func repoChoresURL(file: String = #filePath) -> URL {
 }
 
 final class ChoreListTests: XCTestCase {
-    func testRealSeedHas39ChoresAndFivePinned() throws {
+    func testRealSeedHas41ChoresAndTenPinned() throws {
         let list = try ChoreList.load(from: repoChoresURL())
-        XCTAssertEqual(list.version, 2)
-        XCTAssertEqual(list.chores.count, 39)
-        XCTAssertEqual(Set(list.chores.map(\.id)).count, 39, "ids unique")
+        XCTAssertEqual(list.version, 3)
+        XCTAssertEqual(list.chores.count, 41)
+        XCTAssertEqual(Set(list.chores.map(\.id)).count, 41, "ids unique")
 
         let pinned = Dictionary(uniqueKeysWithValues: list.pinned.map { ($0.id, $0.fixedAssignee!) })
         XCTAssertEqual(pinned, [
             "laundry": .anne, "wash-all-rugs": .anne, "mow-lawn": .anne, "trim-wes-hair": .anne,
             "garbage-can-to-street-sunday": .wes,
+            "change-bed-sheets": .anne, "am-wet-cat-food": .wes, "pm-wet-cat-food": .anne,
+            "charge-cat-play-device": .wes, "put-toy-out-for-cats": .anne,
         ])
 
         let counts = Dictionary(grouping: list.chores, by: \.cadence).mapValues(\.count)
-        XCTAssertEqual(counts, [.daily: 11, .weekly: 12, .biweekly: 5, .monthly: 7, .bimonthly: 1, .quarterly: 3])
-        XCTAssertEqual(list.chores.filter { $0.category == .catCare }.count, 5)
+        XCTAssertEqual(counts, [.daily: 13, .weekly: 12, .biweekly: 5, .monthly: 7, .bimonthly: 1, .quarterly: 3])
+        XCTAssertEqual(list.chores.filter { $0.category == .catCare }.count, 7)
 
         XCTAssertEqual(list["mow-lawn"]?.season, Season(months: [4, 5, 6, 7, 8, 9, 10]))
         XCTAssertEqual(list.chores.filter(\.together).map(\.id), ["clean-out-fridge-pantry"])
@@ -71,4 +73,3 @@ final class ChoreListTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode([Chore].self, from: data), list.chores)
     }
 }
-
