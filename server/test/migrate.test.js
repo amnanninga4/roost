@@ -198,7 +198,8 @@ test("a version-3 database gains chores.weekdays and chores.dueDay and records v
     raw.close();
 
     const db = openDb(path);
-    assert.equal(getMeta(db, "schemaVersion"), "4");
+    // migrate runs through to SCHEMA_VERSION (5); v4 columns still land.
+    assert.equal(getMeta(db, "schemaVersion"), String(SCHEMA_VERSION));
     assert.ok(columns(db, "chores").includes("weekdays"));
     assert.ok(columns(db, "chores").includes("dueDay"));
     const row = db.prepare("SELECT weekdays, dueDay FROM chores WHERE id = 'laundry'").get();
@@ -207,7 +208,45 @@ test("a version-3 database gains chores.weekdays and chores.dueDay and records v
     db.close();
 
     const again = openDb(path);
-    assert.equal(getMeta(again, "schemaVersion"), "4", "opening again is a no-op");
+    assert.equal(getMeta(again, "schemaVersion"), String(SCHEMA_VERSION), "opening again is a no-op");
+    again.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a version-4 database gains chores.rotation and chores.missPenalty and records version 5", () => {
+  const dir = mkdtempSync(join(tmpdir(), "roost-migrate-v5-"));
+  try {
+    const path = join(dir, "v4.db");
+    const raw = new DatabaseSync(path);
+    raw.exec(`
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO meta VALUES ('seq', '1'), ('schemaVersion', '4');
+      CREATE TABLE chores (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL,
+        cadence TEXT NOT NULL CHECK (cadence IN ('daily','weekly','biweekly','monthly','bimonthly','quarterly')),
+        fixedAssignee TEXT CHECK (fixedAssignee IN ('anne','wes')),
+        category TEXT NOT NULL CHECK (category IN ('chore','cat_care')),
+        sortOrder INTEGER NOT NULL, retired INTEGER NOT NULL DEFAULT 0,
+        season TEXT, together INTEGER NOT NULL DEFAULT 0,
+        weekdays TEXT, dueDay INTEGER CHECK (dueDay IS NULL OR dueDay BETWEEN 1 AND 28)
+      );
+      INSERT INTO chores VALUES ('laundry', 'Laundry', 'weekly', 'anne', 'chore', 15, 0, NULL, 0, NULL, NULL);
+    `);
+    raw.close();
+
+    const db = openDb(path);
+    assert.equal(getMeta(db, "schemaVersion"), "5");
+    assert.ok(columns(db, "chores").includes("rotation"));
+    assert.ok(columns(db, "chores").includes("missPenalty"));
+    const row = db.prepare("SELECT rotation, missPenalty FROM chores WHERE id = 'laundry'").get();
+    assert.equal(row.rotation, null);
+    assert.equal(row.missPenalty, null);
+    db.close();
+
+    const again = openDb(path);
+    assert.equal(getMeta(again, "schemaVersion"), "5", "opening again is a no-op");
     again.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
