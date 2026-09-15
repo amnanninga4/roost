@@ -18,6 +18,7 @@
 - `daily` and `biweekly` chores carry neither key. `season`/`together` combine freely with a window.
 - **Never owed:** if the floor period (the one containing `activeFrom`) has a window whose last day is before `activeFrom`'s day, the floor is the next period.
 - **Not yet:** when the oldest incomplete period is the current one and the date is before the window's first day, the chore is not due (nil).
+- **Early windows:** for a chore with a `dueDay`, the period a date or a completion belongs to is its calendar period, or the next one once the next period's window has opened (`effectivePeriod`). Used for the current period, the `activeFrom` floor and every completion, on both sides.
 - `daysOverdue = max(0, dayIndex(date) − dayIndex(window.lastDay))`. Escalation ladder unchanged. One nag, not a backlog (completing now clears older periods).
 - The spec's "Dates that must hold" table is the test fixture set on both sides; Swift and Node tests use the same dates and values.
 - User-facing strings only in `Roost/Sources/Strings.swift`; plain wording.
@@ -46,11 +47,13 @@ public struct Chore { …; public let weekdays: [Int]?; public let dueDay: Int?;
 public init(id:title:cadence:fixedAssignee:category:season:together:weekdays:dueDay:) // weekdays/dueDay default nil
 extension HouseholdCalendar { public func dueWindow(for chore: Chore, periodIndex: Int) -> (firstDay: Date, lastDay: Date) }
 public struct DueItem { …; public let dueFirstDay: Date; public let dueLastDay: Date } // == period bounds when unwindowed
+extension Scheduler { public func effectivePeriod(for chore: Chore, containing date: Date) -> Int }
 ```
 ```js
 // server/src/rules.js
 export function hasWindow(chore)            // boolean
 export function dueWindow(chore, index)      // { firstDay, lastDay } — Chicago day starts
+export function effectivePeriod(chore, date) // calendar period, or the next one once its window has opened
 // dueItemFor(...) result gains dueFirstDay, dueLastDay
 ```
 
@@ -425,6 +428,22 @@ final class DueWindowTests: XCTestCase {
         XCTAssertEqual(sundayStart.dueItem(for: garbage, on: day(9, 18), completions: [])?.daysOverdue, 0)
     }
 
+    func testAnEarlyWindowBelongsToItsPeriodForDatesAndCompletions() {
+        // Cushions' October window opens Sep 29 and reports October's period. A completion on Sep 30 is
+        // October's, so nothing is due Oct 1–29 and the November window (Oct 30 – Nov 5) opens on time.
+        XCTAssertEqual(scheduler.dueItem(for: cushions, on: day(9, 29), completions: [])?.periodIndex, 9)
+        let early = [done(cushions, .wes, day(9, 30))]
+        for d in 1 ... 29 { XCTAssertNil(overdue(cushions, day(10, d), early), "Oct \(d)") }
+        XCTAssertEqual(overdue(cushions, day(10, 30), early), 0)
+        XCTAssertEqual(overdue(cushions, day(11, 5), early), 0)
+        XCTAssertEqual(overdue(cushions, day(11, 6), early), 1)
+        // A late completion still clears the late period: litter changed Sep 27 clears September; October opens Oct 19.
+        let late = [done(litter, .anne, day(9, 27))]
+        XCTAssertNil(overdue(litter, day(9, 28), late))
+        XCTAssertNil(overdue(litter, day(10, 18), late))
+        XCTAssertEqual(overdue(litter, day(10, 19), late), 0)
+    }
+
     func testUnwindowedChoreIsUnchanged() {
         for d in 14 ... 20 { XCTAssertEqual(overdue(laundry, day(9, d)), 0) }
         XCTAssertEqual(overdue(laundry, day(9, 21)), 1)
@@ -451,8 +470,8 @@ Run: `swift test --package-path Packages/RoostCore` — Expected: compile errors
 and carry both in `with(person:)`. In `dueItem(for:on:completions:handoffs:)` replace the body from `var floor` through the return with:
 
 ```swift
-        let current = calendar.periodIndex(chore.cadence, containing: date)
-        var floor = calendar.periodIndex(chore.cadence, containing: activeFrom)
+        let current = effectivePeriod(for: chore, containing: date)
+        var floor = effectivePeriod(for: chore, containing: activeFrom)
         // A window that closed before the household started was never owed: start at the next period.
         if chore.hasWindow,
            calendar.dueWindow(for: chore, periodIndex: floor).lastDay < calendar.startOfDay(activeFrom) {
@@ -465,7 +484,7 @@ and carry both in `with(person:)`. In `dueItem(for:on:completions:handoffs:)` re
         }
         let lastDone = completions
             .filter { $0.choreId == chore.id }
-            .map { calendar.periodIndex(chore.cadence, containing: $0.completedAt) }
+            .map { effectivePeriod(for: chore, containing: $0.completedAt) }
             .max()
         let oldestIncomplete = max((lastDone.map { $0 + 1 }) ?? floor, floor)
         guard oldestIncomplete <= current else { return nil }
@@ -489,9 +508,24 @@ and carry both in `with(person:)`. In `dueItem(for:on:completions:handoffs:)` re
         )
 ```
 
-Update the type's doc comment (the "Model:" paragraph) with the two rules. Every other `DueItem(` construction in the package (grep: `FairnessBalancer`, tests) must pass the two new fields — pass the period bounds where no window is involved.
+Add the helper next to `firstPeriod`:
 
-- [ ] **Step 3: Run** — Expected: 64 tests (56 + 1 + 1 + 6), 0 failures. Existing tests are untouched because their fixture chores have no window.
+```swift
+    /// The period `date` belongs to for `chore`: its calendar period, or the next one once the next period's
+    /// window has opened. A due day early in the month reaches back into the month before, and a day or a
+    /// completion inside that early window counts for the period the window belongs to. Only a `dueDay`
+    /// window can start before its period; a weekday window never leaves its week.
+    public func effectivePeriod(for chore: Chore, containing date: Date) -> Int {
+        let index = calendar.periodIndex(chore.cadence, containing: date)
+        guard chore.dueDay != nil else { return index }
+        let next = calendar.dueWindow(for: chore, periodIndex: index + 1)
+        return calendar.startOfDay(date) >= next.firstDay ? index + 1 : index
+    }
+```
+
+Update the type's doc comment (the "Model:" paragraph) with the three rules. Every other `DueItem(` construction in the package (grep: `FairnessBalancer`, tests) must pass the two new fields — pass the period bounds where no window is involved.
+
+- [ ] **Step 3: Run** — Expected: 65 tests (56 + 1 + 1 + 7), 0 failures. Existing tests are untouched because their fixture chores have no window.
 
 - [ ] **Step 4: README** — `Packages/RoostCore/README.md`: a "Due windows" paragraph under the scheduler section: the two keys, the window arithmetic (weekday min…max; seven days ending on `dueDay` of the last month), the never-owed and not-yet rules, `daysOverdue` from `dueLastDay`; the test count line if it states one.
 
@@ -565,7 +599,7 @@ function migrateToV4(db) {
 - Modify: `server/test/rules.test.js`, `server/test/push.test.js`
 - Modify: `server/README.md`
 
-- [ ] **Step 1: Failing tests** in `rules.test.js` (import `dueWindow`, `hasWindow`); dates via `chicagoLocal(y, m, d, 9, 0, 0)`, `activeFrom = chicagoLocal(2026, 9, 14, 0, 0, 0)`:
+- [ ] **Step 1: Failing tests** in `rules.test.js` (import `dueWindow`, `hasWindow`, `effectivePeriod`); dates via `chicagoLocal(y, m, d, 9, 0, 0)`, `activeFrom = chicagoLocal(2026, 9, 14, 0, 0, 0)`:
 
 ```js
 const garbageK = { id: "take-out-garbage-kitchen", title: "Take out garbage: kitchen", cadence: "weekly", fixedAssignee: null, category: "chore", weekdays: [5, 6] };
@@ -624,6 +658,16 @@ test("a window that closed before activeFrom was never owed", () => {
   assert.equal(od(garbageK, at(9, 18), [], start13), 0);
 });
 
+test("an early window belongs to its period for dates and completions", () => {
+  assert.equal(dueItemFor(cushionsW, { completions: [], asOf: at(9, 29), activeFrom: start14 }).periodIndex, 9);
+  assert.equal(effectivePeriod(cushionsW, at(9, 29)), 9); assert.equal(effectivePeriod(cushionsW, at(9, 28)), 8);
+  const early = [{ choreId: cushionsW.id, person: "wes", completedAt: at(9, 30).toISOString() }];
+  for (let d = 1; d <= 29; d += 1) assert.equal(od(cushionsW, at(10, d), early), null, `Oct ${d}`);
+  assert.equal(od(cushionsW, at(10, 30), early), 0); assert.equal(od(cushionsW, at(11, 5), early), 0); assert.equal(od(cushionsW, at(11, 6), early), 1);
+  const late = [{ choreId: litterW.id, person: "anne", completedAt: at(9, 27).toISOString() }];
+  assert.equal(od(litterW, at(9, 28), late), null); assert.equal(od(litterW, at(10, 18), late), null); assert.equal(od(litterW, at(10, 19), late), 0);
+});
+
 test("an unwindowed chore is unchanged and reports its period as its window", () => {
   const item = dueItemFor(toilet, { completions: [], asOf: at(9, 16), activeFrom: start14 });
   assert.equal(item.daysOverdue, 0);
@@ -666,7 +710,24 @@ export function dueWindow(chore, index) {
 }
 ```
 
-In `dueItemFor`, after `let floor = …`:
+Also, after `dueWindow`:
+
+```js
+/**
+ * The period `date` belongs to for `chore`: its calendar period, or the next one once the next period's
+ * window has opened (a dueDay early in the month reaches back into the month before). Mirrors
+ * Scheduler.effectivePeriod(for:containing:).
+ */
+export function effectivePeriod(chore, date) {
+  const d = asDate(date);
+  const index = periodIndex(chore.cadence, d);
+  if (chore.dueDay == null) return index;
+  const next = dueWindow(chore, index + 1);
+  return dayIndex(d) >= dayIndex(next.firstDay) ? index + 1 : index;
+}
+```
+
+In `dueItemFor`: `const current = effectivePeriod(chore, asOfD); let floor = effectivePeriod(chore, active);` replace the two `periodIndex(chore.cadence, …)` calls, and the completion loop uses `effectivePeriod(chore, asDate(c.completedAt))`. After `let floor = …`:
 
 ```js
   // A window that closed before the household started was never owed: start at the next period.
@@ -685,7 +746,7 @@ and replace the `bounds`/`daysOverdue` lines with:
 
 and add `dueFirstDay: window.firstDay, dueLastDay: window.lastDay` to the returned object. Anything in `rules.js` that spreads or rebuilds due items (`balance`, `boardStats`) keeps the two fields (check with `grep -n "periodLastDay" server/src`).
 
-- [ ] **Step 3: Run** — `cd server && npm test`. Expected: the five new tests pass. `push.test.js` runs against the real v4 file with `activeFrom` Sep 7 and `asOf` Sep 20: the red-alert sweep now also sees the month-based chores whose windows have closed (rugs 8, ovens 12, garbage cans 14, bar cart 15 are alert-stage on Sep 20; couches 19 is nudge; cushions 5 is never owed). If any push assertion changes, recompute it from these rules and assert the new explicit set — do not loosen an assertion to make it pass. Report which assertions moved.
+- [ ] **Step 3: Run** — `cd server && npm test`. Expected: the six new tests pass. `push.test.js` runs against the real v4 file with `activeFrom` Sep 7 and `asOf` Sep 20: the red-alert sweep now also sees the month-based chores whose windows have closed (rugs 8, ovens 12, garbage cans 14, bar cart 15 are alert-stage on Sep 20; couches 19 is nudge; cushions 5 is never owed). If any push assertion changes, recompute it from these rules and assert the new explicit set — do not loosen an assertion to make it pass. Report which assertions moved.
 
 - [ ] **Step 4: README** — `server/README.md`: the two columns in the chores table, `dueWindow`/`hasWindow` in the rules list, and one sentence that the digest and red-alert sweep follow the window.
 
@@ -927,12 +988,12 @@ Adapt the launch and navigation calls to `RoostUITestCase` (read `Roost/UITests/
 - Modify: `Roost/README.md`, `NOTES.md` (and `Packages/RoostCore/README.md`, `server/README.md`, `data/README.md` if anything from Tasks 1, 4, 6 is still missing)
 
 - [ ] **Step 1:** `Roost/README.md`: All chores shows a chore's window; the two keys ride `/sync` like `season`. `NOTES.md`: `2026-09-14 — Due windows: weekdays on weekly chores, a dueDay on every month-based chore (window = 7 days ending on it, in the period's last month); never-owed and not-yet rules; overdue counts from the window end. Spec docs/superpowers/specs/2026-09-14-due-windows-design.md.`
-- [ ] **Step 2:** Run all four suites one last time on the rebased branch and paste the tails in the PR: validator OK v4; server green; RoostCore 64; app `** TEST SUCCEEDED **` with the RoostTests/RoostUITests counts.
+- [ ] **Step 2:** Run all four suites one last time on the rebased branch and paste the tails in the PR: validator OK v4; server green; RoostCore 65; app `** TEST SUCCEEDED **` with the RoostTests/RoostUITests counts.
 - [ ] **Step 3: Commit and PR** — `git commit -am "docs: due windows"`, rebase on main, push `feat/due-windows`, open the PR against main with the tails in the body. Do not merge.
 
 ## Self-Review
 
-**Spec coverage:** data keys + validator + README (Task 1); `Chore` fields (2); `dueWindow` arithmetic incl. last-month rule (3); `DueItem` bounds, never-owed, not-yet, overdue from window end, one nag (4); server columns/migration/seed/shape (5); rules mirror on the same dates, digest/red-alert follow (6); app record/DTO/seeder/sync, old builds ignore the keys, planner test (7); All chores copy (8); UI test on an isolated fixture (9); docs and NOTES (10). Rotation, pins, handoffs, streaks, escalation ladder: untouched by design — no task edits them.
+**Spec coverage:** data keys + validator + README (Task 1); `Chore` fields (2); `dueWindow` arithmetic incl. last-month rule (3); `DueItem` bounds, never-owed, not-yet, early windows (`effectivePeriod`), overdue from window end, one nag (4); server columns/migration/seed/shape (5); rules mirror on the same dates, digest/red-alert follow (6); app record/DTO/seeder/sync, old builds ignore the keys, planner test (7); All chores copy (8); UI test on an isolated fixture (9); docs and NOTES (10). Rotation, pins, handoffs, streaks, escalation ladder: untouched by design — no task edits them.
 
 **Placeholder scan:** none; every step carries code, commands and expected results. Task 9's launch/navigation helper names are to be read from `RoostUITestCase`, stated as such.
 

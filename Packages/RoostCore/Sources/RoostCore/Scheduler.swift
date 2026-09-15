@@ -168,11 +168,12 @@ public struct Scheduler: Sendable {
         completions: [Completion],
         handoffs: [Handoff] = []
     ) -> DueItem? {
-        let current = calendar.periodIndex(chore.cadence, containing: date)
-        var floor = calendar.periodIndex(chore.cadence, containing: activeFrom)
+        let current = effectivePeriod(for: chore, containing: date)
+        var floor = effectivePeriod(for: chore, containing: activeFrom)
         // A window that closed before the household started was never owed: start at the next period.
         if chore.hasWindow,
-           calendar.dueWindow(for: chore, periodIndex: floor).lastDay < calendar.startOfDay(activeFrom) {
+           calendar.dueWindow(for: chore, periodIndex: floor).lastDay < calendar.startOfDay(activeFrom)
+        {
             floor += 1
         }
         if let season = chore.season {
@@ -182,7 +183,7 @@ public struct Scheduler: Sendable {
         }
         let lastDone = completions
             .filter { $0.choreId == chore.id }
-            .map { calendar.periodIndex(chore.cadence, containing: $0.completedAt) }
+            .map { effectivePeriod(for: chore, containing: $0.completedAt) }
             .max()
         let oldestIncomplete = max((lastDone.map { $0 + 1 }) ?? floor, floor)
         guard oldestIncomplete <= current else { return nil }
@@ -190,7 +191,9 @@ public struct Scheduler: Sendable {
         let bounds = calendar.periodBounds(chore.cadence, index: oldestIncomplete)
         let window = calendar.dueWindow(for: chore, periodIndex: oldestIncomplete)
         // Not yet: this period's window has not opened. A missed window from an older period still shows.
-        if oldestIncomplete == current, calendar.startOfDay(date) < window.firstDay { return nil }
+        if oldestIncomplete == current, calendar.startOfDay(date) < window.firstDay {
+            return nil
+        }
         let daysOverdue = max(0, calendar.dayIndex(date) - calendar.dayIndex(window.lastDay))
         return DueItem(
             chore: chore,
@@ -204,6 +207,17 @@ public struct Scheduler: Sendable {
             dueLastDay: window.lastDay,
             daysOverdue: daysOverdue
         )
+    }
+
+    /// The period `date` belongs to for `chore`: its calendar period, or the next one once the next period's
+    /// window has opened. A due day early in the month reaches back into the month before, and a day or a
+    /// completion inside that early window counts for the period the window belongs to. Only a `dueDay`
+    /// window can start before its period; a weekday window never leaves its week.
+    public func effectivePeriod(for chore: Chore, containing date: Date) -> Int {
+        let index = calendar.periodIndex(chore.cadence, containing: date)
+        guard chore.dueDay != nil else { return index }
+        let next = calendar.dueWindow(for: chore, periodIndex: index + 1)
+        return calendar.startOfDay(date) >= next.firstDay ? index + 1 : index
     }
 
     /// The first period of the run of in-season periods that ends at `current`: `current` itself when the
