@@ -99,7 +99,8 @@ public struct FairnessBalancer: Sendable {
         on date: Date,
         calendar: HouseholdCalendar = HouseholdCalendar()
     ) -> Bool {
-        guard !item.chore.isPinned, !item.chore.together, item.daysOverdue == 0 else { return false }
+        guard !item.chore.isPinned, !item.chore.together, item.daysOverdue == 0,
+              item.chore.rotation == nil, item.chore.missPenalty == nil else { return false }
         return HandoffRules.acceptedOverride(
             choreId: item.chore.id,
             periodIndex: item.periodIndex,

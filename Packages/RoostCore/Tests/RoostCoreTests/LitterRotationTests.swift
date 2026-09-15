@@ -65,4 +65,70 @@ final class LitterRotationTests: XCTestCase {
         XCTAssertEqual(MissCounter.penalised([.anne: 4, .wes: 5], overMisses: 2), .wes, "both over, more misses")
         XCTAssertNil(MissCounter.penalised([.anne: 4, .wes: 4], overMisses: 2), "both over and tied")
     }
+
+    func testScoopingRunsFourThreeAndSwapsEachWeek() {
+        let week1: [(Int, Person)] = [(14, .anne), (15, .wes), (16, .anne), (17, .wes), (18, .anne), (19, .wes), (20, .anne)]
+        for (d, who) in week1 {
+            XCTAssertEqual(scheduler.assignee(for: scoop, periodIndex: cal.periodIndex(.daily, containing: day(9, d))), who, "Sep \(d)")
+        }
+        let week2: [(Int, Person)] = [(21, .wes), (22, .anne), (23, .wes), (24, .anne), (25, .wes), (26, .anne), (27, .wes)]
+        for (d, who) in week2 {
+            XCTAssertEqual(scheduler.assignee(for: scoop, periodIndex: cal.periodIndex(.daily, containing: day(9, d))), who, "Sep \(d)")
+        }
+        // and back: Mon 28 is Anne's again
+        XCTAssertEqual(scheduler.assignee(for: scoop, periodIndex: cal.periodIndex(.daily, containing: day(9, 28))), .anne)
+        // four days one week, three the next, for each of them
+        XCTAssertEqual(week1.filter { $0.1 == .anne }.count, 4)
+        XCTAssertEqual(week2.filter { $0.1 == .anne }.count, 3)
+    }
+
+    func testAnAcceptedHandoffStillBeatsTheTableAndDoesNotLeakIntoNextWeek() {
+        let wed = cal.periodIndex(.daily, containing: day(9, 16))
+        let taken = Handoff(
+            id: "h1", choreId: scoop.id, from: .anne, to: .wes, periodIndex: wed,
+            cadence: .daily, createdAt: day(9, 16), state: .accepted
+        )
+        XCTAssertEqual(scheduler.assignee(for: scoop, periodIndex: wed, on: day(9, 16), handoffs: [taken]), .wes)
+        XCTAssertEqual(scheduler.assignee(for: scoop, periodIndex: wed + 1, on: day(9, 17), handoffs: [taken]), .wes, "Thu is Wes's anyway")
+        let nextWed = cal.periodIndex(.daily, containing: day(9, 23))
+        XCTAssertEqual(scheduler.assignee(for: scoop, periodIndex: nextWed, on: day(9, 23), handoffs: [taken]), .wes, "week B")
+        let weekAfter = cal.periodIndex(.daily, containing: day(9, 30))
+        XCTAssertEqual(scheduler.assignee(for: scoop, periodIndex: weekAfter, on: day(9, 30), handoffs: [taken]), .anne, "week A again")
+    }
+
+    func testTheChangeAlternatesFromWes() {
+        XCTAssertEqual(scheduler.assignee(for: change, periodIndex: cal.periodIndex(.monthly, containing: day(9, 25))), .wes)
+        XCTAssertEqual(scheduler.assignee(for: change, periodIndex: cal.periodIndex(.monthly, containing: day(10, 25))), .anne)
+        XCTAssertEqual(scheduler.assignee(for: change, periodIndex: cal.periodIndex(.monthly, containing: day(11, 25))), .wes)
+    }
+
+    func testTheChangeMovesToWhoeverMissedMoreThanTwoScoops() {
+        // Anne scooped none of hers; Wes did all of his through Sep 24, so only Anne is over the line.
+        var completions: [Completion] = []
+        for d in [15, 17, 19, 21, 23] { completions.append(done(scoop, .wes, day(9, d))) }
+        let plan = scheduler.plan(on: day(9, 25), completions: completions)
+        let wesRows = plan[.wes]?.map(\.chore.id) ?? []
+        let anneRows = plan[.anne]?.map(\.chore.id) ?? []
+        XCTAssertTrue(anneRows.contains(change.id), "Anne missed 5 scoops, so September's change is hers")
+        XCTAssertFalse(wesRows.contains(change.id), "the rotation said Wes; the penalty moved it")
+
+        // A late scoop that removes Anne's fourth miss is not enough to take her back under 2, but
+        // covering all but two is: the change goes back to the rotation's Wes.
+        for d in [14, 16, 18] { completions.append(done(scoop, .anne, day(9, d))) }
+        let after = scheduler.plan(on: day(9, 25), completions: completions)
+        XCTAssertTrue((after[.wes]?.map(\.chore.id) ?? []).contains(change.id), "Anne is back under the line")
+    }
+
+    func testTheOtherChoresAreUnaffected() {
+        let laundry = Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore)
+        let toilet = Chore(id: "clean-toilet-bowl", title: "Clean toilet bowl", cadence: .weekly, category: .chore)
+        let s = Scheduler(chores: [laundry, toilet], activeFrom: activeFrom, calendar: cal)
+        let week = cal.periodIndex(.weekly, containing: day(9, 16))
+        XCTAssertEqual(s.assignee(for: laundry, periodIndex: week), .anne, "a pin still wins")
+        XCTAssertEqual(
+            s.assignee(for: toilet, periodIndex: week),
+            RoundRobinRotation().assignee(for: toilet, periodIndex: week),
+            "an ordinary chore still hash-rotates"
+        )
+    }
 }
