@@ -96,6 +96,22 @@ public struct HouseholdCalendar: Sendable {
         }
     }
 
+    /// The days inside period `index` on which `chore` is due: the period itself for a chore without a
+    /// window; the earliest through the latest listed weekday for a weekly chore with `weekdays`; the seven
+    /// days ending on `dueDay` of the period's last month for a month-based chore with `dueDay`.
+    public func dueWindow(for chore: Chore, periodIndex index: Int) -> (firstDay: Date, lastDay: Date) {
+        let bounds = periodBounds(chore.cadence, index: index)
+        if chore.cadence == .weekly, let days = chore.weekdays, let first = days.min(), let last = days.max() {
+            return (adding(days: first - 1, to: bounds.firstDay), adding(days: last - 1, to: bounds.firstDay))
+        }
+        if let months = chore.cadence.monthsPerPeriod, let dueDay = chore.dueDay {
+            let lastMonth = calendar.date(byAdding: .month, value: months - 1, to: bounds.firstDay)!
+            let due = adding(days: dueDay - 1, to: lastMonth)
+            return (adding(days: -6, to: due), due)
+        }
+        return bounds
+    }
+
     /// Monday 00:00 of the week containing `date`, and the following Monday 00:00 (exclusive).
     public func weekBounds(containing date: Date) -> (start: Date, end: Date) {
         let index = periodIndex(.weekly, containing: date)
