@@ -81,6 +81,35 @@ class RoostUITestCase: XCTestCase {
         )
     }
 
+    /// Anne's due-today rows sit below the fold on a 17 Pro, and XCUITest will not press or swipe an
+    /// element whose visible frame is empty: scroll the board until the row is on screen, then clear
+    /// the floating tab bar if the row still sits under it.
+    func scrollIntoView(_ element: XCUIElement, in app: XCUIApplication) {
+        var attempts = 0
+        while !element.isHittable, attempts < 6 {
+            app.swipeUp()
+            attempts += 1
+        }
+        XCTAssertTrue(element.isHittable, "\(element.label) never scrolled into view")
+
+        let elementFrame = element.frame
+        let windowFrame = app.windows.firstMatch.frame
+        let tabBar = app.tabBars.firstMatch
+        let overlapsTabBar = tabBar.exists && elementFrame.intersects(tabBar.frame)
+        let bottomBand = CGRect(
+            x: windowFrame.minX,
+            y: windowFrame.maxY - 120,
+            width: windowFrame.width,
+            height: 120
+        )
+        let overlapsBottom = elementFrame.intersects(bottomBand)
+        guard overlapsTabBar || overlapsBottom else { return }
+
+        let mid = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.55))
+        let up = mid.withOffset(CGVector(dx: 0, dy: -200))
+        mid.press(forDuration: 0.05, thenDragTo: up)
+    }
+
     // MARK: - the audit
 
     /// One finding this suite knows about and does not fail on. Everything else the audit reports is a

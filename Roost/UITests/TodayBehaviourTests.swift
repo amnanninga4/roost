@@ -3,17 +3,6 @@
 import XCTest
 
 final class TodayBehaviourTests: RoostUITestCase {
-    /// Anne's due-today rows sit below the fold on a 17 Pro, and XCUITest will not press or swipe an
-    /// element whose visible frame is empty: scroll the board until the row is on screen.
-    private func scrollIntoView(_ element: XCUIElement, in app: XCUIApplication) {
-        var attempts = 0
-        while !element.isHittable, attempts < 6 {
-            app.swipeUp()
-            attempts += 1
-        }
-        XCTAssertTrue(element.isHittable, "\(element.label) never scrolled into view")
-    }
-
     /// Long-press a row: the menu offers the handoff, the way into All chores, and the preview card.
     func testTheRowMenuHandsOffAndShowsInAllChores() {
         let app = launch(.paired)
@@ -58,7 +47,10 @@ final class TodayBehaviourTests: RoostUITestCase {
         let row = app.buttons["Feed the cat"]
         XCTAssertTrue(row.waitForExistence(timeout: Self.timeout), "the chore rows never appeared")
         scrollIntoView(row, in: app)
-        row.swipeLeft()
+        row.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)).press(
+            forDuration: 0.05,
+            thenDragTo: row.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5))
+        )
         let ask = app.buttons["Ask Wes to take this"]
         XCTAssertTrue(ask.waitForExistence(timeout: Self.timeout), "the swipe revealed no Hand off")
         ask.tap()
