@@ -56,13 +56,16 @@ extension DueItem {
 /// incomplete period is the current one and today is before `dueFirstDay`, the chore is not returned.
 ///
 /// Assignment, in order: an accepted `Handoff` for that exact period wins; otherwise the chore's pin; otherwise
-/// the `Rotation`. Handoffs are optional everywhere, so a caller that does not use them behaves as before.
+/// a `missPenalty` (when it names exactly one person); otherwise the chore's own `rotation`, else the injected
+/// default `Rotation`. Handoffs are optional everywhere, so a caller that does not use them behaves as before.
 ///
 /// `plan(on:completions:handoffs:)` then runs the optional `balancer` over the whole day's list, which can move
-/// an item that is unpinned, un-handed-off, and still inside its period. Nothing else consults the balancer:
-/// `assignee(for:periodIndex:)` and `dueItem(...)` answer for one chore at a time and cannot balance a list
-/// they cannot see, so `Tallies` and anything else walking history gets the unbalanced answer: handoff, then
-/// pin, then rotation.
+/// an item that is unpinned, un-handed-off, has no explicit rotation or miss penalty, and still inside its period.
+/// Nothing else consults the balancer: `assignee(for:periodIndex:)` and `dueItem(...)` answer for one chore at a
+/// time and cannot balance a list they cannot see, so `Tallies` and anything else walking history gets the
+/// unbalanced answer: handoff, then pin, then (when completions are in hand) penalty, then rotation. The pure
+/// two-argument `assignee(for:periodIndex:)` cannot see a penalty — it has no completions and must not depend
+/// on the clock — so streaks keep pin → rotation only.
 public struct Scheduler: Sendable {
     public let chores: [Chore]
     public let rotation: Rotation
@@ -86,33 +89,83 @@ public struct Scheduler: Sendable {
         self.balancer = balancer
     }
 
+    /// Pure assignment without handoffs or a penalty: the pin, then the chore's own rotation, then the
+    /// injected default. Deliberately clock-free and completion-free — a streak walks history and must not
+    /// re-derive penalties from a partial completion list.
     public func assignee(for chore: Chore, periodIndex: Int) -> Person {
-        chore.fixedAssignee ?? rotation.assignee(for: chore, periodIndex: periodIndex)
+        if let pinned = chore.fixedAssignee {
+            return pinned
+        }
+        if let own = chore.rotation {
+            return own.assignee(periodIndex: periodIndex)
+        }
+        return rotation.assignee(for: chore, periodIndex: periodIndex)
     }
 
-    /// Same, except an accepted handoff for that exact period outranks both the pin and the rotation — whether
-    /// that period is the current one or one long past, because an accepted turn does not expire. That is what
-    /// keeps an overdue item with the person who took it, and what lets `Tallies.streak` read history. Pending,
-    /// declined, and expired handoffs change nothing; `date` is only what a pending offer is judged against.
-    public func assignee(for chore: Chore, periodIndex: Int, on date: Date, handoffs: [Handoff]) -> Person {
-        let override = HandoffRules.acceptedOverride(
+    /// Who owes `chore` for `periodIndex`, ignoring handoffs: the pin, then a miss penalty, then the
+    /// chore's own rotation, then the injected default. `completions` is only read when a penalty is
+    /// in play, so the common path allocates nothing.
+    func owner(
+        for chore: Chore, periodIndex: Int, on date: Date,
+        completions: [Completion], handoffs: [Handoff]
+    ) -> Person {
+        if let pinned = chore.fixedAssignee {
+            return pinned
+        }
+        if let penalty = chore.missPenalty,
+           let watched = chores.first(where: { $0.id == penalty.watch })
+        {
+            let bounds = calendar.periodBounds(chore.cadence, index: periodIndex)
+            let counts = MissCounter.misses(
+                watched: watched, from: bounds.firstDay, through: bounds.lastDay, asOf: date,
+                activeFrom: activeFrom, completions: completions, handoffs: handoffs,
+                calendar: calendar, fallback: rotation
+            )
+            if let moved = MissCounter.penalised(counts, overMisses: penalty.overMisses) {
+                return moved
+            }
+        }
+        if let own = chore.rotation {
+            return own.assignee(periodIndex: periodIndex)
+        }
+        return rotation.assignee(for: chore, periodIndex: periodIndex)
+    }
+
+    /// Same as the pure overload, except an accepted handoff for that exact period outranks everything —
+    /// whether that period is the current one or one long past, because an accepted turn does not expire.
+    /// A miss penalty is consulted only when `completions` are supplied (default empty keeps existing
+    /// callers compiling and matches the pure path). Pending, declined, and expired handoffs change
+    /// nothing; `date` is what a pending offer is judged against and what "today" means for miss counting.
+    public func assignee(
+        for chore: Chore, periodIndex: Int, on date: Date,
+        handoffs: [Handoff], completions: [Completion] = []
+    ) -> Person {
+        if let override = HandoffRules.acceptedOverride(
             choreId: chore.id,
             periodIndex: periodIndex,
             in: handoffs,
             on: date,
             calendar: calendar
-        )
-        return override?.to ?? assignee(for: chore, periodIndex: periodIndex)
+        ) {
+            return override.to
+        }
+        return owner(for: chore, periodIndex: periodIndex, on: date, completions: completions, handoffs: handoffs)
     }
 
     /// Everything due on `date`, keyed by person. Items are ordered most overdue first, then by chore order.
     /// With a `balancer`, the day's reassignable items are spread across the two of them before the split.
     public func plan(on date: Date, completions: [Completion], handoffs: [Handoff] = []) -> [Person: [DueItem]] {
+        // Group once: `dueItem` scans for this chore's last completion, and a miss penalty scans the
+        // watched chore's. Handing every chore the whole list instead would re-scan every completion
+        // once per chore on every build of the day.
         let byChore = Dictionary(grouping: completions, by: \.choreId)
         var items: [DueItem] = []
         for chore in chores {
-            let forChore = byChore[chore.id] ?? []
-            items += dueItems(for: chore, on: date, completions: forChore, handoffs: handoffs)
+            var relevant = byChore[chore.id] ?? []
+            if let penalty = chore.missPenalty, penalty.watch != chore.id {
+                relevant += byChore[penalty.watch] ?? []
+            }
+            items += dueItems(for: chore, on: date, completions: relevant, handoffs: handoffs)
         }
         if let balancer {
             items = balancer.balance(
@@ -199,7 +252,13 @@ public struct Scheduler: Sendable {
             chore: chore,
             person: chore.together
                 ? .anne // both of them owe it; `dueItems` hands out the second row
-                : assignee(for: chore, periodIndex: oldestIncomplete, on: date, handoffs: handoffs),
+                : assignee(
+                    for: chore,
+                    periodIndex: oldestIncomplete,
+                    on: date,
+                    handoffs: handoffs,
+                    completions: completions
+                ),
             periodIndex: oldestIncomplete,
             periodStart: bounds.firstDay,
             periodLastDay: bounds.lastDay,

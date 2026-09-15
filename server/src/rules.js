@@ -270,14 +270,72 @@ export function rotationAssignee(choreId, periodIdx) {
   return slot === 0 ? "anne" : "wes";
 }
 
+/** A chore's own rotation, or the hash round-robin. Mirrors ChoreRotation.assignee(periodIndex:). */
+export function rotationFor(chore, periodIdx) {
+  const r = chore.rotation;
+  if (!r) return rotationAssignee(chore.id, periodIdx);
+  if (r.kind === "weekdayCycle") {
+    const weeks = r.weeks ?? [];
+    if (!weeks.length) return "anne";
+    const week = weeks[mod(floorDiv(periodIdx, 7), weeks.length)];
+    return week?.length === 7 ? week[mod(periodIdx, 7)] : "anne";
+  }
+  if (r.kind === "alternate") {
+    const other = r.start === "anne" ? "wes" : "anne";
+    return mod(periodIdx, 2) === 0 ? r.start : other;
+  }
+  return rotationAssignee(chore.id, periodIdx);
+}
+
+/**
+ * Days inside [from, through] that `watched` was owed by someone and nobody did.
+ * Mirrors MissCounter: floor at activeFrom's period, stop at today − 1, anyone's completion
+ * clears the day, ownership via assigneeFor(watched, …) so an accepted handoff moves the miss.
+ */
+export function missesFor(watched, { from, through, asOf, activeFrom, completions = [], handoffs = [] }) {
+  const asOfD = asDate(asOf);
+  const floor = periodIndex(watched.cadence, asDate(activeFrom));
+  const today = periodIndex(watched.cadence, asOfD);
+  const first = Math.max(periodIndex(watched.cadence, asDate(from)), floor);
+  const last = Math.min(periodIndex(watched.cadence, asDate(through)), today - 1);
+  if (first > last) return {};
+
+  const donePeriods = new Set();
+  for (const c of completions) {
+    if (c.choreId !== watched.id) continue;
+    donePeriods.add(periodIndex(watched.cadence, asDate(c.completedAt)));
+  }
+
+  const counts = {};
+  for (let period = first; period <= last; period++) {
+    if (donePeriods.has(period)) continue;
+    const owner = assigneeFor(watched, period, handoffs, asOfD);
+    counts[owner] = (counts[owner] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/** The person a penalty moves a chore to, or null. Mirrors MissCounter.penalised. */
+export function penalisedPerson(counts, overMisses) {
+  // Exactly one person over the line, or nobody. When both are over, the rotation stands: the penalty
+  // moves a chore onto whoever let the other carry it, and when both let it slide there is no claim to
+  // act on. "Whoever is further over" would flip the owner daily, because the watched chore alternates
+  // daily and so does the miss lead. Mirrors MissCounter.penalised.
+  const over = PEOPLE.filter((p) => (counts[p] ?? 0) > overMisses);
+  return over.length === 1 ? over[0] : null;
+}
+
 /**
  * Who owes `chore` for `periodIdx`. An accepted handoff for that exact chore+period
- * wins over fixedAssignee and rotation. Pending/declined do nothing.
+ * wins over fixedAssignee, miss penalty, and rotation. Pending/declined do nothing.
  * R-21: accepted handoffs remain permanent for their periodIndex (no asOf expiry filter).
+ *
+ * Optional `ctx` (`chores`, `completions`, `activeFrom`) enables the miss penalty between
+ * the pin and the rotation. Without it, callers get handoff → pin → rotationFor only.
  *
  * `handoffs` rows may use SQL names (fromPerson/toPerson) or JSON names (from/to).
  */
-export function assigneeFor(chore, periodIdx, handoffs = [], asOf = new Date()) {
+export function assigneeFor(chore, periodIdx, handoffs = [], asOf = new Date(), ctx = {}) {
   const override = (handoffs ?? [])
     .filter((h) => !h.deletedAt)
     .filter((h) => h.choreId === chore.id && h.periodIndex === periodIdx)
@@ -289,7 +347,28 @@ export function assigneeFor(chore, periodIdx, handoffs = [], asOf = new Date()) 
     })[0];
   if (override) return override.toPerson ?? override.to;
   if (chore.fixedAssignee) return chore.fixedAssignee;
-  return rotationAssignee(chore.id, periodIdx);
+  if (
+    chore.missPenalty &&
+    ctx.chores &&
+    ctx.completions &&
+    ctx.activeFrom != null
+  ) {
+    const watched = ctx.chores.find((c) => c.id === chore.missPenalty.watch);
+    if (watched) {
+      const bounds = periodBounds(chore.cadence, periodIdx);
+      const counts = missesFor(watched, {
+        from: bounds.firstDay,
+        through: bounds.lastDay,
+        asOf,
+        activeFrom: ctx.activeFrom,
+        completions: ctx.completions,
+        handoffs,
+      });
+      const moved = penalisedPerson(counts, chore.missPenalty.overMisses);
+      if (moved) return moved;
+    }
+  }
+  return rotationFor(chore, periodIdx);
 }
 
 export function escalationStage(daysOverdue) {
@@ -323,7 +402,7 @@ export function seasonStart(chore, current, floor) {
  * Oldest incomplete period for `chore` as of `asOf`, or null if done for the current period.
  * Completing in a later period clears older missed ones (one nag, not a backlog).
  */
-export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM, handoffs = [] }) {
+export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM, handoffs = [], chores = [] }) {
   const asOfD = asDate(asOf);
   const active = asDate(activeFrom);
   const current = effectivePeriod(chore, asOfD);
@@ -350,8 +429,10 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
   if (oldestIncomplete === current && dayIndex(asOfD) < dayIndex(window.firstDay)) return null;
   const daysOverdue = Math.max(0, dayIndex(asOfD) - dayIndex(window.lastDay));
   // Both of them owe a together chore; dueItems hands out the second row. Nothing was handed over.
-  const person = chore.together ? "anne" : assigneeFor(chore, oldestIncomplete, handoffs, asOfD);
-  const viaHandoff = !chore.together && person !== (chore.fixedAssignee || rotationAssignee(chore.id, oldestIncomplete));
+  const ctx = { chores, completions, activeFrom: active };
+  const person = chore.together ? "anne" : assigneeFor(chore, oldestIncomplete, handoffs, asOfD, ctx);
+  const viaHandoff =
+    !chore.together && person !== assigneeFor(chore, oldestIncomplete, [], asOfD, ctx);
   return {
     chore,
     person,
@@ -387,11 +468,16 @@ export function dueItems({
   }
   let items = [];
   for (const chore of chores) {
+    let relevant = byChore.get(chore.id) ?? [];
+    if (chore.missPenalty?.watch && chore.missPenalty.watch !== chore.id) {
+      relevant = relevant.concat(byChore.get(chore.missPenalty.watch) ?? []);
+    }
     const item = dueItemFor(chore, {
-      completions: byChore.get(chore.id) ?? [],
+      completions: relevant,
       asOf,
       activeFrom,
       handoffs,
+      chores,
     });
     if (!item) continue;
     if (chore.together) {
@@ -613,6 +699,7 @@ export function currentPeriodFinisher(chore, { completions, asOf }) {
  */
 export function isReassignable(item, { handoffs = [], asOf } = {}) {
   if (item.chore.fixedAssignee || item.chore.together) return false;
+  if (item.chore.rotation || item.chore.missPenalty) return false;
   if ((item.daysOverdue | 0) !== 0) return false;
   return (
     acceptedHandoffOverride(item.chore.id, item.periodIndex, handoffs, asOf) == null

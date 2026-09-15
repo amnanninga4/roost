@@ -34,6 +34,10 @@ final class ChoreRecord {
     var weekdays: String?
     /// 1...28, the day of the period's last month the chore is due by; nil for a whole-period chore.
     var dueDay: Int?
+    /// JSON text of a `RoostCore.ChoreRotation`, the `season` pattern; nil when the default round-robin applies.
+    var rotation: String?
+    /// JSON text of a `RoostCore.MissPenalty`, the `season` pattern; nil when this chore has no miss penalty.
+    var missPenalty: String?
 
     init(
         id: String,
@@ -46,7 +50,9 @@ final class ChoreRecord {
         season: String? = nil,
         together: Bool = false,
         weekdays: String? = nil,
-        dueDay: Int? = nil
+        dueDay: Int? = nil,
+        rotation: String? = nil,
+        missPenalty: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -59,6 +65,8 @@ final class ChoreRecord {
         self.together = together
         self.weekdays = weekdays
         self.dueDay = dueDay
+        self.rotation = rotation
+        self.missPenalty = missPenalty
     }
 }
 

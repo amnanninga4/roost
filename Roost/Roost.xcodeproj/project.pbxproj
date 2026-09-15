@@ -114,6 +114,7 @@
 		BA23590F33F0011174D3858E /* HandoffSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BC757E755706A07B95CA5F /* HandoffSync.swift */; };
 		BAC436B176DB6FE3306811FF /* Strings+Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F79602D4F3643CD00DC45C0 /* Strings+Onboarding.swift */; };
 		BF0EE3ABA49837A1C4D714D4 /* ProjectFieldsCraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD94A178BECE764F21DE052 /* ProjectFieldsCraftTests.swift */; };
+		C1C3CF35B5C1452B552942F6 /* SyncChoresTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C6A70E643D7D526195B06C1 /* SyncChoresTests.swift */; };
 		C369D78023DDEEE13AA30A34 /* chores.json in Resources */ = {isa = PBXBuildFile; fileRef = AEDE70E38B5C767CEBF25D6B /* chores.json */; };
 		C71145DD7AB59557F27CE674 /* ChoreSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AF01D4B0027DC9BFEA9C94 /* ChoreSeeder.swift */; };
 		C853344873DAF928B5A701AA /* TokenSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B7CB6EA6C1C6F20BCAD2797 /* TokenSheet.swift */; };
@@ -226,6 +227,7 @@
 		59C7E3B2C6B03A58C3A3C989 /* SyncAPI+Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Push.swift"; sourceTree = "<group>"; };
 		59D8308455A41EC775A156EE /* HandoffRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffRecords.swift; sourceTree = "<group>"; };
 		5BA7D9CFBDE2D59E17D85996 /* SyncAPI+Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Lists.swift"; sourceTree = "<group>"; };
+		5C6A70E643D7D526195B06C1 /* SyncChoresTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncChoresTests.swift; sourceTree = "<group>"; };
 		6297B456DD7EB7A1202308B9 /* TodayBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayBoard.swift; sourceTree = "<group>"; };
 		63E663527CC81BACD2C0116B /* RoostSegmentedControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostSegmentedControl.swift; sourceTree = "<group>"; };
 		681283D1E95BBDF68BC6BFF0 /* RoostWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RoostWidget.entitlements; sourceTree = "<group>"; };
@@ -578,6 +580,7 @@
 				520CFA81EEB9959E54E1AC45 /* SnapshotTests.swift */,
 				334905B7A9952B9FF0F8BC28 /* StreakHeaderTests.swift */,
 				EABB822893431DD76826FD3E /* StubURLProtocol.swift */,
+				5C6A70E643D7D526195B06C1 /* SyncChoresTests.swift */,
 				9AFCE9C866EBFF99D6AF71CE /* SyncStatusCopyTests.swift */,
 				97C8735ABEAA4E3E01A86404 /* SyncTests.swift */,
 				D62C8D4BBDB30C32EAE5DD3D /* TodayBoardTests.swift */,
@@ -954,6 +957,7 @@
 				84244F561F97863C8F90ED2C /* SnapshotTests.swift in Sources */,
 				8F63429AFE3DE3BE709E0A25 /* StreakHeaderTests.swift in Sources */,
 				055617C9ACFE6CBBDE275101 /* StubURLProtocol.swift in Sources */,
+				C1C3CF35B5C1452B552942F6 /* SyncChoresTests.swift in Sources */,
 				51CB33641254A3B45130E629 /* SyncStatusCopyTests.swift in Sources */,
 				CBD97B628EFA73DC8E450A8B /* SyncTests.swift in Sources */,
 				030A1A4E16008095EC4ACBEC /* TodayBoardTests.swift in Sources */,

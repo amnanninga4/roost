@@ -278,7 +278,9 @@ actor SyncClient {
                     season: dto.season,
                     together: dto.together ?? false,
                     weekdays: dto.weekdays,
-                    dueDay: dto.dueDay
+                    dueDay: dto.dueDay,
+                    rotation: dto.rotation,
+                    missPenalty: dto.missPenalty
                 )
             })
             try ChoreSeeder.seed(list, into: modelContext)

@@ -23,7 +23,7 @@ const CADENCES_SQL = CADENCES.map((c) => `'${c}'`).join(",");
  * Bumped when a table's shape changes in a way CREATE TABLE IF NOT EXISTS cannot apply to an existing
  * database (a CHECK, a new column). `migrate` brings an older database up to it, step by step.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** The chores columns, shared by the schema and the v2 rebuild so the two can never drift. */
 export const CHORES_COLUMNS = `
@@ -37,7 +37,9 @@ export const CHORES_COLUMNS = `
   season        TEXT,
   together      INTEGER NOT NULL DEFAULT 0 CHECK (together IN (0,1)),
   weekdays      TEXT,
-  dueDay        INTEGER CHECK (dueDay IS NULL OR dueDay BETWEEN 1 AND 28)`;
+  dueDay        INTEGER CHECK (dueDay IS NULL OR dueDay BETWEEN 1 AND 28),
+  rotation      TEXT,
+  missPenalty   TEXT`;
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (
@@ -149,6 +151,7 @@ function migrate(db) {
   if (current < 2) migrateToV2(db);
   if (current < 3) migrateToV3(db);
   if (current < 4) migrateToV4(db);
+  if (current < 5) migrateToV5(db);
   setMeta(db, "schemaVersion", String(SCHEMA_VERSION));
 }
 
@@ -219,6 +222,19 @@ function migrateToV4(db) {
   }
 }
 
+/**
+ * v5 (litter rotations): rotation and missPenalty JSON text on chores. Both nullable, so ADD COLUMN is enough;
+ * guarded on the column list so a database built from the v5 schema string is left alone.
+ */
+function migrateToV5(db) {
+  if (!columnNames(db, "chores").includes("rotation")) {
+    db.exec("ALTER TABLE chores ADD COLUMN rotation TEXT");
+  }
+  if (!columnNames(db, "chores").includes("missPenalty")) {
+    db.exec("ALTER TABLE chores ADD COLUMN missPenalty TEXT");
+  }
+}
+
 function nextSeq(db) {
   db.prepare("UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'seq'").run();
   return Number(db.prepare("SELECT value FROM meta WHERE key = 'seq'").get().value);
@@ -238,8 +254,8 @@ export function seedChores(db, choresJsonPath) {
     throw new Error(`bad chores file: ${choresJsonPath}`);
   }
   const upsert = db.prepare(`
-    INSERT INTO chores (id, title, cadence, fixedAssignee, category, sortOrder, retired, season, together, weekdays, dueDay)
-    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
+    INSERT INTO chores (id, title, cadence, fixedAssignee, category, sortOrder, retired, season, together, weekdays, dueDay, rotation, missPenalty)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title,
       cadence = excluded.cadence,
@@ -250,7 +266,9 @@ export function seedChores(db, choresJsonPath) {
       season = excluded.season,
       together = excluded.together,
       weekdays = excluded.weekdays,
-      dueDay = excluded.dueDay
+      dueDay = excluded.dueDay,
+      rotation = excluded.rotation,
+      missPenalty = excluded.missPenalty
   `);
   const setMeta = db.prepare(
     "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
@@ -263,7 +281,9 @@ export function seedChores(db, choresJsonPath) {
         c.season ? JSON.stringify(c.season) : null,
         c.together ? 1 : 0,
         c.weekdays ? JSON.stringify(c.weekdays) : null,
-        c.dueDay ?? null
+        c.dueDay ?? null,
+        c.rotation ? JSON.stringify(c.rotation) : null,
+        c.missPenalty ? JSON.stringify(c.missPenalty) : null
       );
     });
     const ids = data.chores.map((c) => c.id);
@@ -316,12 +336,14 @@ export function shapeChore(row) {
     together: !!row.together,
     weekdays: row.weekdays ? JSON.parse(row.weekdays) : null,
     dueDay: row.dueDay ?? null,
+    rotation: row.rotation ? JSON.parse(row.rotation) : null,
+    missPenalty: row.missPenalty ? JSON.parse(row.missPenalty) : null,
   };
 }
 
 export function listChores(db) {
   return db
-    .prepare("SELECT id, title, cadence, fixedAssignee, category, season, together, weekdays, dueDay FROM chores WHERE retired = 0 ORDER BY sortOrder")
+    .prepare("SELECT id, title, cadence, fixedAssignee, category, season, together, weekdays, dueDay, rotation, missPenalty FROM chores WHERE retired = 0 ORDER BY sortOrder")
     .all()
     .map(shapeChore);
 }

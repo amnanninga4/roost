@@ -33,7 +33,10 @@ public struct Tallies: Sendable {
     /// to them. Today counts only once it is fully done; an unfinished today does not break the streak.
     /// A day with no daily chores assigned counts as complete. Days before `activeFrom` are not counted.
     ///
-    /// Who owed a chore on a past day is decided exactly as `Scheduler.assignee(for:periodIndex:on:handoffs:)`
+    /// Who owed a chore on a past day uses the pure `Scheduler.assignee(for:periodIndex:)` path
+    /// (pin → rotation) via the handoff-aware overload with an empty completion list — Tallies must
+    /// not re-derive miss penalties from a partial history. Historically:
+    /// `Scheduler.assignee(for:periodIndex:on:handoffs:)`
     /// decides it — accepted handoff, then pin, then rotation — so handing a daily to the other person moves
     /// that day for both of them: the offerer's streak survives, and the chore has to be done for the
     /// receiver's day to count. An accepted handoff never expires, so this keeps reading the same answer for a

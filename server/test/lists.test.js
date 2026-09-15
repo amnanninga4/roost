@@ -57,7 +57,7 @@ test("lists start empty and need auth", async () => {
   assert.equal((await call("POST", "/wishlist", { body: { id: "w", title: "x" } })).status, 401);
   assert.equal((await call("PATCH", "/meals/m", { body: { title: "x" } })).status, 401);
   assert.equal((await call("DELETE", "/projects/p")).status, 401);
-  const sync = await call("GET", "/sync?choresVersion=4", { token: ANNE });
+  const sync = await call("GET", "/sync?choresVersion=5", { token: ANNE });
   assert.equal(sync.status, 200);
   assert.deepEqual([sync.body.shopping, sync.body.meals, sync.body.projects, sync.body.subtasks, sync.body.wishlist], [[], [], [], [], []]);
   assert.equal(sync.body.cursor, 0);
@@ -184,7 +184,7 @@ test("meals: create, patch fields, nextUp is exclusive with a seq per cleared ro
   assert.equal(mc.seq, seqBefore + 1, "cleared row took the first new seq");
   assert.equal(next.body.seq, seqBefore + 2, "target took the last");
 
-  const delta = await call("GET", `/sync?cursor=${seqBefore}&choresVersion=4`, { token: ANNE });
+  const delta = await call("GET", `/sync?cursor=${seqBefore}&choresVersion=5`, { token: ANNE });
   assert.deepEqual(delta.body.meals.map((m) => [m.id, m.nextUp]), [["m-c", false], ["m-a", true]], "both rows ride the delta");
 
   const same = await call("PATCH", "/meals/m-a", { token: WES, body: { nextUp: true } });
@@ -412,7 +412,7 @@ test("projects: dueOn is a calendar day, accepted on create and patch, cleared w
     assert.equal((await call("POST", "/projects", { token: WES, body: { id: "p-bad", title: "x", dueOn: bad } })).status, 400, `post ${bad}`);
   }
   assert.equal((await call("POST", "/projects", { token: WES, body: { id: "p-leap", title: "x", dueOn: "2028-02-29" } })).status, 201, "a real leap day");
-  const sync = await call("GET", "/sync?choresVersion=4", { token: ANNE });
+  const sync = await call("GET", "/sync?choresVersion=5", { token: ANNE });
   assert.equal(sync.body.projects.find((p) => p.id === "p-leap").dueOn, "2028-02-29", "the /sync shape carries dueOn");
   assert.equal(logged.filter((m) => String(m).includes("unhandled")).length, 0, "no 500s were logged");
 });
@@ -440,7 +440,7 @@ test("subtasks: assignee is anne, wes or null, on create and patch; the owner an
 });
 
 test("/sync carries all five list arrays, cursor is the max seq across tables, same-tick write after a sync is delivered", async () => {
-  const full = await call("GET", "/sync?choresVersion=4", { token: ANNE });
+  const full = await call("GET", "/sync?choresVersion=5", { token: ANNE });
   assert.equal(full.status, 200);
   for (const key of ["completions", "shopping", "meals", "projects", "subtasks", "wishlist"]) assert.ok(Array.isArray(full.body[key]), key);
   assert.equal(full.body.cursor, seqOf(), "cursor equals the max seq across every table");
@@ -455,7 +455,7 @@ test("/sync carries all five list arrays, cursor is the max seq across tables, s
   assert.equal(Math.max(...allSeqs), full.body.cursor);
   assert.equal(new Set(allSeqs).size, allSeqs.length, "no seq is shared between tables");
 
-  const idle = await call("GET", `/sync?cursor=${full.body.cursor}&choresVersion=4`, { token: ANNE });
+  const idle = await call("GET", `/sync?cursor=${full.body.cursor}&choresVersion=5`, { token: ANNE });
   assert.deepEqual([idle.body.shopping, idle.body.meals, idle.body.projects, idle.body.subtasks, idle.body.wishlist, idle.body.completions], [[], [], [], [], [], []]);
   assert.equal(idle.body.cursor, full.body.cursor, "cursor holds when nothing changed");
 
@@ -464,7 +464,7 @@ test("/sync carries all five list arrays, cursor is the max seq across tables, s
   const write = await call("POST", "/shopping", { token: WES, body: { id: "sh-same-tick", title: "Eggs" } });
   assert.equal(write.status, 201);
   assert.equal(write.body.seq, cursor + 1);
-  const delta = await call("GET", `/sync?cursor=${cursor}&choresVersion=4`, { token: ANNE });
+  const delta = await call("GET", `/sync?cursor=${cursor}&choresVersion=5`, { token: ANNE });
   assert.deepEqual(delta.body.shopping.map((s) => s.id), ["sh-same-tick"], "same-tick write is not lost");
   assert.deepEqual([delta.body.meals, delta.body.projects, delta.body.subtasks, delta.body.wishlist, delta.body.completions], [[], [], [], [], []]);
   assert.equal(delta.body.cursor, cursor + 1);
@@ -475,7 +475,7 @@ test("/sync carries all five list arrays, cursor is the max seq across tables, s
   await call("POST", "/projects", { token: WES, body: { id: "p-sync", title: "Garage", subtasks: [{ id: "st-sync", title: "Sort boxes" }] } });
   await call("POST", "/completions", { token: WES, body: { id: "c-sync", choreId: "laundry", completedAt: "2026-09-14T13:00:00.000Z" } });
   await call("POST", "/wishlist", { token: WES, body: { id: "w-sync", title: "Kayak", priceCents: 89900 } });
-  const mixed = await call("GET", `/sync?cursor=${c2}&choresVersion=4`, { token: ANNE });
+  const mixed = await call("GET", `/sync?cursor=${c2}&choresVersion=5`, { token: ANNE });
   assert.deepEqual(
     {
       shopping: mixed.body.shopping.map((r) => r.id),
