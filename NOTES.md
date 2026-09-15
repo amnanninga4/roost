@@ -21,6 +21,8 @@ Shared household app for Anne & Wes: recurring chores + cat care, light competit
 
 **2026-09-14 — Due windows:** weekdays on weekly chores, a dueDay on every month-based chore (window = 7 days ending on it, in the period's last month); never-owed and not-yet rules; overdue counts from the window end. Spec docs/superpowers/specs/2026-09-14-due-windows-design.md.
 
+**2026-09-15 — Litter:** scoop-litter takes a two-week weekdayCycle (Anne 4 / Wes 3, swapping); change-litter alternates from Wes and the miss penalty fires only when exactly one person missed more than two scoop days that month (both over or neither → rotation stands). Assignment order is accepted handoff, pin, miss penalty, rotation. Spec docs/superpowers/specs/2026-09-15-litter-rotations-design.md.
+
 **Source of truth for task data:** `chore-master-list.html` (locked Sep 13, 2026). Seed from this list only.
 
 | Cadence   | Count | Notes |
