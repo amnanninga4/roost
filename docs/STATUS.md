@@ -1,13 +1,13 @@
 # Roost — what's going on
 
-_Generated Tuesday September 15, 2026 at 1:46 PM CDT. Regenerate with `scripts/status-report.sh`._
+_Generated Tuesday September 15, 2026 at 2:46 PM CDT. Regenerate with `scripts/status-report.sh`._
 
 ## Running right now
 
 | | |
 |---|---|
 | Server build | `f5aff0e` |
-| Latest code on main | `b7ecb4e` |
+| Latest code on main | `657ac1d` |
 | Chores loaded | 41, list version 5 |
 | Phones paired | 2 |
 | Push notifications | no key |
@@ -29,10 +29,6 @@ Things only you can do, that are not code, live in the *Blocked on Wes* table of
 Here so you can see them, not so you can do them. No action needed.
 
 - A status report Wes can actually read  [#92](https://github.com/amnanninga4/roost/pull/92)
-- The workflow push was never blocked on Wes  [#91](https://github.com/amnanninga4/roost/pull/91)
-- CI: create the iPhone 17 Pro simulator when the runner has none  [#90](https://github.com/amnanninga4/roost/pull/90)
-- CI: gate swiftlint on the whole tree  [#61](https://github.com/amnanninga4/roost/pull/61)
-- CI: swiftformat --lint is fatal now that the tree is clean  [#60](https://github.com/amnanninga4/roost/pull/60)
 
 ## Waiting on Anne
 
@@ -47,11 +43,11 @@ Thread: **Apple Dev 3.0 ↔ Anne Claude — roost kickoff**  [#1](https://github
 
 ## The phones
 
-- iPhone                     00008140-000A48800AEB001C (UDID)              available (paired)   iPhone 16 (iPhone17,3)       physical 
+- iPhone                     00008140-000A48800AEB001C (UDID)              connected   iPhone 16 (iPhone17,3)       physical 
 
 ## Open items, counted
 
-- blocked on Wes: 7
-- owned by Fable: 3
+- blocked on Wes: 6
+- owned by Fable: 4
 
 Full text and the reasons: `OPEN-ITEMS.md` in the repo.
