@@ -121,7 +121,7 @@ final class ChoreListTests: XCTestCase {
 
         let cycle =
             #"{"id":"s","title":"S","cadence":"daily","fixedAssignee":null,"category":"cat_care","# +
-            #"rotation":{"kind":"weekdayCycle","weeks":[["anne","wes","anne","wes","anne","wes","anne"]]}}"#
+            #""rotation":{"kind":"weekdayCycle","weeks":[["anne","wes","anne","wes","anne","wes","anne"]]}}"#
         let scoop = try JSONDecoder().decode(Chore.self, from: Data(cycle.utf8))
         XCTAssertEqual(scoop.rotation, .weekdayCycle(weeks: [[.anne, .wes, .anne, .wes, .anne, .wes, .anne]]))
 
