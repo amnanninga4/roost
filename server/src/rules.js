@@ -200,6 +200,47 @@ export function periodBounds(cadence, index) {
   }
 }
 
+/** Whether the chore narrows its due days inside the period. Mirrors Chore.hasWindow. */
+export function hasWindow(chore) {
+  return (Array.isArray(chore.weekdays) && chore.weekdays.length > 0) || chore.dueDay != null;
+}
+
+/**
+ * The days inside period `index` on which `chore` is due: the period itself without a window; the
+ * earliest through the latest listed ISO weekday (Mon = 1 … Sun = 7) for a weekly chore with `weekdays`;
+ * the seven days ending on `dueDay` of the period's last month for a month-based chore with `dueDay`.
+ * Mirrors HouseholdCalendar.dueWindow(for:periodIndex:).
+ */
+export function dueWindow(chore, index) {
+  const bounds = periodBounds(chore.cadence, index);
+  if (chore.cadence === "weekly" && Array.isArray(chore.weekdays) && chore.weekdays.length > 0) {
+    const first = Math.min(...chore.weekdays);
+    const last = Math.max(...chore.weekdays);
+    const start = dayIndex(bounds.firstDay);
+    return { firstDay: dayAt(start + first - 1), lastDay: dayAt(start + last - 1) };
+  }
+  const months = MONTHS_PER_PERIOD[chore.cadence];
+  if (months && chore.dueDay != null) {
+    const lastMonth = index * months + months - 1; // month index of the period's last month
+    const due = chicagoLocal(2026 + floorDiv(lastMonth, 12), mod(lastMonth, 12) + 1, chore.dueDay, 0, 0, 0);
+    return { firstDay: dayAt(dayIndex(due) - 6), lastDay: due };
+  }
+  return bounds;
+}
+
+/**
+ * The period `date` belongs to for `chore`: its calendar period, or the next one once the next period's
+ * window has opened (a dueDay early in the month reaches back into the month before). Mirrors
+ * Scheduler.effectivePeriod(for:containing:).
+ */
+export function effectivePeriod(chore, date) {
+  const d = asDate(date);
+  const index = periodIndex(chore.cadence, d);
+  if (chore.dueDay == null) return index;
+  const next = dueWindow(chore, index + 1);
+  return dayIndex(d) >= dayIndex(next.firstDay) ? index + 1 : index;
+}
+
 /** Monday 00:00 of the week containing `date`, and the following Monday 00:00 (exclusive). */
 export function weekBounds(date) {
   const index = periodIndex("weekly", date);
@@ -285,8 +326,10 @@ export function seasonStart(chore, current, floor) {
 export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTIVE_FROM, handoffs = [] }) {
   const asOfD = asDate(asOf);
   const active = asDate(activeFrom);
-  const current = periodIndex(chore.cadence, asOfD);
-  let floor = periodIndex(chore.cadence, active);
+  const current = effectivePeriod(chore, asOfD);
+  let floor = effectivePeriod(chore, active);
+  // A window that closed before the household started was never owed: start at the next period.
+  if (hasWindow(chore) && dayIndex(dueWindow(chore, floor).lastDay) < dayIndex(active)) floor += 1;
   if (chore.season) {
     const start = seasonStart(chore, current, floor);
     if (start === null) return null;
@@ -295,14 +338,17 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
   const mine = completions.filter((c) => c.choreId === chore.id);
   let lastDone = null;
   for (const c of mine) {
-    const pi = periodIndex(chore.cadence, asDate(c.completedAt));
+    const pi = effectivePeriod(chore, asDate(c.completedAt));
     if (lastDone === null || pi > lastDone) lastDone = pi;
   }
   const oldestIncomplete = Math.max(lastDone === null ? floor : lastDone + 1, floor);
   if (oldestIncomplete > current) return null;
 
   const bounds = periodBounds(chore.cadence, oldestIncomplete);
-  const daysOverdue = Math.max(0, dayIndex(asOfD) - dayIndex(bounds.lastDay));
+  const window = dueWindow(chore, oldestIncomplete);
+  // Not yet: this period's window has not opened. A missed window from an older period still shows.
+  if (oldestIncomplete === current && dayIndex(asOfD) < dayIndex(window.firstDay)) return null;
+  const daysOverdue = Math.max(0, dayIndex(asOfD) - dayIndex(window.lastDay));
   // Both of them owe a together chore; dueItems hands out the second row. Nothing was handed over.
   const person = chore.together ? "anne" : assigneeFor(chore, oldestIncomplete, handoffs, asOfD);
   const viaHandoff = !chore.together && person !== (chore.fixedAssignee || rotationAssignee(chore.id, oldestIncomplete));
@@ -313,6 +359,8 @@ export function dueItemFor(chore, { completions, asOf, activeFrom = DEFAULT_ACTI
     periodIndex: oldestIncomplete,
     periodStart: bounds.firstDay,
     periodLastDay: bounds.lastDay,
+    dueFirstDay: window.firstDay,
+    dueLastDay: window.lastDay,
     daysOverdue,
     stage: escalationStage(daysOverdue),
   };

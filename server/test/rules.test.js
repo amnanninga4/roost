@@ -30,6 +30,9 @@ import {
   balance,
   seasonStart,
   dueItemId,
+  dueWindow,
+  hasWindow,
+  effectivePeriod,
 } from "../src/rules.js";
 
 const litter = { id: "scoop-litter", title: "Scoop litter", cadence: "daily", fixedAssignee: null, category: "cat_care" };
@@ -717,4 +720,77 @@ test("currentPeriodFinisher picks latest completedAt then id", () => {
   const b = { ...early, id: "b-id", person: "wes" };
   assert.equal(currentPeriodFinisher(litter, { completions: [a, b], asOf: wed }), "wes");
   assert.equal(currentPeriodFinisher(litter, { completions: yesterdayEvenly, asOf: wed }), null);
+});
+
+const garbageK = { id: "take-out-garbage-kitchen", title: "Take out garbage: kitchen", cadence: "weekly", fixedAssignee: null, category: "chore", weekdays: [5, 6] };
+const canW = { id: "garbage-can-to-street-sunday", title: "Garbage can to street, Sunday", cadence: "weekly", fixedAssignee: "wes", category: "chore", weekdays: [7] };
+const litterW = { id: "change-litter", title: "Change litter", cadence: "monthly", fixedAssignee: null, category: "cat_care", dueDay: 25 };
+const hairW = { id: "trim-wes-hair", title: "Trim Wes's hair", cadence: "bimonthly", fixedAssignee: "anne", category: "chore", dueDay: 10 };
+const pantryW = { id: "clean-out-fridge-pantry", title: "Clean out fridge and pantry", cadence: "quarterly", fixedAssignee: null, category: "chore", together: true, dueDay: 28 };
+const cushionsW = { id: "clean-under-cushions", title: "Clean/vacuum under cushions", cadence: "monthly", fixedAssignee: null, category: "chore", dueDay: 5 };
+const start14 = chicagoLocal(2026, 9, 14, 0, 0, 0);
+const at = (m, d) => chicagoLocal(2026, m, d, 9, 0, 0);
+const od = (chore, date, completions = [], activeFrom = start14) => dueItemFor(chore, { completions, asOf: date, activeFrom })?.daysOverdue ?? null;
+
+test("dueWindow: weekday and due-day windows inside the period", () => {
+  assert.deepEqual(dueWindow(garbageK, 36), { firstDay: dayAt(256), lastDay: dayAt(257) }); // Fri 18 – Sat 19 Sep (dayIndex 252 = Mon 14)
+  assert.deepEqual(dueWindow(canW, 36), { firstDay: dayAt(258), lastDay: dayAt(258) });
+  assert.deepEqual(dueWindow(litterW, 8), { firstDay: chicagoLocal(2026, 9, 19, 0, 0, 0), lastDay: chicagoLocal(2026, 9, 25, 0, 0, 0) });
+  assert.deepEqual(dueWindow(hairW, 4), { firstDay: chicagoLocal(2026, 10, 4, 0, 0, 0), lastDay: chicagoLocal(2026, 10, 10, 0, 0, 0) });
+  assert.deepEqual(dueWindow(pantryW, 2), { firstDay: chicagoLocal(2026, 9, 22, 0, 0, 0), lastDay: chicagoLocal(2026, 9, 28, 0, 0, 0) });
+  assert.deepEqual(dueWindow(toilet, 36), periodBounds("weekly", 36));
+  assert.equal(hasWindow(toilet), false); assert.equal(hasWindow(canW), true); assert.equal(hasWindow(litterW), true);
+});
+
+test("garbage is Friday–Saturday, late from Sunday, carried into Monday, cleared by a Sunday completion", () => {
+  for (const d of [14, 15, 16, 17]) assert.equal(od(garbageK, at(9, d)), null, `Sep ${d}`);
+  assert.equal(od(garbageK, at(9, 18)), 0);
+  assert.equal(od(garbageK, at(9, 19)), 0);
+  assert.equal(od(garbageK, at(9, 20)), 1);
+  const mon = dueItemFor(garbageK, { completions: [], asOf: at(9, 21), activeFrom: start14 });
+  assert.equal(mon.daysOverdue, 2); assert.equal(mon.periodIndex, 36);
+  assert.deepEqual([mon.dueFirstDay, mon.dueLastDay], [dayAt(256), dayAt(257)]);
+  const sunday = [{ choreId: garbageK.id, person: "anne", completedAt: at(9, 20).toISOString() }];
+  for (const d of [21, 22, 23, 24]) assert.equal(od(garbageK, at(9, d), sunday), null);
+  assert.equal(od(garbageK, at(9, 25), sunday), 0);
+});
+
+test("can is Sunday only; litter is the week ending on the 25th; bimonthly and quarterly use the last month", () => {
+  for (const d of [14, 15, 16, 17, 18, 19]) assert.equal(od(canW, at(9, d)), null);
+  assert.equal(od(canW, at(9, 20)), 0); assert.equal(od(canW, at(9, 21)), 1);
+  for (const d of [14, 18]) assert.equal(od(litterW, at(9, d)), null);
+  assert.equal(od(litterW, at(9, 19)), 0); assert.equal(od(litterW, at(9, 25)), 0); assert.equal(od(litterW, at(9, 26)), 1);
+  const early = [{ choreId: litterW.id, person: "wes", completedAt: at(9, 20).toISOString() }];
+  assert.equal(od(litterW, at(9, 26), early), null); assert.equal(od(litterW, at(10, 18), early), null); assert.equal(od(litterW, at(10, 19), early), 0);
+  assert.equal(od(hairW, at(10, 3)), null); assert.equal(od(hairW, at(10, 4)), 0); assert.equal(od(hairW, at(10, 11)), 1);
+  assert.equal(od(pantryW, at(9, 21)), null);
+  const both = dueItems({ chores: [pantryW], completions: [], asOf: at(9, 22), activeFrom: start14 });
+  assert.equal(both.anne.length, 1); assert.equal(both.wes.length, 1);
+  assert.equal(od(pantryW, at(9, 29)), 1);
+});
+
+test("a window that closed before activeFrom was never owed", () => {
+  for (let d = 14; d <= 28; d += 1) assert.equal(od(cushionsW, at(9, d)), null, `Sep ${d}`);
+  assert.equal(od(cushionsW, at(9, 29)), 0); assert.equal(od(cushionsW, at(10, 5)), 0); assert.equal(od(cushionsW, at(10, 6)), 1);
+  const start13 = chicagoLocal(2026, 9, 13, 0, 0, 0);
+  assert.equal(od(garbageK, at(9, 13), [], start13), null);
+  assert.equal(od(garbageK, at(9, 17), [], start13), null);
+  assert.equal(od(garbageK, at(9, 18), [], start13), 0);
+});
+
+test("an early window belongs to its period for dates and completions", () => {
+  assert.equal(dueItemFor(cushionsW, { completions: [], asOf: at(9, 29), activeFrom: start14 }).periodIndex, 9);
+  assert.equal(effectivePeriod(cushionsW, at(9, 29)), 9); assert.equal(effectivePeriod(cushionsW, at(9, 28)), 8);
+  const early = [{ choreId: cushionsW.id, person: "wes", completedAt: at(9, 30).toISOString() }];
+  for (let d = 1; d <= 29; d += 1) assert.equal(od(cushionsW, at(10, d), early), null, `Oct ${d}`);
+  assert.equal(od(cushionsW, at(10, 30), early), 0); assert.equal(od(cushionsW, at(11, 5), early), 0); assert.equal(od(cushionsW, at(11, 6), early), 1);
+  const late = [{ choreId: litterW.id, person: "anne", completedAt: at(9, 27).toISOString() }];
+  assert.equal(od(litterW, at(9, 28), late), null); assert.equal(od(litterW, at(10, 18), late), null); assert.equal(od(litterW, at(10, 19), late), 0);
+});
+
+test("an unwindowed chore is unchanged and reports its period as its window", () => {
+  const item = dueItemFor(toilet, { completions: [], asOf: at(9, 16), activeFrom: start14 });
+  assert.equal(item.daysOverdue, 0);
+  assert.deepEqual([item.dueFirstDay, item.dueLastDay], [item.periodStart, item.periodLastDay]);
+  assert.equal(od(toilet, at(9, 21)), 1);
 });
