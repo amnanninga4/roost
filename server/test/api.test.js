@@ -50,20 +50,25 @@ const call = async (method, path, { token, body, raw } = {}) => {
 
 const plain = (rows) => rows.map((r) => ({ ...r }));
 
-test("seed is idempotent: 39 chores, 5 pinned, re-seed keeps 39", () => {
-  assert.equal(app.seeded, 39);
+test("seed is idempotent: 41 chores, 10 pinned, re-seed keeps 41", () => {
+  assert.equal(app.seeded, 41);
   const count = () => app.db.prepare("SELECT COUNT(*) AS n FROM chores WHERE retired = 0").get().n;
-  assert.equal(count(), 39);
+  assert.equal(count(), 41);
   seedChores(app.db, CHORES);
-  assert.equal(count(), 39);
-  assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM chores WHERE fixedAssignee IS NOT NULL AND retired = 0").get().n, 5);
+  assert.equal(count(), 41);
+  assert.equal(app.db.prepare("SELECT COUNT(*) AS n FROM chores WHERE fixedAssignee IS NOT NULL AND retired = 0").get().n, 10);
   const pinned = plain(
     app.db.prepare("SELECT id, fixedAssignee FROM chores WHERE fixedAssignee IS NOT NULL ORDER BY id").all()
   );
   assert.deepEqual(pinned, [
+    { id: "am-wet-cat-food", fixedAssignee: "wes" },
+    { id: "change-bed-sheets", fixedAssignee: "anne" },
+    { id: "charge-cat-play-device", fixedAssignee: "wes" },
     { id: "garbage-can-to-street-sunday", fixedAssignee: "wes" },
     { id: "laundry", fixedAssignee: "anne" },
     { id: "mow-lawn", fixedAssignee: "anne" },
+    { id: "pm-wet-cat-food", fixedAssignee: "anne" },
+    { id: "put-toy-out-for-cats", fixedAssignee: "anne" },
     { id: "trim-wes-hair", fixedAssignee: "anne" },
     { id: "wash-all-rugs", fixedAssignee: "anne" },
   ]);
@@ -74,7 +79,7 @@ test("health needs no auth; everything else does", async () => {
   const h = await call("GET", "/health");
   assert.equal(h.status, 200);
   assert.equal(h.body.ok, true);
-  assert.equal(h.body.choresVersion, 2);
+  assert.equal(h.body.choresVersion, 3);
   assert.equal(h.body.cursor, 0);
   assert.equal(h.body.devices, 2);
   assert.equal(h.body.tokensFileError, null);
@@ -88,8 +93,8 @@ test("health needs no auth; everything else does", async () => {
 
   const ok = await call("GET", "/chores", { token: ANNE });
   assert.equal(ok.status, 200);
-  assert.equal(ok.body.chores.length, 39);
-  assert.equal(ok.body.version, 2);
+  assert.equal(ok.body.chores.length, 41);
+  assert.equal(ok.body.version, 3);
 });
 
 test("/health rev prefers ROOST_REV env", async () => {
@@ -141,7 +146,7 @@ test("completion validation: unknown chore, bad dates, bad ids, null/array/inval
 
 test("sync cursor: same-tick write after a sync is still delivered; deletes propagate; chores only when version differs", async () => {
   // Client syncs and gets a cursor. Another write lands in the SAME clock tick (no tick()).
-  const before = await call("GET", "/sync?choresVersion=2", { token: ANNE });
+  const before = await call("GET", "/sync?choresVersion=3", { token: ANNE });
   assert.equal(before.status, 200);
   assert.equal(before.body.cursor, 1);
   assert.equal(before.body.chores, undefined, "matching choresVersion → chores omitted");
@@ -153,19 +158,19 @@ test("sync cursor: same-tick write after a sync is still delivered; deletes prop
   assert.equal(wes.status, 201);
   assert.equal(wes.body.seq, 2);
 
-  const delta = await call("GET", `/sync?cursor=${before.body.cursor}&choresVersion=2`, { token: ANNE });
+  const delta = await call("GET", `/sync?cursor=${before.body.cursor}&choresVersion=3`, { token: ANNE });
   assert.deepEqual(delta.body.completions.map((c) => c.id), ["c-wes-1"], "same-tick write is not lost");
   assert.equal(delta.body.cursor, 2);
 
   const full = await call("GET", "/sync", { token: ANNE });
   assert.equal(full.body.person, "anne");
-  assert.equal(full.body.chores.length, 39, "no choresVersion param → chores included");
+  assert.equal(full.body.chores.length, 41, "no choresVersion param → chores included");
   assert.equal(full.body.completions.length, 2);
 
   const stale = await call("GET", "/sync?choresVersion=0", { token: ANNE });
-  assert.equal(stale.body.chores.length, 39, "stale choresVersion → chores included");
+  assert.equal(stale.body.chores.length, 41, "stale choresVersion → chores included");
 
-  const idle = await call("GET", "/sync?cursor=2&choresVersion=2", { token: ANNE });
+  const idle = await call("GET", "/sync?cursor=2&choresVersion=3", { token: ANNE });
   assert.deepEqual(idle.body.completions, []);
   assert.equal(idle.body.cursor, 2, "cursor holds when nothing changed");
 
@@ -178,7 +183,7 @@ test("sync cursor: same-tick write after a sync is still delivered; deletes prop
   assert.equal(delAgain.body.seq, 3, "second delete does not bump seq");
   assert.equal((await call("DELETE", "/completions/never-existed", { token: WES })).status, 404);
 
-  const after = await call("GET", "/sync?cursor=2&choresVersion=2", { token: ANNE });
+  const after = await call("GET", "/sync?cursor=2&choresVersion=3", { token: ANNE });
   assert.deepEqual(after.body.completions.map((c) => [c.id, c.deleted]), [["c-anne-1", true]]);
   assert.equal(after.body.cursor, 3);
 
@@ -195,7 +200,7 @@ test("chores removed from the JSON are retired: hidden from clients, rejected on
 
   const chores = await call("GET", "/chores", { token: ANNE });
   assert.equal(chores.body.version, 3);
-  assert.equal(chores.body.chores.length, 38);
+  assert.equal(chores.body.chores.length, 40);
   assert.ok(!chores.body.chores.some((c) => c.id === "scoop-litter"));
 
   const post = await call("POST", "/completions", {
@@ -208,7 +213,7 @@ test("chores removed from the JSON are retired: hidden from clients, rejected on
   assert.ok(history.body.completions.some((c) => c.choreId === "scoop-litter"), "old completion still returned");
 
   seedChores(app.db, CHORES);
-  assert.equal((await call("GET", "/chores", { token: ANNE })).body.chores.length, 39, "re-adding un-retires");
+  assert.equal((await call("GET", "/chores", { token: ANNE })).body.chores.length, 41, "re-adding un-retires");
 });
 
 test("tokens file: broken edit is logged once and reported in /health; last good set stays active", async () => {

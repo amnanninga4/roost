@@ -142,7 +142,7 @@ test("POST /pair needs no bearer, and its token authenticates on the very next r
 
   const chores = await call("GET", "/chores", { token: paired.body.token });
   assert.equal(chores.status, 200, "no restart, no file write, no reload");
-  assert.equal(chores.body.chores.length, 39);
+  assert.equal(chores.body.chores.length, 41);
 
   const row = pairedRow(paired.body.token);
   assert.equal(row.person, "anne");

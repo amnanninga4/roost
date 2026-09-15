@@ -3,7 +3,7 @@
 
 Schema (simple, Swift/SwiftData-friendly):
   Root object:
-    version: int          # 2 since the 2026-09-13 update
+    version: int          # 3 since the 2026-09-14 update
     source: str           # e.g. "chore-master-list.html"
     locked: str           # ISO date the list was settled
     notes: str            # optional human note
@@ -20,7 +20,7 @@ Schema (simple, Swift/SwiftData-friendly):
     together: bool             # optional: both people owe it; fixedAssignee must be null
 
 The file is grouped by cadence in CADENCE_ORDER and the order is meaning: it becomes `sortOrder` on
-both stores. Counts and pins below are the list Anne and Wes settled on 2026-09-13 (39 chores).
+both stores. Counts and pins below are the list Anne and Wes settled on 2026-09-14 (41 chores).
 
 Exit codes:
   0  valid
@@ -44,15 +44,20 @@ VALID_CATEGORIES = frozenset({"chore", "cat_care"})
 REQUIRED_CHORE_KEYS = ("id", "title", "cadence", "fixedAssignee", "category")
 OPTIONAL_CHORE_KEYS = ("season", "together")
 
-EXPECTED_VERSION = 2
-EXPECTED_COUNTS = {"daily": 11, "weekly": 12, "biweekly": 5, "monthly": 7, "bimonthly": 1, "quarterly": 3}
-EXPECTED_COUNT = sum(EXPECTED_COUNTS.values())  # 39
+EXPECTED_VERSION = 3
+EXPECTED_COUNTS = {"daily": 13, "weekly": 12, "biweekly": 5, "monthly": 7, "bimonthly": 1, "quarterly": 3}
+EXPECTED_COUNT = sum(EXPECTED_COUNTS.values())  # 41
 EXPECTED_PINNED = {
     "laundry": "anne",
     "wash-all-rugs": "anne",
     "mow-lawn": "anne",
     "trim-wes-hair": "anne",
     "garbage-can-to-street-sunday": "wes",
+    "change-bed-sheets": "anne",
+    "am-wet-cat-food": "wes",
+    "pm-wet-cat-food": "anne",
+    "charge-cat-play-device": "wes",
+    "put-toy-out-for-cats": "anne",
 }
 
 
