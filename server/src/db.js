@@ -23,7 +23,7 @@ const CADENCES_SQL = CADENCES.map((c) => `'${c}'`).join(",");
  * Bumped when a table's shape changes in a way CREATE TABLE IF NOT EXISTS cannot apply to an existing
  * database (a CHECK, a new column). `migrate` brings an older database up to it, step by step.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** The chores columns, shared by the schema and the v2 rebuild so the two can never drift. */
 export const CHORES_COLUMNS = `
@@ -35,7 +35,9 @@ export const CHORES_COLUMNS = `
   sortOrder     INTEGER NOT NULL,
   retired       INTEGER NOT NULL DEFAULT 0,
   season        TEXT,
-  together      INTEGER NOT NULL DEFAULT 0 CHECK (together IN (0,1))`;
+  together      INTEGER NOT NULL DEFAULT 0 CHECK (together IN (0,1)),
+  weekdays      TEXT,
+  dueDay        INTEGER CHECK (dueDay IS NULL OR dueDay BETWEEN 1 AND 28)`;
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (
@@ -146,6 +148,7 @@ function migrate(db) {
   if (current >= SCHEMA_VERSION) return;
   if (current < 2) migrateToV2(db);
   if (current < 3) migrateToV3(db);
+  if (current < 4) migrateToV4(db);
   setMeta(db, "schemaVersion", String(SCHEMA_VERSION));
 }
 
@@ -203,6 +206,19 @@ function migrateToV3(db) {
   }
 }
 
+/**
+ * v4 (due windows): weekdays (JSON array text) and dueDay on chores. Both nullable, so ADD COLUMN is enough;
+ * guarded on the column list so a database built from the v4 schema string is left alone.
+ */
+function migrateToV4(db) {
+  if (!columnNames(db, "chores").includes("weekdays")) {
+    db.exec("ALTER TABLE chores ADD COLUMN weekdays TEXT");
+  }
+  if (!columnNames(db, "chores").includes("dueDay")) {
+    db.exec("ALTER TABLE chores ADD COLUMN dueDay INTEGER CHECK (dueDay IS NULL OR dueDay BETWEEN 1 AND 28)");
+  }
+}
+
 function nextSeq(db) {
   db.prepare("UPDATE meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE key = 'seq'").run();
   return Number(db.prepare("SELECT value FROM meta WHERE key = 'seq'").get().value);
@@ -222,8 +238,8 @@ export function seedChores(db, choresJsonPath) {
     throw new Error(`bad chores file: ${choresJsonPath}`);
   }
   const upsert = db.prepare(`
-    INSERT INTO chores (id, title, cadence, fixedAssignee, category, sortOrder, retired, season, together)
-    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+    INSERT INTO chores (id, title, cadence, fixedAssignee, category, sortOrder, retired, season, together, weekdays, dueDay)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       title = excluded.title,
       cadence = excluded.cadence,
@@ -232,7 +248,9 @@ export function seedChores(db, choresJsonPath) {
       sortOrder = excluded.sortOrder,
       retired = 0,
       season = excluded.season,
-      together = excluded.together
+      together = excluded.together,
+      weekdays = excluded.weekdays,
+      dueDay = excluded.dueDay
   `);
   const setMeta = db.prepare(
     "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
@@ -243,7 +261,9 @@ export function seedChores(db, choresJsonPath) {
       upsert.run(
         c.id, c.title, c.cadence, c.fixedAssignee ?? null, c.category, i,
         c.season ? JSON.stringify(c.season) : null,
-        c.together ? 1 : 0
+        c.together ? 1 : 0,
+        c.weekdays ? JSON.stringify(c.weekdays) : null,
+        c.dueDay ?? null
       );
     });
     const ids = data.chores.map((c) => c.id);
@@ -294,12 +314,14 @@ export function shapeChore(row) {
     category: row.category,
     season: row.season ? JSON.parse(row.season) : null,
     together: !!row.together,
+    weekdays: row.weekdays ? JSON.parse(row.weekdays) : null,
+    dueDay: row.dueDay ?? null,
   };
 }
 
 export function listChores(db) {
   return db
-    .prepare("SELECT id, title, cadence, fixedAssignee, category, season, together FROM chores WHERE retired = 0 ORDER BY sortOrder")
+    .prepare("SELECT id, title, cadence, fixedAssignee, category, season, together, weekdays, dueDay FROM chores WHERE retired = 0 ORDER BY sortOrder")
     .all()
     .map(shapeChore);
 }
