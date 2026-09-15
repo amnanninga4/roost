@@ -14,7 +14,7 @@ func repoChoresURL(file: String = #filePath) -> URL {
 final class ChoreListTests: XCTestCase {
     func testRealSeedHas41ChoresTenPinsAndFifteenWindows() throws {
         let list = try ChoreList.load(from: repoChoresURL())
-        XCTAssertEqual(list.version, 4)
+        XCTAssertEqual(list.version, 5)
         XCTAssertEqual(list.chores.count, 41)
         XCTAssertEqual(Set(list.chores.map(\.id)).count, 41, "ids unique")
 
@@ -51,6 +51,19 @@ final class ChoreListTests: XCTestCase {
         ])
         XCTAssertTrue(list.chores.filter { $0.cadence.monthsPerPeriod != nil }.allSatisfy { $0.dueDay != nil })
         XCTAssertEqual(list.chores.filter(\.hasWindow).count, 15)
+
+        XCTAssertEqual(
+            list["scoop-litter"]?.rotation,
+            .weekdayCycle(weeks: [
+                [.anne, .wes, .anne, .wes, .anne, .wes, .anne],
+                [.wes, .anne, .wes, .anne, .wes, .anne, .wes],
+            ])
+        )
+        XCTAssertEqual(list["change-litter"]?.rotation, .alternate(start: .wes))
+        XCTAssertEqual(list["change-litter"]?.missPenalty, MissPenalty(watch: "scoop-litter", overMisses: 2))
+        XCTAssertEqual(list.chores.filter { $0.rotation != nil }.count, 2)
+        XCTAssertEqual(list.chores.filter { $0.missPenalty != nil }.count, 1)
+        XCTAssertTrue(list.chores.allSatisfy { $0.rotation == nil || $0.fixedAssignee == nil })
     }
 
     func testSeasonAndTogetherDecodeAndDefault() throws {
@@ -99,5 +112,21 @@ final class ChoreListTests: XCTestCase {
         let litter = Chore(id: "l", title: "L", cadence: .monthly, category: .catCare, dueDay: 25)
         let round = try JSONDecoder().decode(Chore.self, from: JSONEncoder().encode(litter))
         XCTAssertEqual(round.dueDay, 25); XCTAssertEqual(round, litter)
+    }
+
+    func testRotationAndPenaltyDecodeAndDefault() throws {
+        let plain = #"{"id":"x","title":"X","cadence":"daily","fixedAssignee":null,"category":"chore"}"#
+        let bare = try JSONDecoder().decode(Chore.self, from: Data(plain.utf8))
+        XCTAssertNil(bare.rotation); XCTAssertNil(bare.missPenalty)
+
+        let cycle = #"{"id":"s","title":"S","cadence":"daily","fixedAssignee":null,"category":"cat_care","rotation":{"kind":"weekdayCycle","weeks":[["anne","wes","anne","wes","anne","wes","anne"]]}}"#
+        let scoop = try JSONDecoder().decode(Chore.self, from: Data(cycle.utf8))
+        XCTAssertEqual(scoop.rotation, .weekdayCycle(weeks: [[.anne, .wes, .anne, .wes, .anne, .wes, .anne]]))
+
+        let change = Chore(id: "c", title: "C", cadence: .monthly, category: .catCare,
+                           rotation: .alternate(start: .wes),
+                           missPenalty: MissPenalty(watch: "s", overMisses: 2))
+        let round = try JSONDecoder().decode(Chore.self, from: JSONEncoder().encode(change))
+        XCTAssertEqual(round, change)
     }
 }
