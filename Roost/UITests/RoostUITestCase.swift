@@ -47,7 +47,6 @@ class RoostUITestCase: XCTestCase {
         )
     }
 
-
     /// Opens the Lists tab and picks one of its pages by the segment's identifier, then waits for the
     /// page's own header. The remembered page persists between launches, so this always taps the segment.
     func openList(_ title: String, in app: XCUIApplication) {
