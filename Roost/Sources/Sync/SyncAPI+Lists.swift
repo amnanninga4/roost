@@ -17,7 +17,6 @@ extension SyncAPI {
         let seq: Int
     }
 
-
     struct WishlistDTO: Codable, Sendable, Equatable {
         let id: String
         let title: String
@@ -125,7 +124,6 @@ extension SyncAPI {
     func deleteShopping(id: String) async throws -> ShoppingDTO {
         try await call("DELETE", "shopping/\(id)")
     }
-
 
     // MARK: wishlist
 

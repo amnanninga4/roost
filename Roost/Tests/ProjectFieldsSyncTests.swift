@@ -18,7 +18,13 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
             if req.httpMethod == "PATCH" {
                 return (200, json(row))
             }
-            return (200, listsSyncJSON(cursor: 9, projects: [projectJSON(id: "p-1", title: "Garage trash", dueOn: "2026-09-20", seq: 9)]))
+            return (
+                200,
+                listsSyncJSON(
+                    cursor: 9,
+                    projects: [projectJSON(id: "p-1", title: "Garage trash", dueOn: "2026-09-20", seq: 9)]
+                )
+            )
         }
         _ = await client.syncNow()
         let patch = try XCTUnwrap(StubURLProtocol.requests("PATCH").first)
@@ -43,7 +49,13 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
     func testDeltaCarriesTheDueDayAndAnOlderServerLeavesItNil() async throws {
         try await pairAsAnne()
         StubURLProtocol.reset { _ in
-            (200, listsSyncJSON(cursor: 12, projects: [projectJSON(id: "p-2", title: "Fence", dueOn: "2026-10-01", seq: 12)]))
+            (
+                200,
+                listsSyncJSON(
+                    cursor: 12,
+                    projects: [projectJSON(id: "p-2", title: "Fence", dueOn: "2026-10-01", seq: 12)]
+                )
+            )
         }
         _ = await client.syncNow()
         XCTAssertEqual(try projectRow("p-2")?.dueOn, "2026-10-01")
@@ -59,7 +71,13 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
     func testAPendingDueDayOutlivesADeltaWithTheServersOlderCopy() async throws {
         try await pairAsAnne()
         let ctx = fresh()
-        let project = ProjectRecord(id: "p-4", title: "Shed", dueOn: "2026-09-01", createdAt: listClock, syncedAt: listClock)
+        let project = ProjectRecord(
+            id: "p-4",
+            title: "Shed",
+            dueOn: "2026-09-01",
+            createdAt: listClock,
+            syncedAt: listClock
+        )
         project.seq = 5
         ctx.insert(project)
         try ctx.save()
@@ -68,7 +86,10 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
             if req.httpMethod == "PATCH" {
                 return (503, json(["error": "later"])) // the edit stays queued
             }
-            return (200, listsSyncJSON(cursor: 6, projects: [projectJSON(id: "p-4", title: "Shed", dueOn: "2026-09-01", seq: 6)]))
+            return (
+                200,
+                listsSyncJSON(cursor: 6, projects: [projectJSON(id: "p-4", title: "Shed", dueOn: "2026-09-01", seq: 6)])
+            )
         }
         _ = await client.syncNow()
         XCTAssertEqual(try projectRow("p-4")?.dueOn, "2026-09-30", "the local edit wins until it is sent")
@@ -82,7 +103,13 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
         project.seq = 3
         ctx.insert(project)
         try ctx.save()
-        let step = try XCTUnwrap(try ListActions.addSubtask("Bag it", to: project, assignee: "wes", in: ctx, now: listClock))
+        let step = try XCTUnwrap(try ListActions.addSubtask(
+            "Bag it",
+            to: project,
+            assignee: "wes",
+            in: ctx,
+            now: listClock
+        ))
         let id = step.id
         StubURLProtocol.reset { req in
             let row = subtaskJSON(id: id, projectId: "p-5", title: "Bag it", assignee: "wes", seq: 7)
@@ -102,7 +129,14 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
     func testOwnerPatchSendsOnlyTheOwnerAndTheDoerStaysWhoeverTapped() async throws {
         try await pairAsAnne()
         let ctx = fresh()
-        let step = SubtaskRecord(id: "st-9", projectId: "p-5", title: "Haul it", sortOrder: 1, createdAt: listClock, syncedAt: listClock)
+        let step = SubtaskRecord(
+            id: "st-9",
+            projectId: "p-5",
+            title: "Haul it",
+            sortOrder: 1,
+            createdAt: listClock,
+            syncedAt: listClock
+        )
         step.seq = 8
         ctx.insert(step)
         try ctx.save()
@@ -123,7 +157,17 @@ final class ProjectFieldsSyncTests: ListSyncTestCase {
 
         StubURLProtocol.reset { _ in
             (200, listsSyncJSON(cursor: 10, subtasks: [
-                subtaskJSON(id: "st-9", projectId: "p-5", title: "Haul it", sortOrder: 1, done: true, doneBy: "anne", doneAt: listStamp, assignee: "wes", seq: 10),
+                subtaskJSON(
+                    id: "st-9",
+                    projectId: "p-5",
+                    title: "Haul it",
+                    sortOrder: 1,
+                    done: true,
+                    doneBy: "anne",
+                    doneAt: listStamp,
+                    assignee: "wes",
+                    seq: 10
+                ),
             ]))
         }
         _ = await client.syncNow()

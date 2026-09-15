@@ -37,7 +37,10 @@ struct WishlistScreen: View {
 
     private var headerLine: String {
         let totals = WishlistTotals(rows: items, isBought: \.bought, priceCents: \.priceCents)
-        return Strings.Wishlist.header(items: totals.openCount, total: totals.totalCents.map { PriceFormat.dollars(cents: $0) })
+        return Strings.Wishlist.header(
+            items: totals.openCount,
+            total: totals.totalCents.map { PriceFormat.dollars(cents: $0) }
+        )
     }
 
     var body: some View {

@@ -43,7 +43,6 @@ enum TodayBoard {
         return Double(anne) / Double(total)
     }
 
-
     // MARK: - Column order
 
     /// Whose column comes first on the Tasks tab. The paired person's own column leads, so what *you*

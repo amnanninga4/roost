@@ -156,7 +156,11 @@ final class SchedulerTests: XCTestCase {
         let oct30 = s.dueItem(for: mowing, on: cal.date(year: 2026, month: 10, day: 30, hour: 9), completions: [mowed])
         XCTAssertEqual(oct30?.periodStart, cal.date(year: 2026, month: 10, day: 26, hour: 0))
         XCTAssertEqual(oct30?.daysOverdue, 0)
-        XCTAssertNotNil(s.dueItem(for: mowing, on: cal.date(year: 2026, month: 11, day: 1, hour: 9), completions: [mowed]))
+        XCTAssertNotNil(s.dueItem(
+            for: mowing,
+            on: cal.date(year: 2026, month: 11, day: 1, hour: 9),
+            completions: [mowed]
+        ))
         // The week of Nov 2 starts out of season: not due, and the missed Oct 26 week is not overdue.
         XCTAssertNil(s.dueItem(for: mowing, on: cal.date(year: 2026, month: 11, day: 3, hour: 9), completions: [mowed]))
     }
@@ -168,7 +172,8 @@ final class SchedulerTests: XCTestCase {
         XCTAssertEqual(item?.periodStart, activeFrom)
         XCTAssertEqual(item?.daysOverdue, 3)
     }
-    func testTogetherChoreIsARowForBothAndOneCheckOffClearsBoth() {
+
+    func testTogetherChoreIsARowForBothAndOneCheckOffClearsBoth() throws {
         let s = Scheduler(chores: [litter, pantry], activeFrom: activeFrom, calendar: cal)
         let plan = s.plan(on: wed, completions: [])
         let anne = plan[.anne]?.first { $0.chore.id == pantry.id }
@@ -178,12 +183,16 @@ final class SchedulerTests: XCTestCase {
         XCTAssertEqual(anne?.periodIndex, wes?.periodIndex)
         XCTAssertEqual(anne?.daysOverdue, wes?.daysOverdue)
         XCTAssertEqual(s.dueItems(for: pantry, on: wed, completions: []).map(\.person), [.anne, .wes])
-        XCTAssertEqual(s.dueItem(for: pantry, on: wed, completions: [])?.person, .anne, "the single-row call answers Anne's row")
+        XCTAssertEqual(
+            s.dueItem(for: pantry, on: wed, completions: [])?.person,
+            .anne,
+            "the single-row call answers Anne's row"
+        )
 
         // Wes does it: gone from both columns.
         let cleared = s.plan(on: wed, completions: [done(pantry, .wes, wed)])
-        XCTAssertFalse(cleared[.anne]!.contains { $0.chore.id == pantry.id })
-        XCTAssertFalse(cleared[.wes]!.contains { $0.chore.id == pantry.id })
+        XCTAssertFalse(try XCTUnwrap(cleared[.anne]?.contains { $0.chore.id == pantry.id }))
+        XCTAssertFalse(try XCTUnwrap(cleared[.wes]?.contains { $0.chore.id == pantry.id }))
         XCTAssertEqual(s.dueItems(for: pantry, on: wed, completions: [done(pantry, .wes, wed)]), [])
 
         // An ordinary chore's id is what it always was.
@@ -192,7 +201,6 @@ final class SchedulerTests: XCTestCase {
         XCTAssertEqual(s.dueItem(for: litter, on: wed, completions: [])?.id, "scoop-litter#\(first)")
         XCTAssertEqual(s.dueItems(for: litter, on: wed, completions: []).count, 1)
     }
-
 }
 
 final class TalliesTests: XCTestCase {

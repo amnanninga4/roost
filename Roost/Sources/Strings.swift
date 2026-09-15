@@ -91,7 +91,6 @@ enum Strings {
         static let editItem = "Edit item"
     }
 
-
     enum Wishlist {
         /// "4 items · $1,850 total"; with nothing priced, just "4 items".
         static func header(items: Int, total: String?) -> String {
@@ -365,10 +364,16 @@ enum Strings {
         static func season(from: String, to: String) -> String {
             "\(from) to \(to)"
         }
+
         /// Under a weekly chore with a window in All chores: "Fri–Sat". A one-day window is the day alone.
-        static func window(from: String, to: String) -> String { "\(from)–\(to)" }
+        static func window(from: String, to: String) -> String {
+            "\(from)–\(to)"
+        }
+
         /// Under a monthly, bimonthly or quarterly chore in All chores: "by the 25th".
-        static func windowBy(_ ordinal: String) -> String { "by the \(ordinal)" }
+        static func windowBy(_ ordinal: String) -> String {
+            "by the \(ordinal)"
+        }
     }
 
     enum Streak {

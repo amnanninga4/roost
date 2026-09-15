@@ -36,7 +36,6 @@ struct ShoppingSplit<Row> {
     }
 }
 
-
 /// The wishlist's price field: what a person types, as whole cents.
 ///
 /// "599" is $599, "12.5" is $12.50, "$1,299.99" is $1,299.99. A third decimal, a second point, letters,
@@ -54,7 +53,8 @@ enum PriceParser {
         let fraction = parts.count == 2 ? parts[1] : ""
         guard !(whole.isEmpty && fraction.isEmpty), fraction.count <= 2 else { return nil }
         guard let dollars = whole.isEmpty ? 0 : Int(whole), dollars <= ListActions.priceLimit / 100 else { return nil }
-        let cents = fraction.isEmpty ? 0 : (Int(String(fraction).padding(toLength: 2, withPad: "0", startingAt: 0)) ?? 0)
+        let cents = fraction
+            .isEmpty ? 0 : (Int(String(fraction).padding(toLength: 2, withPad: "0", startingAt: 0)) ?? 0)
         let total = dollars * 100 + cents
         return total <= ListActions.priceLimit ? total : nil
     }
@@ -196,7 +196,6 @@ enum MealDates {
         }
     }
 }
-
 
 /// A project's due day: the `YYYY-MM-DD` the server stores, read and written through the household
 /// calendar so the phone's own time zone never moves the day.

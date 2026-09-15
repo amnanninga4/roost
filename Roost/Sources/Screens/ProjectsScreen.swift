@@ -1,4 +1,5 @@
-// Projects page: bigger jobs broken into steps. Hosted by ListsScreen, which owns the NavigationStack and chrome. Each project is a card that opens on tap — a progress
+// Projects page: bigger jobs broken into steps. Hosted by ListsScreen, which owns the NavigationStack and chrome. Each
+// project is a card that opens on tap — a progress
 // bar, the steps with check-off, and a composer for the next one. Steps can be dragged into a new
 // order; the card that runs out of steps gets a DONE chip and can be archived. Swipe a step away with
 // five seconds to take it back. Writes go to the store first, then kick a sync.
@@ -43,33 +44,33 @@ struct ProjectsScreen: View {
 
     var body: some View {
         List {
+            Section {
+                ListScreenHeader(
+                    title: Strings.Tabs.projects,
+                    line: Strings.Projects.header(count: projects.count),
+                    status: sync.statusLine
+                )
+                .listHeaderRow()
+            }
+            Section {
+                ListComposer(
+                    placeholder: Strings.Projects.add, text: $title, focused: $titleFocused, onSubmit: titleReturn
+                ) {
+                    if ProjectComposer.showsFirstSteps(title: title, steps: steps) {
+                        firstSteps
+                    }
+                }
+            }
+            if projects.isEmpty {
                 Section {
-                    ListScreenHeader(
-                        title: Strings.Tabs.projects,
-                        line: Strings.Projects.header(count: projects.count),
-                        status: sync.statusLine
+                    ListEmptyState(
+                        symbol: "hammer", line: Strings.Projects.empty, hint: Strings.Projects.emptyHint
                     )
-                    .listHeaderRow()
                 }
-                Section {
-                    ListComposer(
-                        placeholder: Strings.Projects.add, text: $title, focused: $titleFocused, onSubmit: titleReturn
-                    ) {
-                        if ProjectComposer.showsFirstSteps(title: title, steps: steps) {
-                            firstSteps
-                        }
-                    }
-                }
-                if projects.isEmpty {
-                    Section {
-                        ListEmptyState(
-                            symbol: "hammer", line: Strings.Projects.empty, hint: Strings.Projects.emptyHint
-                        )
-                    }
-                }
-                ForEach(projects) { project in
-                    card(project)
-                }
+            }
+            ForEach(projects) { project in
+                card(project)
+            }
         }
         .accessibilityIdentifier("projectsList")
         .roostAnimation(.standard, value: open)
@@ -121,26 +122,26 @@ struct ProjectsScreen: View {
             ProjectRow(project: project, progress: progress, isOpen: isOpen, dueLabel: dueLabel, pastDue: pastDue) {
                 toggleOpen(project)
             }
-                .listRowBackground(RoostColor.Role.surface.color)
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) { remove(project) } label: {
-                        Label(archiveLabel(progress), systemImage: progress.isFinished ? "archivebox" : "trash")
-                    }
-                    .tint(RoostColor.Role.danger.color)
+            .listRowBackground(RoostColor.Role.surface.color)
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) { remove(project) } label: {
+                    Label(archiveLabel(progress), systemImage: progress.isFinished ? "archivebox" : "trash")
                 }
-                .contextMenu {
-                    Button(project.dueOn == nil ? Strings.Projects.setDueDay : Strings.Projects.changeDueDay,
-                           systemImage: "calendar") { editingDue = project }
-                    if project.dueOn != nil {
-                        Button(Strings.Projects.clearDueDay, systemImage: "calendar.badge.minus") { setDueOn(project, nil) }
-                    }
-                    Button(role: .destructive) { remove(project) } label: {
-                        Label(
-                            progress.isFinished ? Strings.Projects.archive : Strings.Projects.deleteProject,
-                            systemImage: progress.isFinished ? "archivebox" : "trash"
-                        )
-                    }
+                .tint(RoostColor.Role.danger.color)
+            }
+            .contextMenu {
+                Button(project.dueOn == nil ? Strings.Projects.setDueDay : Strings.Projects.changeDueDay,
+                       systemImage: "calendar") { editingDue = project }
+                if project.dueOn != nil {
+                    Button(Strings.Projects.clearDueDay, systemImage: "calendar.badge.minus") { setDueOn(project, nil) }
                 }
+                Button(role: .destructive) { remove(project) } label: {
+                    Label(
+                        progress.isFinished ? Strings.Projects.archive : Strings.Projects.deleteProject,
+                        systemImage: progress.isFinished ? "archivebox" : "trash"
+                    )
+                }
+            }
             if isOpen {
                 ForEach(Array(projectSteps.enumerated()), id: \.element.id) { index, step in
                     SubtaskRow(
@@ -214,7 +215,8 @@ struct ProjectsScreen: View {
 
     /// True when the step went into the store; the composer clears itself and keeps the keyboard.
     private func add(_ text: String, owner: String?, to project: ProjectRecord) -> Bool {
-        guard (try? ListActions.addSubtask(text, to: project, assignee: owner, in: context)) != nil else { return false }
+        guard (try? ListActions.addSubtask(text, to: project, assignee: owner, in: context)) != nil
+        else { return false }
         added += 1
         sync.syncSoon()
         return true
@@ -351,7 +353,8 @@ private struct ProjectRow: View {
                     if let dueLabel {
                         Text(dueLabel)
                             .roostType(.caption)
-                            .foregroundStyle(pastDue ? RoostColor.Role.danger.color : RoostColor.Role.textSecondary.color)
+                            .foregroundStyle(pastDue ? RoostColor.Role.danger.color : RoostColor.Role.textSecondary
+                                .color)
                             .fixedSize()
                     }
                 }

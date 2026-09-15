@@ -134,7 +134,13 @@ final class SeedTests: XCTestCase {
     func testWindowsRoundTripThroughTheRecord() throws {
         let can = Chore(id: "garbage-can-to-street-sunday", title: "Garbage can to street, Sunday", cadence: .weekly,
                         fixedAssignee: .wes, category: .chore, weekdays: [7])
-        let litter = Chore(id: "change-litter", title: "Change litter", cadence: .monthly, category: .catCare, dueDay: 25)
+        let litter = Chore(
+            id: "change-litter",
+            title: "Change litter",
+            cadence: .monthly,
+            category: .catCare,
+            dueDay: 25
+        )
         let laundry = Chore(id: "laundry", title: "Laundry", cadence: .weekly, fixedAssignee: .anne, category: .chore)
         try ChoreSeeder.seed(ChoreList(version: 4, chores: [can, litter, laundry]), into: context)
         let rows = try activeChores()
@@ -173,17 +179,17 @@ final class SeedTests: XCTestCase {
         XCTAssertNotNil(rows[0].rotation)
         XCTAssertNil(rows[0].missPenalty)
         XCTAssertEqual(
-            try JSONDecoder().decode(ChoreRotation.self, from: Data(rows[0].rotation!.utf8)),
+            try JSONDecoder().decode(ChoreRotation.self, from: Data(XCTUnwrap(rows[0].rotation?.utf8))),
             scoop.rotation
         )
         XCTAssertNotNil(rows[1].rotation)
         XCTAssertNotNil(rows[1].missPenalty)
         XCTAssertEqual(
-            try JSONDecoder().decode(ChoreRotation.self, from: Data(rows[1].rotation!.utf8)),
+            try JSONDecoder().decode(ChoreRotation.self, from: Data(XCTUnwrap(rows[1].rotation?.utf8))),
             change.rotation
         )
         XCTAssertEqual(
-            try JSONDecoder().decode(MissPenalty.self, from: Data(rows[1].missPenalty!.utf8)),
+            try JSONDecoder().decode(MissPenalty.self, from: Data(XCTUnwrap(rows[1].missPenalty?.utf8))),
             change.missPenalty
         )
         XCTAssertNil(rows[2].rotation)

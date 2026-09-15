@@ -135,7 +135,6 @@ final class ShoppingItemRecord: ListRecord {
     }
 }
 
-
 /// One line of the wishlist: a shopping item with a price. `priceCents` is whole cents, nil when the
 /// row has no price (nil and 0 are different: "free" is a price). `addedBy` as on a shopping item.
 @Model

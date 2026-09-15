@@ -23,19 +23,36 @@ final class ProjectFieldsCraftTests: XCTestCase {
 
     // MARK: project due days
 
-    func testDueDayReadsAsDueMonthDayAndKnowsWhenItHasPassed() throws {
+    func testDueDayReadsAsDueMonthDayAndKnowsWhenItHasPassed() {
         let cal = HouseholdCalendar()
         let us = Locale(identifier: "en_US")
         let sep10 = cal.date(year: 2026, month: 9, day: 10, hour: 9)
         XCTAssertEqual(ProjectDates.label("2026-09-20", now: sep10, locale: us, calendar: cal), "Due Sep 20")
-        XCTAssertEqual(ProjectDates.label("2027-01-05", now: sep10, locale: us, calendar: cal), "Due Jan 5, 2027", "another year says so")
+        XCTAssertEqual(
+            ProjectDates.label("2027-01-05", now: sep10, locale: us, calendar: cal),
+            "Due Jan 5, 2027",
+            "another year says so"
+        )
         XCTAssertNil(ProjectDates.label("next tuesday", now: sep10, locale: us, calendar: cal))
         XCTAssertFalse(ProjectDates.isPast("2026-09-20", now: sep10, calendar: cal))
-        XCTAssertFalse(ProjectDates.isPast("2026-09-20", now: cal.date(year: 2026, month: 9, day: 20, hour: 23), calendar: cal), "the day itself is not past")
-        XCTAssertTrue(ProjectDates.isPast("2026-09-20", now: cal.date(year: 2026, month: 9, day: 21, hour: 0), calendar: cal))
+        XCTAssertFalse(
+            ProjectDates.isPast("2026-09-20", now: cal.date(year: 2026, month: 9, day: 20, hour: 23), calendar: cal),
+            "the day itself is not past"
+        )
+        XCTAssertTrue(ProjectDates.isPast(
+            "2026-09-20",
+            now: cal.date(year: 2026, month: 9, day: 21, hour: 0),
+            calendar: cal
+        ))
         XCTAssertFalse(ProjectDates.isPast("garbage", now: sep10, calendar: cal))
-        XCTAssertEqual(ProjectDates.dayString(cal.date(year: 2026, month: 9, day: 20, hour: 23), calendar: cal), "2026-09-20")
-        XCTAssertEqual(ProjectDates.day(from: "2026-09-20", calendar: cal), cal.startOfDay(cal.date(year: 2026, month: 9, day: 20)))
+        XCTAssertEqual(
+            ProjectDates.dayString(cal.date(year: 2026, month: 9, day: 20, hour: 23), calendar: cal),
+            "2026-09-20"
+        )
+        XCTAssertEqual(
+            ProjectDates.day(from: "2026-09-20", calendar: cal),
+            cal.startOfDay(cal.date(year: 2026, month: 9, day: 20))
+        )
     }
 
     func testSettingAndClearingTheDueDayFlagsOnlyThatField() throws {
@@ -50,15 +67,23 @@ final class ProjectFieldsCraftTests: XCTestCase {
         XCTAssertEqual(project.pendingFields, [.dueOn])
     }
 
-
-
     // MARK: step owners
 
     func testAddingAStepWithAnOwnerFlagsTheOwnerAndSettingItLaterFlagsOnlyThat() throws {
         let project = try XCTUnwrap(try ListActions.startProject("Garage", in: context, now: clock))
-        let owned = try XCTUnwrap(try ListActions.addSubtask("Bag it", to: project, assignee: "wes", in: context, now: clock))
+        let owned = try XCTUnwrap(try ListActions.addSubtask(
+            "Bag it",
+            to: project,
+            assignee: "wes",
+            in: context,
+            now: clock
+        ))
         XCTAssertEqual(owned.assignee, "wes")
-        XCTAssertEqual(owned.pendingFields, [.assignee], "flagged, so it reaches the server whichever create carries the step")
+        XCTAssertEqual(
+            owned.pendingFields,
+            [.assignee],
+            "flagged, so it reaches the server whichever create carries the step"
+        )
         let plain = try XCTUnwrap(try ListActions.addSubtask("Haul it", to: project, in: context, now: clock))
         XCTAssertNil(plain.assignee)
         XCTAssertEqual(plain.pendingFields, [])

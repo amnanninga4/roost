@@ -247,7 +247,6 @@ struct SettingsScreen: View {
         self.model = model
         await model.refresh()
     }
-
 }
 
 // MARK: - the parts a settings row is made of

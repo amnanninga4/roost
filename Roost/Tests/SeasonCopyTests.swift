@@ -9,7 +9,10 @@ final class SeasonCopyTests: XCTestCase {
     ]
 
     func testSeasonReadsFirstMonthToLastMonth() {
-        XCTAssertEqual(SeasonCopy.line(Season(months: [4, 5, 6, 7, 8, 9, 10]), monthSymbols: english), "April to October")
+        XCTAssertEqual(
+            SeasonCopy.line(Season(months: [4, 5, 6, 7, 8, 9, 10]), monthSymbols: english),
+            "April to October"
+        )
         XCTAssertEqual(SeasonCopy.line(Season(months: [11, 12, 1]), monthSymbols: english), "January to December",
                        "a set has no wrap-around; the line is the span the months cover")
         XCTAssertEqual(SeasonCopy.line(Season(months: [6]), monthSymbols: english), "June")

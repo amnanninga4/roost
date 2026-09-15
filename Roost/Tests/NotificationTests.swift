@@ -232,7 +232,12 @@ final class NotificationPlannerTests: XCTestCase {
             DueProject(id: "p-garage", title: "Garage trash", dueOn: "2026-09-06"),
             DueProject(id: "p-fence", title: "Fence", dueOn: "2026-09-07"),
         ]
-        let planned = NotificationPlanner.planProjects(projects, on: Fixture.morning, now: Fixture.morning, calendar: Fixture.cal)
+        let planned = NotificationPlanner.planProjects(
+            projects,
+            on: Fixture.morning,
+            now: Fixture.morning,
+            calendar: Fixture.cal
+        )
         XCTAssertEqual(planned.map(\.id), ["roost.project.p-garage.2026-09-06"])
         XCTAssertEqual(planned.first?.title, "Due today")
         XCTAssertEqual(planned.first?.body, "Garage trash is due today")
@@ -242,10 +247,14 @@ final class NotificationPlannerTests: XCTestCase {
         let next = NotificationPlanner.planProjects(projects, on: tomorrow, now: Fixture.morning, calendar: Fixture.cal)
         XCTAssertEqual(next.map(\.id), ["roost.project.p-fence.2026-09-07"])
 
-        let late = NotificationPlanner.planProjects(projects, on: Fixture.morning, now: Fixture.evening, calendar: Fixture.cal)
+        let late = NotificationPlanner.planProjects(
+            projects,
+            on: Fixture.morning,
+            now: Fixture.evening,
+            calendar: Fixture.cal
+        )
         XCTAssertEqual(late, [], "09:00 has passed by 19:00")
     }
-
 }
 
 // MARK: - scheduler
@@ -410,15 +419,28 @@ final class NotificationSchedulerTests: XCTestCase {
         XCTAssertEqual(center.pending.count, 5)
     }
 
-
     func testADueProjectIsScheduledAndAFinishedOneIsNot() async throws {
         try pair(as: .anne)
         let ctx = ModelContext(container)
-        let garage = ProjectRecord(id: "p-garage", title: "Garage trash", dueOn: "2026-09-06", createdAt: now, syncedAt: now)
+        let garage = ProjectRecord(
+            id: "p-garage",
+            title: "Garage trash",
+            dueOn: "2026-09-06",
+            createdAt: now,
+            syncedAt: now
+        )
         let fence = ProjectRecord(id: "p-fence", title: "Fence", dueOn: "2026-09-06", createdAt: now, syncedAt: now)
         ctx.insert(garage)
         ctx.insert(fence)
-        ctx.insert(SubtaskRecord(id: "st-1", projectId: "p-fence", title: "Done already", sortOrder: 0, done: true, createdAt: now, syncedAt: now))
+        ctx.insert(SubtaskRecord(
+            id: "st-1",
+            projectId: "p-fence",
+            title: "Done already",
+            sortOrder: 0,
+            done: true,
+            createdAt: now,
+            syncedAt: now
+        ))
         try ctx.save()
 
         await scheduler().replan()

@@ -95,7 +95,6 @@ enum ListActions {
         return copy
     }
 
-
     // MARK: meals
 
     @discardableResult
@@ -184,7 +183,12 @@ enum ListActions {
     }
 
     /// `dueOn` is a Chicago calendar day ("2026-09-20"), or nil to clear the day.
-    static func setDueOn(_ project: ProjectRecord, _ dueOn: String?, in context: ModelContext, now: Date = Date()) throws {
+    static func setDueOn(
+        _ project: ProjectRecord,
+        _ dueOn: String?,
+        in context: ModelContext,
+        now: Date = Date()
+    ) throws {
         project.dueOn = dueOn
         project.markEdited(.dueOn, at: now)
         try context.save()
@@ -334,7 +338,13 @@ enum ListActions {
             try context.save()
             return project
         }
-        let copy = ProjectRecord(id: newId(), title: project.title, dueOn: project.dueOn, createdAt: project.createdAt, updatedAt: now)
+        let copy = ProjectRecord(
+            id: newId(),
+            title: project.title,
+            dueOn: project.dueOn,
+            createdAt: project.createdAt,
+            updatedAt: now
+        )
         // A create does not carry the day, so flag it for the PATCH that follows.
         if copy.dueOn != nil {
             copy.pendingFields = .dueOn
