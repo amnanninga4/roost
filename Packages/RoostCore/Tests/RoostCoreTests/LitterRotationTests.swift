@@ -104,17 +104,18 @@ final class LitterRotationTests: XCTestCase {
 
     func testTheChangeMovesToWhoeverMissedMoreThanTwoScoops() {
         // Anne scooped none of hers; Wes did all of his through Sep 24, so only Anne is over the line.
+        // Through Sep 24 Anne owed Mon14/Wed16/Fri18/Sun20/Tue22/Thu24 (6); Wes owed five days and finished them.
         var completions: [Completion] = []
         for d in [15, 17, 19, 21, 23] { completions.append(done(scoop, .wes, day(9, d))) }
         let plan = scheduler.plan(on: day(9, 25), completions: completions)
         let wesRows = plan[.wes]?.map(\.chore.id) ?? []
         let anneRows = plan[.anne]?.map(\.chore.id) ?? []
-        XCTAssertTrue(anneRows.contains(change.id), "Anne missed 5 scoops, so September's change is hers")
+        XCTAssertTrue(anneRows.contains(change.id), "Anne missed 6 scoops, so September's change is hers")
         XCTAssertFalse(wesRows.contains(change.id), "the rotation said Wes; the penalty moved it")
 
-        // A late scoop that removes Anne's fourth miss is not enough to take her back under 2, but
-        // covering all but two is: the change goes back to the rotation's Wes.
-        for d in [14, 16, 18] { completions.append(done(scoop, .anne, day(9, d))) }
+        // Covering four of Anne's six leaves exactly two misses — not over the line — so the rotation's Wes returns.
+        // (Plan sketch covered only 14/16/18, which still leaves three misses; corrected to match spec intent.)
+        for d in [14, 16, 18, 20] { completions.append(done(scoop, .anne, day(9, d))) }
         let after = scheduler.plan(on: day(9, 25), completions: completions)
         XCTAssertTrue((after[.wes]?.map(\.chore.id) ?? []).contains(change.id), "Anne is back under the line")
     }
