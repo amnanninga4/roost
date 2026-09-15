@@ -3,7 +3,7 @@
 
 Schema (simple, Swift/SwiftData-friendly):
   Root object:
-    version: int          # 4 since the 2026-09-14 due-windows update
+    version: int          # 5 since the 2026-09-15 litter-rotations update
     source: str           # e.g. "chore-master-list.html"
     locked: str           # ISO date the list was settled
     notes: str            # optional human note
@@ -20,6 +20,10 @@ Schema (simple, Swift/SwiftData-friendly):
     together: bool             # optional: both people owe it; fixedAssignee must be null
     weekdays: [int]            # optional: weekly only, Mon=1…Sun=7, ascending unique; window = min…max
     dueDay: int                # optional/required on monthly|bimonthly|quarterly: 1..28; window = 7 days ending on it
+    rotation: object           # optional: weekdayCycle (daily only, 1–4 Monday-first week tables) or
+                               # alternate (start person owns even period indexes); never with a pin
+    missPenalty: object        # optional: {watch, overMisses}; counted over the chore's calendar period;
+                               # no chains; beats the rotation, loses to a pin or accepted handoff
 
 The file is grouped by cadence in CADENCE_ORDER and the order is meaning: it becomes `sortOrder` on
 both stores. Counts and pins below are the list Anne and Wes settled on 2026-09-14 (41 chores).
@@ -44,10 +48,11 @@ SEASON_CADENCES = frozenset({"daily", "weekly", "biweekly", "monthly"})
 VALID_ASSIGNEES = frozenset({"anne", "wes"})
 VALID_CATEGORIES = frozenset({"chore", "cat_care"})
 REQUIRED_CHORE_KEYS = ("id", "title", "cadence", "fixedAssignee", "category")
-OPTIONAL_CHORE_KEYS = ("season", "together", "weekdays", "dueDay")
+OPTIONAL_CHORE_KEYS = ("season", "together", "weekdays", "dueDay", "rotation", "missPenalty")
 WINDOW_MONTH_CADENCES = frozenset({"monthly", "bimonthly", "quarterly"})
+ROTATION_KINDS = frozenset({"weekdayCycle", "alternate"})
 
-EXPECTED_VERSION = 4
+EXPECTED_VERSION = 5
 # EXPECTED_COUNTS / EXPECTED_COUNT / EXPECTED_PINNED unchanged (41, ten pins)
 EXPECTED_WEEKDAYS = {
     "take-out-garbage-basement": [5, 6],
@@ -68,6 +73,17 @@ EXPECTED_DUE_DAYS = {
     "change-litter": 25,
     "clean-out-fridge-pantry": 28,
 }
+EXPECTED_ROTATIONS = {
+    "scoop-litter": {
+        "kind": "weekdayCycle",
+        "weeks": [
+            ["anne", "wes", "anne", "wes", "anne", "wes", "anne"],
+            ["wes", "anne", "wes", "anne", "wes", "anne", "wes"],
+        ],
+    },
+    "change-litter": {"kind": "alternate", "start": "wes"},
+}
+EXPECTED_PENALTIES = {"change-litter": {"watch": "scoop-litter", "overMisses": 2}}
 EXPECTED_COUNTS = {"daily": 13, "weekly": 12, "biweekly": 5, "monthly": 7, "bimonthly": 1, "quarterly": 3}
 EXPECTED_COUNT = sum(EXPECTED_COUNTS.values())  # 41
 EXPECTED_PINNED = {
@@ -125,6 +141,47 @@ def check_due_day(loc: str, day: object, chore: dict) -> None:
         fail(f"{loc}: dueDay only belongs on a monthly, bimonthly or quarterly chore, got {chore['cadence']!r}")
 
 
+def check_rotation(loc: str, rotation: object, chore: dict) -> None:
+    if not isinstance(rotation, dict) or "kind" not in rotation:
+        fail(f"{loc}.rotation must be an object with a kind")
+    kind = rotation["kind"]
+    if kind not in ROTATION_KINDS:
+        fail(f"{loc}.rotation.kind invalid: {kind!r} (want {sorted(ROTATION_KINDS)})")
+    if chore["fixedAssignee"] is not None:
+        fail(f"{loc}: a pinned chore cannot also carry a rotation")
+    if kind == "weekdayCycle":
+        if set(rotation) != {"kind", "weeks"}:
+            fail(f"{loc}.rotation takes exactly kind and weeks")
+        weeks = rotation["weeks"]
+        if not isinstance(weeks, list) or not 1 <= len(weeks) <= 4:
+            fail(f"{loc}.rotation.weeks must be a list of 1..4 week tables")
+        for w, week in enumerate(weeks):
+            if not isinstance(week, list) or len(week) != 7:
+                fail(f"{loc}.rotation.weeks[{w}] must have exactly seven entries, Monday first")
+            for d, who in enumerate(week):
+                if who not in VALID_ASSIGNEES:
+                    fail(f"{loc}.rotation.weeks[{w}][{d}] invalid: {who!r} (want anne|wes)")
+        if chore["cadence"] != "daily":
+            fail(f"{loc}: a weekdayCycle rotation needs a daily cadence, got {chore['cadence']!r}")
+    else:
+        if set(rotation) != {"kind", "start"}:
+            fail(f"{loc}.rotation takes exactly kind and start")
+        if rotation["start"] not in VALID_ASSIGNEES:
+            fail(f"{loc}.rotation.start invalid: {rotation['start']!r} (want anne|wes)")
+
+
+def check_penalty(loc: str, penalty: object, chore: dict, ids: set[str]) -> None:
+    if not isinstance(penalty, dict) or set(penalty) != {"watch", "overMisses"}:
+        fail(f"{loc}.missPenalty takes exactly watch and overMisses")
+    if penalty["watch"] not in ids:
+        fail(f"{loc}.missPenalty.watch names no chore in this file: {penalty['watch']!r}")
+    if penalty["watch"] == chore["id"]:
+        fail(f"{loc}.missPenalty.watch cannot be the chore itself")
+    n = penalty["overMisses"]
+    if not isinstance(n, int) or isinstance(n, bool) or not 0 <= n <= 30:
+        fail(f"{loc}.missPenalty.overMisses must be an integer 0..30, got {n!r}")
+
+
 def main() -> None:
     if not CHORES_PATH.is_file():
         fail(f"missing file: {CHORES_PATH}")
@@ -157,6 +214,9 @@ def main() -> None:
     pinned: dict[str, str] = {}
     weekdays: dict[str, list[int]] = {}
     due_days: dict[str, int] = {}
+    rotations: dict[str, object] = {}
+    penalties: dict[str, object] = {}
+    pending_penalties: list[tuple[str, object, dict]] = []
     last_rank = 0
 
     for i, chore in enumerate(chores):
@@ -214,7 +274,18 @@ def main() -> None:
             due_days[cid] = chore["dueDay"]
         elif cadence in WINDOW_MONTH_CADENCES:
             fail(f"{loc} ({cid}): every {cadence} chore needs a dueDay (1..28) so nothing bunches on the 1st")
+        if "rotation" in chore:
+            check_rotation(loc, chore["rotation"], chore)
+            rotations[cid] = chore["rotation"]
+        if "missPenalty" in chore:
+            pending_penalties.append((loc, chore["missPenalty"], chore))
+            penalties[cid] = chore["missPenalty"]
 
+    for loc, penalty, chore in pending_penalties:
+        check_penalty(loc, penalty, chore, seen_ids)
+    for cid, penalty in penalties.items():
+        if penalty["watch"] in penalties:
+            fail(f"{cid}: missPenalty.watch points at {penalty['watch']!r}, which is itself penalised; no chains")
     if by_cadence != EXPECTED_COUNTS:
         fail(f"per-cadence counts {by_cadence} do not match {EXPECTED_COUNTS}")
     if pinned != EXPECTED_PINNED:
@@ -223,6 +294,10 @@ def main() -> None:
         fail(f"weekday windows {weekdays} do not match {EXPECTED_WEEKDAYS}")
     if due_days != EXPECTED_DUE_DAYS:
         fail(f"due days {due_days} do not match {EXPECTED_DUE_DAYS}")
+    if rotations != EXPECTED_ROTATIONS:
+        fail(f"rotations {rotations} do not match {EXPECTED_ROTATIONS}")
+    if penalties != EXPECTED_PENALTIES:
+        fail(f"miss penalties {penalties} do not match {EXPECTED_PENALTIES}")
 
     print(f"OK: {CHORES_PATH.relative_to(REPO_ROOT)}")
     print(f"  version: {data['version']}")
@@ -234,6 +309,13 @@ def main() -> None:
     print("  together: " + ", ".join(c["id"] for c in chores if c.get("together")))
     print("  weekdays: " + ", ".join(f"{cid}→{d}" for cid, d in weekdays.items()))
     print("  dueDay: " + ", ".join(f"{cid}→{d}" for cid, d in due_days.items()))
+    print("  rotation: " + ", ".join(rotations))
+    print(
+        "  missPenalty: "
+        + ", ".join(
+            f"{cid}→{p['watch']}/{p['overMisses']}" for cid, p in penalties.items()
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 {
-  "version": 4,
+  "version": 5,
   "source": "chore-master-list.html",
-  "locked": "2026-09-14",
-  "notes": "Version 4, 2026-09-14: due windows from Anne's feedback on issue #1. weekdays (Mon=1…Sun=7) on the three take-out-garbage rows [5, 6] and garbage-can-to-street-sunday [7]; a dueDay on every monthly, bimonthly and quarterly chore (window = the 7 days ending on it), change-litter on the 25th. 41 tasks (13 daily + 12 weekly + 5 biweekly + 7 monthly + 1 bimonthly + 3 quarterly). Grouped by cadence; the order is sortOrder. Mockup sample rows are illustrative and must not be merged in.",
+  "locked": "2026-09-15",
+  "notes": "Version 5, 2026-09-15: litter's two rotations from Anne's feedback on issue #1. scoop-litter takes a two-week weekdayCycle (week A Anne Mon/Wed/Fri/Sun, week B swapped); change-litter alternates from Wes and moves to whoever missed more than two scoop days that month. 41 tasks (13 daily + 12 weekly + 5 biweekly + 7 monthly + 1 bimonthly + 3 quarterly). Grouped by cadence; the order is sortOrder. Mockup sample rows are illustrative and must not be merged in.",
   "chores": [
     {
       "id": "load-dishwasher",
@@ -16,7 +16,30 @@
       "title": "Scoop litter",
       "cadence": "daily",
       "fixedAssignee": null,
-      "category": "cat_care"
+      "category": "cat_care",
+      "rotation": {
+        "kind": "weekdayCycle",
+        "weeks": [
+          [
+            "anne",
+            "wes",
+            "anne",
+            "wes",
+            "anne",
+            "wes",
+            "anne"
+          ],
+          [
+            "wes",
+            "anne",
+            "wes",
+            "anne",
+            "wes",
+            "anne",
+            "wes"
+          ]
+        ]
+      }
     },
     {
       "id": "wipe-counters-mirrors",
@@ -161,7 +184,7 @@
     },
     {
       "id": "wipe-cabinet-doors",
-      "title": "Wipe down outer cabinet doors — kitchen and bathroom",
+      "title": "Wipe down outer cabinet doors \u2014 kitchen and bathroom",
       "cadence": "weekly",
       "fixedAssignee": null,
       "category": "chore"
@@ -246,11 +269,19 @@
       "cadence": "monthly",
       "fixedAssignee": null,
       "category": "cat_care",
-      "dueDay": 25
+      "dueDay": 25,
+      "rotation": {
+        "kind": "alternate",
+        "start": "wes"
+      },
+      "missPenalty": {
+        "watch": "scoop-litter",
+        "overMisses": 2
+      }
     },
     {
       "id": "clean-inside-ovens",
-      "title": "Clean inside ovens — basement and kitchen",
+      "title": "Clean inside ovens \u2014 basement and kitchen",
       "cadence": "monthly",
       "fixedAssignee": null,
       "category": "chore",
