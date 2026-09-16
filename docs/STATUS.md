@@ -1,12 +1,12 @@
 # Roost — what's going on
 
-_Generated Tuesday September 15, 2026 at 6:13 PM CDT. Regenerate with `scripts/status-report.sh`._
+_Generated Tuesday September 15, 2026 at 8:02 PM CDT. Regenerate with `scripts/status-report.sh`._
 
 ## Running right now
 
 | | |
 |---|---|
-| Server build | `f5aff0e` |
+| Server build | `657ac1d` |
 | Latest code on main | `657ac1d` |
 | Chores loaded | 41, list version 5 |
 | Phones paired | 2 |
@@ -16,20 +16,19 @@ _Generated Tuesday September 15, 2026 at 6:13 PM CDT. Regenerate with `scripts/s
 
 ## Waiting on you
 
-Only things Fable cannot decide or do. Carrying the `needs-wes` label is what puts
-something here — if it is not labelled, it is not yours, and it should not be on your plate.
+Only things Fable cannot decide: taste calls, and anything irreversible, outward-facing,
+or costing money. Code review is not on this list — Fable merges its own work on green CI.
 
 - **Appearance choice in Settings: System, Light, Dark**  [#65](https://github.com/amnanninga4/roost/pull/65)
 
-Things only you can do, that are not code, live in the *Blocked on Wes* table of
-`OPEN-ITEMS.md`. Today that is the APNs key, Anne's phone, and a Tailscale key.
+Non-code items only you can do are in the *Blocked on Wes* table of `OPEN-ITEMS.md`.
 
-## Fable is handling these
+## In flight
 
-Here so you can see them, not so you can do them. No action needed.
+Fable's own work, moving on its own. Listed so you can see it, not so you can do it.
 
-- Home screen design  [#93](https://github.com/amnanninga4/roost/pull/93)
-- A status report Wes can actually read  [#92](https://github.com/amnanninga4/roost/pull/92)
+- CI: run the Swift package tests  [#94](https://github.com/amnanninga4/roost/pull/94)
+- Status report, home screen spec, and the audit fixes  [#93](https://github.com/amnanninga4/roost/pull/93)
 
 ## Waiting on Anne
 
@@ -44,7 +43,7 @@ Thread: **Apple Dev 3.0 ↔ Anne Claude — roost kickoff**  [#1](https://github
 
 ## The phones
 
-- iPhone iPhone17,3 — connected
+- iPhone iPhone17,3 — not connected
 
 ## Open items, counted
 

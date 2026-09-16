@@ -39,20 +39,19 @@ field() { printf '%s' "$health" | python3 -c "import json,sys;print(json.load(sy
   echo
   echo "## Waiting on you"
   echo
-  echo "Only things Fable cannot decide or do. Carrying the \`needs-wes\` label is what puts"
-  echo "something here — if it is not labelled, it is not yours, and it should not be on your plate."
+  echo "Only things Fable cannot decide: taste calls, and anything irreversible, outward-facing,"
+  echo "or costing money. Code review is not on this list — Fable merges its own work on green CI."
   echo
   if ! gh pr list --state open --label needs-wes --json number,title \
       --jq '.[] | "- **\(.title)**  [#\(.number)](https://github.com/amnanninga4/roost/pull/\(.number))"' 2>/dev/null | grep .; then
-    echo "- Nothing in the code needs you."
+    echo "- Nothing needs you."
   fi
   echo
-  echo "Things only you can do, that are not code, live in the *Blocked on Wes* table of"
-  echo "\`OPEN-ITEMS.md\`. Today that is the APNs key, Anne's phone, and a Tailscale key."
+  echo "Non-code items only you can do are in the *Blocked on Wes* table of \`OPEN-ITEMS.md\`."
   echo
-  echo "## Fable is handling these"
+  echo "## In flight"
   echo
-  echo "Here so you can see them, not so you can do them. No action needed."
+  echo "Fable's own work, moving on its own. Listed so you can see it, not so you can do it."
   echo
   if ! gh pr list --state open --json number,title,labels \
       --jq '.[] | select([.labels[].name] | index("needs-wes") | not) | "- \(.title)  [#\(.number)](https://github.com/amnanninga4/roost/pull/\(.number))"' 2>/dev/null | grep .; then
