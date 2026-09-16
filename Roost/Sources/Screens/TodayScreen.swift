@@ -175,32 +175,18 @@ struct TodayScreen: View {
     /// Check off, or un-check. `rows` is the column the row was tapped in, as it stood a moment ago:
     /// the store's query has not caught up yet, so the celebration rule is decided from what was drawn.
     private func toggle(_ row: TodayRow, among rows: [TodayRow]) {
-        let now = Date()
-        switch row.kind {
-        case .due:
-            let record = CompletionRecord(
-                id: UUID().uuidString, choreId: row.chore.id, person: row.person.rawValue, completedAt: now
-            )
-            context.insert(record)
+        switch ChoreCheckOff.toggle(
+            row, among: rows, me: me, completions: completionRecords,
+            celebration: &celebration, calendar: calendar, context: context, sync: sync
+        ) {
+        case let .checked(celebrates):
             checkOffs += 1
-            if celebration.fires(when: rows, checking: row, as: me, on: calendar.startOfDay(now)) {
+            if celebrates {
                 celebrations += 1
             }
-        case let .done(completionId):
-            if let record = completionRecords.first(where: { $0.id == completionId }) {
-                record.removed = true
-                if record.syncedAt == nil, !record.rejected {
-                    record.deleteSynced = true // never reached the server; nothing to replay
-                }
-            }
+        case .unchecked:
             undos += 1
         }
-        try? context.save()
-        if case .due = row.kind {
-            // "Wes said no" has been read by the time you are checking things off again.
-            try? HandoffActions.clearNotices(for: row.person, in: context)
-        }
-        sync.syncSoon()
     }
 
     // MARK: - Handoffs

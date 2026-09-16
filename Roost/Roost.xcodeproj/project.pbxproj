@@ -26,6 +26,7 @@
 		2347B4ABDED89703835BF319 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAEAF0E0517F0553804A8F8C /* OnboardingFlow.swift */; };
 		24F12B4EEEAC70C87210E9E6 /* HandoffActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50964424ABF72DB3DC551BA /* HandoffActionsTests.swift */; };
 		26BD3337085FA721EC107D15 /* HomeRowsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AFB8DE9407778272B26CCE /* HomeRowsView.swift */; };
+		274F7D8EC4D68D124DA56AE4 /* ChoreCheckOff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C65C2C4812D1C987EF3FF38 /* ChoreCheckOff.swift */; };
 		2BA002E37E9AF2F8A7378B3C /* RoostCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4F04D4416C0FDE8B1AA930 /* RoostCopy.swift */; };
 		2D43EE358CB53644986BA17A /* Records.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7168ED6D6C114A915763462 /* Records.swift */; };
 		2D4B1A273D621C4F4D749A35 /* RoostSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E23F806BDBC0294DF5F617 /* RoostSnapshot.swift */; };
@@ -38,6 +39,7 @@
 		329775D2FAB960D6284980BD /* OnboardingPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D23E6AAE5D72F9033FC491B /* OnboardingPage.swift */; };
 		3BD71332F35529FC3CEA0964 /* RoostAppMarker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A3CD8363F11629A32892822 /* RoostAppMarker.swift */; };
 		3C7B79C3D945E6637054DAFD /* RoostWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C968E6FA3FA75A1861CBDC5 /* RoostWidgetBundle.swift */; };
+		3D0447DB07FB8BDDB9FA2F25 /* ChoreCheckOffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FC22DCC22E7C1DEFACAB498 /* ChoreCheckOffTests.swift */; };
 		3E3B14F1F50EB593606F7052 /* RoostSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E23F806BDBC0294DF5F617 /* RoostSnapshot.swift */; };
 		42F8A05EE517129AF986F4EA /* ShoppingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A208594856956F7ED982DE /* ShoppingScreen.swift */; };
 		43DE111DBBCA3E0D6B5E2135 /* PairingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 363D5D355D39B62D4830AA8F /* PairingTests.swift */; };
@@ -218,6 +220,7 @@
 		2E9754C7470BC3E91E3B1042 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		2F0F1AA5297ED8D5A366C2CF /* SnapshotWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotWriter.swift; sourceTree = "<group>"; };
 		2F4F04D4416C0FDE8B1AA930 /* RoostCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostCopy.swift; sourceTree = "<group>"; };
+		2FC22DCC22E7C1DEFACAB498 /* ChoreCheckOffTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreCheckOffTests.swift; sourceTree = "<group>"; };
 		334905B7A9952B9FF0F8BC28 /* StreakHeaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakHeaderTests.swift; sourceTree = "<group>"; };
 		354D1035A801ABB9D4165193 /* CodeEntryField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeEntryField.swift; sourceTree = "<group>"; };
 		356F45852D23F470A2889DFE /* NotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduler.swift; sourceTree = "<group>"; };
@@ -239,6 +242,7 @@
 		59C7E3B2C6B03A58C3A3C989 /* SyncAPI+Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Push.swift"; sourceTree = "<group>"; };
 		59D8308455A41EC775A156EE /* HandoffRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffRecords.swift; sourceTree = "<group>"; };
 		5BA7D9CFBDE2D59E17D85996 /* SyncAPI+Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Lists.swift"; sourceTree = "<group>"; };
+		5C65C2C4812D1C987EF3FF38 /* ChoreCheckOff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreCheckOff.swift; sourceTree = "<group>"; };
 		5C6A70E643D7D526195B06C1 /* SyncChoresTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncChoresTests.swift; sourceTree = "<group>"; };
 		6297B456DD7EB7A1202308B9 /* TodayBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayBoard.swift; sourceTree = "<group>"; };
 		63E663527CC81BACD2C0116B /* RoostSegmentedControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostSegmentedControl.swift; sourceTree = "<group>"; };
@@ -557,6 +561,7 @@
 			isa = PBXGroup;
 			children = (
 				7CF47E231287D8E2BFAA4331 /* Appearance.swift */,
+				5C65C2C4812D1C987EF3FF38 /* ChoreCheckOff.swift */,
 				3C42DA385682B08D301915DD /* ChoreRowMeta.swift */,
 				76AF01D4B0027DC9BFEA9C94 /* ChoreSeeder.swift */,
 				9F2D83207427DCFB1F79CBC4 /* Converters.swift */,
@@ -586,6 +591,7 @@
 			children = (
 				90392A653A8DFE39392DDF97 /* ActiveFromTests.swift */,
 				E5D996E23C2D6628444D44D9 /* AppearanceTests.swift */,
+				2FC22DCC22E7C1DEFACAB498 /* ChoreCheckOffTests.swift */,
 				7475C43FFF3F8D58BC6E35E3 /* ChoreRowMetaTests.swift */,
 				F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */,
 				D50964424ABF72DB3DC551BA /* HandoffActionsTests.swift */,
@@ -846,6 +852,7 @@
 			files = (
 				6CA79C2F0062517D8D9BEFDA /* Appearance.swift in Sources */,
 				2ED08758CF2846C25CE631E1 /* CelebrationView.swift in Sources */,
+				274F7D8EC4D68D124DA56AE4 /* ChoreCheckOff.swift in Sources */,
 				5C3E33554F496E34DB9C74FF /* ChoreListScreen.swift in Sources */,
 				B1A61BB2D698BACADC67CAE2 /* ChoreRowMeta.swift in Sources */,
 				2F7772077A0025FA02E2647F /* ChoreRowView.swift in Sources */,
@@ -972,6 +979,7 @@
 			files = (
 				12096F825D02A2B92130DA28 /* ActiveFromTests.swift in Sources */,
 				AC03B8E557EC773D56AED242 /* AppearanceTests.swift in Sources */,
+				3D0447DB07FB8BDDB9FA2F25 /* ChoreCheckOffTests.swift in Sources */,
 				A9165A950F3F3036E8705DCF /* ChoreRowMetaTests.swift in Sources */,
 				CAECD7BEBC9EAB3C0F829554 /* EscalationCopyTests.swift in Sources */,
 				24F12B4EEEAC70C87210E9E6 /* HandoffActionsTests.swift in Sources */,
