@@ -69,6 +69,10 @@ enum Strings {
         /// Collapses an expanded list again.
         static let showLess = "Show less"
 
+        static let overdue = "Overdue"
+        static let today = "Today"
+        static let ifYouHaveTime = "If you have time"
+
         /// VoiceOver for the collapse control, which must say what it does, not just how many.
         static func moreHint(_ count: Int) -> String {
             count == 1 ? "Shows 1 more chore" : "Shows \(count) more chores"
