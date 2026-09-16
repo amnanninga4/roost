@@ -89,7 +89,7 @@ class RoostUITestCase: XCTestCase {
         XCTAssertTrue(board.waitForExistence(timeout: Self.timeout), "the board segment is not on Home")
         board.tap()
         XCTAssertTrue(
-            app.staticTexts["Today"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["board.title"].waitForExistence(timeout: Self.timeout),
             "the board never appeared"
         )
     }
