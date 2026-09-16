@@ -129,3 +129,42 @@ jobs:
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
             -skipPackagePluginValidation \
             test
+
+  packages:
+    name: packages (swift test)
+    # The app job compiles both packages but never runs their tests: the Roost
+    # scheme's test action is RoostTests and RoostUITests only (Roost/project.yml),
+    # so RoostCore's scheduling rules and RoostDesign's palette are built and then
+    # left unexercised. On 2026-09-14 a chores-data change broke six RoostCore tests
+    # and CI stayed green, which is what this job is here to stop.
+    # No `needs:` on purpose — the app job takes ~18 minutes and this must not queue
+    # behind it.
+    runs-on: macos-26
+    # Both suites together take under a second; the budget here is checkout and
+    # toolchain. Short enough that a hang is caught without spending what the app
+    # job's 45 minutes allows for.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned for the same reason as the app job: `swift test` builds with whatever
+      # toolchain xcode-select points at, so an image default bump would otherwise
+      # change the Swift version under these tests without anyone editing this file.
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          swift --version
+
+      # No SwiftPM cache, as in the app job: both packages are local paths with no
+      # remote dependencies, so resolution fetches nothing over the network.
+      - name: swift test RoostCore
+        working-directory: Packages/RoostCore
+        run: swift test
+
+      # Runs even when RoostCore failed, so one red suite cannot hide the other.
+      # This does not forgive anything: a failed step still fails the job, so one
+      # run tells you the state of both packages.
+      - name: swift test RoostDesign
+        if: ${{ !cancelled() }}
+        working-directory: Packages/RoostDesign
+        run: swift test
