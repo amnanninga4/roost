@@ -148,6 +148,29 @@ Accepted knowingly by Wes on 2026-09-15. The rule survives — the board is one 
 same tab, and Home still names the other person's count on every screen. "Is she keeping up?" is
 a real question and a less frequent one than "what do I have to do right now."
 
+## What it measured
+
+Built 2026-09-15. Distance from the nav bar to the first checkable chore row, default Dynamic
+Type, fresh launch: **156 pt** on Home, against ~190–210 pt on the old Today screen.
+
+Taken on an iPhone 17 Pro simulator (iOS 26.3.1, a 402 × 874 pt window) from the `paired`
+UI-test fixture, reading `XCUIElement.frame` rather than counting pixels: the navigation bar
+ends at y = 116 and the first row's tap target starts at y = 271.7. The chore title's own top
+edge is about 8 pt further down, so a like-for-like figure against a number measured to the
+title is ~164 pt.
+
+The 156 pt breaks down as 10 pt of gap under the bar, **44 pt of segmented control**, 18 pt of
+padding around it, 16 pt of date eyebrow, 42 pt of sentence, and a 24 pt section gap. So the
+saving is real but modest — 35 to 55 pt, around a fifth — and the reason it is not larger is
+that the tab's own segment picker and its padding cost 62 pt, which is most of what the streak
+card gave back. Home's own content above the first row is about 94 pt. If this number has to
+come down again, the picker is the thing to argue with, not the sentence.
+
+The old screen's ~190–210 pt was not re-measured on this machine; it is carried from the
+section above. The board segment today puts its first row 428 pt below the bar in the same
+fixture, but that number is not comparable: it includes the new segment picker and a pending
+handoff offer card that the fixture puts at the top of Anne's column.
+
 ## Out of scope (later lanes)
 
 - The daily cap and the bonus list. The collapse threshold above anticipates it and defers to it.

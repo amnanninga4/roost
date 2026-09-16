@@ -36,6 +36,9 @@ struct TodayScreen: View {
     @State private var celebration = TodayBoard.Celebration()
     /// The row waiting on the one confirmation before an offer is made. Nil the rest of the time.
     @State private var pendingOffer: TodayRow?
+    /// Ruling 2026-09-14, carried over from the header: expand state persists; default collapsed
+    /// on a fresh install. The key is unchanged so a phone that had it open keeps it open.
+    @AppStorage("roost.today.streakExpanded") private var streaksExpanded = false
 
     private let calendar = HouseholdCalendar()
 
@@ -103,7 +106,8 @@ struct TodayScreen: View {
         let plan = plan(asOf: now)
         return ScrollView {
             VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
-                TodayHeaderView(date: now, streaks: StreakHeaderModel(plan: plan), notice: notice(asOf: now), me: me)
+                TodayHeaderView(date: now, notice: notice(asOf: now))
+                StreakSummaryView(model: StreakHeaderModel(plan: plan), me: me, expanded: $streaksExpanded)
                 ForEach(TodayBoard.columnPeople(me: me), id: \.self) { person in
                     let rows = TodayBoard.ordered(plan.rows(for: person))
                     let isMine = person == me

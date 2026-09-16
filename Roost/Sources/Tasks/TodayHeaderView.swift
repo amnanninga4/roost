@@ -1,16 +1,13 @@
-// The top of the Tasks tab: the date, the word Today, the head-to-head block, and one status line.
+// The top of the board segment: the date, the word Today, and one status line. The head-to-head
+// streak block moved down to sit above the columns — it is a scoreboard, and a scoreboard belongs
+// on the board rather than on the front door. See docs/superpowers/specs/2026-09-15-home-screen-design.md.
 import RoostCore
 import RoostDesign
 import SwiftUI
 
 struct TodayHeaderView: View {
     let date: Date
-    let streaks: StreakHeaderModel
     let notice: TodayBoard.Notice
-    /// This phone's person, so the collapsed streak line can say "You".
-    let me: Person?
-    /// Ruling 2026-09-14: expand state persists; default collapsed on a fresh install.
-    @AppStorage("roost.today.streakExpanded") private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: RoostSpacing.md) {
@@ -26,7 +23,6 @@ struct TodayHeaderView: View {
                     .foregroundStyle(RoostColor.Role.textPrimary.color)
                     .accessibilityAddTraits(.isHeader)
             }
-            StreakSummaryView(model: streaks, me: me, expanded: $expanded)
             SyncNoticeLine(notice: notice)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -68,9 +64,7 @@ struct SyncNoticeLine: View {
 #Preview("Paired and synced") {
     TodayHeaderView(
         date: Date(),
-        streaks: StreakHeaderModel(streak: [.anne: 9, .wes: 6], doneThisWeek: [.anne: 14, .wes: 11]),
-        notice: TodayBoard.Notice(tone: .quiet, text: SyncStatusCopy.synced(at: Date())),
-        me: .anne
+        notice: TodayBoard.Notice(tone: .quiet, text: SyncStatusCopy.synced(at: Date()))
     )
     .padding(RoostSpacing.screenMargin)
     .background(RoostColor.Role.background.color)
@@ -79,9 +73,7 @@ struct SyncNoticeLine: View {
 #Preview("Not paired") {
     TodayHeaderView(
         date: Date(),
-        streaks: StreakHeaderModel(streak: [:], doneThisWeek: [:]),
-        notice: TodayBoard.Notice(tone: .notice, text: Strings.Tasks.notPaired),
-        me: .anne
+        notice: TodayBoard.Notice(tone: .notice, text: Strings.Tasks.notPaired)
     )
     .padding(RoostSpacing.screenMargin)
     .background(RoostColor.Role.background.color)

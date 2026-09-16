@@ -51,8 +51,12 @@
         /// the container's `mainContext` — the same context the app's views write through.
         @MainActor
         func makeContainer() -> ModelContainer {
-            // Launch reset: every fixture starts with the streak card collapsed.
+            // Launch reset: every fixture starts with the streak card and Home's row fold collapsed.
+            // The store is in memory, but `@AppStorage` is not — without this a phone that was left
+            // expanded by a previous run launches expanded, which is not a fresh install and is not
+            // what a screenshot of one should show.
             UserDefaults.standard.removeObject(forKey: "roost.today.streakExpanded")
+            UserDefaults.standard.removeObject(forKey: "roost.home.rowsExpanded")
             let container: ModelContainer
             do {
                 container = try ModelContainer(
