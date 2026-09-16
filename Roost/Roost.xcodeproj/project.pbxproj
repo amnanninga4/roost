@@ -144,10 +144,12 @@
 		F179D4A20958CF6C5C074DD0 /* ProjectsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E4669DED3552DB44B02B0D /* ProjectsScreen.swift */; };
 		F18798BB95C2A24FC9CB0894 /* RootGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDB030F573210AC01F0A2AD /* RootGate.swift */; };
 		F33831CE8230577DE97A12D9 /* HandoffOfferCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D5790C8BCC584A338E1C947 /* HandoffOfferCard.swift */; };
+		F39A37890B11E667AC7B3C15 /* HomeSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD24FCFEE24F2852BA66C067 /* HomeSummaryTests.swift */; };
 		F3B5069105664800E18076A6 /* SyncAPI+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59C7E3B2C6B03A58C3A3C989 /* SyncAPI+Push.swift */; };
 		F6E54746BBAAC8A68678C7D2 /* EscalationCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAABFF10436145260720977A /* EscalationCopy.swift */; };
 		FA325DFFA0D7E4B8B16A7EE5 /* ProjectFieldsSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18A4CEECAD86D14ECE082C3B /* ProjectFieldsSyncTests.swift */; };
 		FC2B40D169C2C3363B47D235 /* RoostUITestCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5380BD30CE2B5F3D6A2DEED /* RoostUITestCase.swift */; };
+		FD4F08F336CCF2AB45565F55 /* HomeSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D97423E2D76EEB04A31D60 /* HomeSummary.swift */; };
 		FE732B3691A48C147D082A40 /* SeedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEB1E461FBB61E46D4B13B15 /* SeedTests.swift */; };
 		FF6A4AEE0D4490B5F9ED580F /* UITestSeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = C35BCAC455C547C3717FD7C8 /* UITestSeed.swift */; };
 /* End PBXBuildFile section */
@@ -191,6 +193,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		03D97423E2D76EEB04A31D60 /* HomeSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSummary.swift; sourceTree = "<group>"; };
 		06641AAFA324A99E75897A98 /* HandoffSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffSyncTests.swift; sourceTree = "<group>"; };
 		080ACA808436919384EF6875 /* TodayPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlanner.swift; sourceTree = "<group>"; };
 		08D23A2D3FFCC9B7EDDDA809 /* RoostAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostAppDelegate.swift; sourceTree = "<group>"; };
@@ -291,6 +294,7 @@
 		B0BC757E755706A07B95CA5F /* HandoffSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffSync.swift; sourceTree = "<group>"; };
 		B40748880C7E8AEACC910BD5 /* SyncAPI+Handoffs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Handoffs.swift"; sourceTree = "<group>"; };
 		BB7CD878D6E5D1D301380265 /* RoostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostApp.swift; sourceTree = "<group>"; };
+		BD24FCFEE24F2852BA66C067 /* HomeSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSummaryTests.swift; sourceTree = "<group>"; };
 		C0B250C6201CB77F9FC9A682 /* TodayPlannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlannerTests.swift; sourceTree = "<group>"; };
 		C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListFailureTests.swift; sourceTree = "<group>"; };
 		C322C42624D2C3E5EF44F476 /* SyncAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAPI.swift; sourceTree = "<group>"; };
@@ -533,6 +537,7 @@
 				EC8A96DE8278AB9B883E7B09 /* HandoffActions.swift */,
 				A0B51DECE9534ADC90073D27 /* HandoffPresentation.swift */,
 				59D8308455A41EC775A156EE /* HandoffRecords.swift */,
+				03D97423E2D76EEB04A31D60 /* HomeSummary.swift */,
 				70EEA3303FF22CD208D77A66 /* KitchenModel.swift */,
 				714F89110CAB1289D39246BC /* ListActions.swift */,
 				0B4F24B76FC332F357199931 /* ListActions+Wishlist.swift */,
@@ -558,6 +563,7 @@
 				D50964424ABF72DB3DC551BA /* HandoffActionsTests.swift */,
 				43E00B3E9B1753F2ABC5091F /* HandoffPlanningTests.swift */,
 				06641AAFA324A99E75897A98 /* HandoffSyncTests.swift */,
+				BD24FCFEE24F2852BA66C067 /* HomeSummaryTests.swift */,
 				5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */,
 				FA7C1B8D87C1351A417B2668 /* ListCraftTests.swift */,
 				A3A83AF60338C3D3E81A5795 /* ListCreateTests.swift */,
@@ -824,6 +830,7 @@
 				9089E08218077921FCFA42E5 /* HandoffPresentation.swift in Sources */,
 				60CB0F0B357600B28E2B36D6 /* HandoffRecords.swift in Sources */,
 				BA23590F33F0011174D3858E /* HandoffSync.swift in Sources */,
+				FD4F08F336CCF2AB45565F55 /* HomeSummary.swift in Sources */,
 				7F0E2E2319A89428BAB50AF0 /* KitchenModel.swift in Sources */,
 				5C48CC0675271C9AB0A796C0 /* KitchenScreen.swift in Sources */,
 				4AEB7C87DB9D887D01AF8168 /* ListActions+Wishlist.swift in Sources */,
@@ -935,6 +942,7 @@
 				24F12B4EEEAC70C87210E9E6 /* HandoffActionsTests.swift in Sources */,
 				122C556EB733BF68D6564E88 /* HandoffPlanningTests.swift in Sources */,
 				DF80DEF69382BCEA3873F926 /* HandoffSyncTests.swift in Sources */,
+				F39A37890B11E667AC7B3C15 /* HomeSummaryTests.swift in Sources */,
 				B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */,
 				52B72B23F1E34310AB575E93 /* ListCraftTests.swift in Sources */,
 				F09F47F7201F64D4DDA19BF9 /* ListCreateTests.swift in Sources */,
