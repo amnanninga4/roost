@@ -5,9 +5,10 @@
 //   `testShoppingScrollDeceleration` is the numbers: `XCTOSSignpostMetric.scrollDecelerationMetric` times
 //   the deceleration after one fast flick. It records rather than asserts, because a `measure` block's
 //   values live in the result bundle and cannot be read from inside the test. On this simulator it is
-//   2.43 s with a relative standard deviation of 0.06% — the flick is the same flick every time. Hitch
-//   time ratio and frame rate are the metrics worth watching, and the simulator does not report them:
-//   they need a real display, so they will appear the first time this runs on a device.
+//   2.43 s, with a relative standard deviation between 0.002% and 0.315% across runs — the flick is
+//   very nearly the same flick every time. Hitch time ratio and frame rate are the metrics worth
+//   watching, and the simulator does not report them: they need a real display, so they will appear
+//   the first time this runs on a device. It is skipped in CI; see the note on the test itself.
 //
 //   `testShoppingListStaysLazy` is the assertion that would actually catch the regression the numbers are
 //   there to warn about. A `List` builds only the rows it is about to draw; a `ScrollView { VStack }`
@@ -56,6 +57,22 @@ final class ScrollPerformanceTests: RoostUITestCase {
 
     /// The deceleration after one fast flick. Read the numbers in the result bundle
     /// (`xcrun xcresulttool get test-results tests`), or in Xcode's report.
+    ///
+    /// CI does not run this one — `.github/workflows/ci.yml` names it in `-skip-testing:`.
+    /// `scrollDecelerationMetric` samples a signpost the scroll view emits only when it genuinely
+    /// decelerates, and on a shared runner an iteration can come back with no sample at all. XCTest
+    /// then fails the test on the inconsistent count rather than on anything the app did:
+    /// "Received unexpected number of metrics: 0 in iteration with index 1". That happened on
+    /// 2026-09-16 to a branch whose only change was a shell script.
+    ///
+    /// Excluding it costs no coverage, because this test records and asserts nothing — it was never
+    /// a gate. The gate is `testShoppingListStaysLazy`, which counts cells and has no timing in it.
+    /// Three local runs on 2026-09-16 reported every iteration (relative standard deviation 0.002%
+    /// to 0.315%), so the number is still there for anyone who runs it on a machine they own.
+    ///
+    /// The exclusion lives in the workflow rather than in an `XCTSkipIf` here because UI test code
+    /// runs in its own process on the simulator: a `CI` environment variable set in the CI shell is
+    /// not visible to it. That was tried first, and it silently did not skip.
     func testShoppingScrollDeceleration() {
         let app = openLongShoppingList()
         let list = shoppingList(in: app)
