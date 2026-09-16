@@ -322,6 +322,16 @@ step "Export and upload to App Store Connect"
 
 rm -rf "$export_path"
 
+# Apple's rsync, not Homebrew's. Xcode's IPA packaging step shells out to plain `rsync`, and
+# with Homebrew's rsync 3.4.4 first on PATH it dies with "syntax or usage error (code 1) at
+# main.c(1806)" and xcodebuild reports only `error: exportArchive Copy failed` — which names
+# neither rsync nor PATH. macOS ships openrsync at /usr/bin/rsync and that is what Xcode
+# expects. Verified 2026-09-16: identical archive, export failed with Homebrew's rsync first
+# and succeeded with this line, changing nothing else.
+#
+# /usr/bin goes first rather than dropping /opt/homebrew, because xcodegen lives in Homebrew
+# and the archive step above needs it.
+PATH="/usr/bin:/bin:/usr/sbin:/sbin:$PATH" \
 xcodebuild -exportArchive \
 	-archivePath "$archive_path" \
 	-exportPath "$export_path" \
