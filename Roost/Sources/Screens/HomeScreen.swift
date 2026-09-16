@@ -14,6 +14,7 @@ import SwiftData
 import SwiftUI
 
 struct HomeScreen: View {
+    @Environment(\.modelContext) private var context
     @Environment(SyncCoordinator.self) private var sync
     @Environment(RootNavigation.self) private var navigation
 
@@ -34,6 +35,14 @@ struct HomeScreen: View {
     @Query(filter: #Predicate<WishlistItemRecord> { !$0.removed })
     private var wishlistRecords: [WishlistItemRecord]
 
+    /// Counters, so a tap's feel is decided under a finger and never on a cold launch: each haptic
+    /// fires on a change. They are this screen's own — `ChoreCheckOff` performs the write and reports
+    /// what happened, and the board keeps its own set of these for its own frame.
+    @State private var checkOffs = 0
+    @State private var undos = 0
+    @State private var celebrations = 0
+    @State private var celebration = TodayBoard.Celebration()
+
     private let calendar = HouseholdCalendar()
 
     private var state: SyncState? {
@@ -49,6 +58,9 @@ struct HomeScreen: View {
             content(asOf: context.date)
         }
         .refreshable { await sync.syncNow() }
+        .roostHaptic(.checkOff, trigger: checkOffs)
+        .roostHaptic(.undo, trigger: undos)
+        .roostHaptic(.milestone, trigger: celebrations)
     }
 
     private func content(asOf now: Date) -> some View {
@@ -67,7 +79,9 @@ struct HomeScreen: View {
                         .accessibilityIdentifier("home.sentence")
                 }
 
-                HomeRowsView(rows: summary.myRows)
+                HomeRowsView(rows: summary.myRows) { row in
+                    toggle(row, among: summary.myRows)
+                }
 
                 if summary.showsOtherLine {
                     Button {
@@ -103,6 +117,25 @@ struct HomeScreen: View {
         date
             .formatted(.dateTime.weekday(.wide).month(.wide).day().locale(.autoupdatingCurrent))
             .uppercased()
+    }
+
+    /// Check off, or un-check, with the same meaning the board's rows have — one function, so the two
+    /// screens cannot start disagreeing about what ticking a box does. `rows` is the list as it was
+    /// drawn a moment ago, because the store's query has not caught up yet and the celebration rule is
+    /// decided from what the finger saw.
+    private func toggle(_ row: TodayRow, among rows: [TodayRow]) {
+        switch ChoreCheckOff.toggle(
+            row, among: rows, me: me, completions: completionRecords,
+            celebration: &celebration, calendar: calendar, context: context, sync: sync
+        ) {
+        case let .checked(celebrates):
+            checkOffs += 1
+            if celebrates {
+                celebrations += 1
+            }
+        case .unchecked:
+            undos += 1
+        }
     }
 
     private func summary(asOf now: Date) -> HomeSummary {

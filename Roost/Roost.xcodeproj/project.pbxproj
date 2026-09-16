@@ -95,6 +95,7 @@
 		8F63429AFE3DE3BE709E0A25 /* StreakHeaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334905B7A9952B9FF0F8BC28 /* StreakHeaderTests.swift */; };
 		9089E08218077921FCFA42E5 /* HandoffPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B51DECE9534ADC90073D27 /* HandoffPresentation.swift */; };
 		91B2E1CAF4C7FFE8B09A7656 /* ListDeltaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7ED3A3F187B7D465B0F1EB /* ListDeltaTests.swift */; };
+		91F882550F96AA407B5B6FC0 /* HomeRowsCollapseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AB7F74DE8FDA9B0E77587B /* HomeRowsCollapseTests.swift */; };
 		9305004166815524383CAF5C /* NotificationPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103C16FCB5D256A44FC78EEB /* NotificationPlanner.swift */; };
 		945FB8FE02B65A30A5E26481 /* Converters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F2D83207427DCFB1F79CBC4 /* Converters.swift */; };
 		9556C1ACC4D00A39B7D6C422 /* TodayPlannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B250C6201CB77F9FC9A682 /* TodayPlannerTests.swift */; };
@@ -238,6 +239,7 @@
 		520CFA81EEB9959E54E1AC45 /* SnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotTests.swift; sourceTree = "<group>"; };
 		5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModelTests.swift; sourceTree = "<group>"; };
 		536756D46ADB902008069020 /* ListParts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListParts.swift; sourceTree = "<group>"; };
+		57AB7F74DE8FDA9B0E77587B /* HomeRowsCollapseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeRowsCollapseTests.swift; sourceTree = "<group>"; };
 		57AFB8DE9407778272B26CCE /* HomeRowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeRowsView.swift; sourceTree = "<group>"; };
 		59C7E3B2C6B03A58C3A3C989 /* SyncAPI+Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Push.swift"; sourceTree = "<group>"; };
 		59D8308455A41EC775A156EE /* HandoffRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffRecords.swift; sourceTree = "<group>"; };
@@ -597,6 +599,7 @@
 				D50964424ABF72DB3DC551BA /* HandoffActionsTests.swift */,
 				43E00B3E9B1753F2ABC5091F /* HandoffPlanningTests.swift */,
 				06641AAFA324A99E75897A98 /* HandoffSyncTests.swift */,
+				57AB7F74DE8FDA9B0E77587B /* HomeRowsCollapseTests.swift */,
 				BD24FCFEE24F2852BA66C067 /* HomeSummaryTests.swift */,
 				5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */,
 				FA7C1B8D87C1351A417B2668 /* ListCraftTests.swift */,
@@ -985,6 +988,7 @@
 				24F12B4EEEAC70C87210E9E6 /* HandoffActionsTests.swift in Sources */,
 				122C556EB733BF68D6564E88 /* HandoffPlanningTests.swift in Sources */,
 				DF80DEF69382BCEA3873F926 /* HandoffSyncTests.swift in Sources */,
+				91F882550F96AA407B5B6FC0 /* HomeRowsCollapseTests.swift in Sources */,
 				F39A37890B11E667AC7B3C15 /* HomeSummaryTests.swift in Sources */,
 				B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */,
 				52B72B23F1E34310AB575E93 /* ListCraftTests.swift in Sources */,

@@ -6,9 +6,13 @@
 // are @State on each screen, because they are about that screen's frame rather than about the
 // household's data. So this performs the write and reports what happened, and the caller decides
 // what that feels like.
+import Foundation
 import RoostCore
 import SwiftData
 
+/// Main-actor, like the screens that call it and the `SyncCoordinator` it nudges: a check-off is a
+/// thing a finger does.
+@MainActor
 enum ChoreCheckOff {
     enum Outcome {
         /// `celebrates` is true only on the tap that clears this phone's own column, once a day.
