@@ -14,19 +14,22 @@ _Last swept: 2026-09-15 13:28 CDT (Fable)_
 
 | Item | Since | Why it matters |
 |---|---|---|
-| APNs key not installed — `/health` reports `push: "no key"` | 2026-09-13 | Every notification path is a no-op in production: morning digest, red alerts, handoff offers, completion pings. Two planned lanes (step deadlines, Movies & TV monthly nudge) are **only** notifications and cannot pay off until this exists. |
 | Anne's phone has never appeared on this Mac | 2026-09-13 | Wes's phone now runs main (installed 2026-09-15 12:32, build f5aff0e). Anne's is still on whatever it had on 09-13. It needs its own install session: unlock the phone, have it on this network, then `./scripts/install-device.sh <id>`. |
-| PR #60 — CI: swiftformat --lint fatal | 2026-09-13 | Green. Would have caught the formatting slips hand-patched twice on 2026-09-14. |
-| PR #61 — CI: swiftlint whole tree | 2026-09-13 | Green, and now safe to land: #88 (merged 2026-09-15) excludes the packages' nested `.build`, which was the only thing that made a whole-tree gate fail on a built checkout. Carries the swiftlint-config decision. |
 | PR #65 — Appearance choice in Settings | 2026-09-14 | Green. Unreviewed. |
-| Anne's three questions on issue #1 | 2026-09-13 | Garbage third location; which months mowing runs; whether the hair chore is right as every-two-months pinned to Anne. Asked 09-13, re-asked 09-15 twice. Chore data is not final until these land. |
 | `TAILSCALE_API_KEY` in `~/.fleet-secrets/live/integrations.env` is invalid | 2026-09-14 | Needs minting. Nothing currently depends on it; `fssh` works. |
 | peers-fleet decisions | 2026-09-14 | Report `~/claude-reports/peers-fleet-2026-09-14.md`. Open: ponytail cuts, dashboard LaunchAgent, Kimi bridge, clarsmini push key. No sessions are running; that lead is stopped, not working. |
+
+## Waiting on Anne
+
+| Item | Since | Why it matters |
+|---|---|---|
+| Three questions on issue #1 | 2026-09-13 | Garbage third location; which months mowing runs; whether the hair chore is right as every-two-months pinned to Anne. Asked 09-13, re-asked 09-14 twice, no reply since. Chore data is not final until these land. This sat under **Blocked on Wes** for two days, which was simply wrong — Wes cannot answer them for her. |
 
 ## Owned by Fable
 
 | Item | Since | Note |
 |---|---|---|
+| APNs key is live — `env` must flip to `production` for TestFlight | 2026-09-15 | Installed 17:53 CDT: `/etc/roost/AuthKey_2K6FF2VMGK.p8` + `apns.json`, root:roost 0640, `/health` reports `push: "sandbox"`. Debug builds get sandbox tokens and TestFlight builds get production ones; a mismatch fails silently with no error. The key itself covers both environments, so this is a one-line config change on the day the phones move to TestFlight. Backup of the `.p8` is in `~/.fleet-secrets/live/` — Apple will not reissue it. |
 | Push over SSH, not HTTPS, for anything under `.github/workflows/` | 2026-09-15 | `remote.origin.pushurl` is now `git@github.com:amnanninga4/roost.git` in this clone. The HTTPS remote uses gh's OAuth token, which is refused on workflow files without the `workflow` scope; an SSH key is not an OAuth app and is not checked. This sat on the blocked-on-Wes list for an hour as "needs `gh auth refresh`" — it was never his to unblock. Wes caught it: "you literally have ssh". |
 | CI runner sometimes has no iPhone 17 Pro simulator | 2026-09-14 | Seen once: `xcodebuild` found no matching destination on the macos-26 image. Fix is a step that creates the simulator on the newest installed runtime when it is missing. **PR #90, open.** |
 | Handoffs ignore early due windows | 2026-09-15 | Shipped knowingly. `HandoffRules` counts calendar periods, so a chore with a `dueDay` of 1–6 (window opens in the previous month) refuses a handoff until the 1st. Documented in the due-windows spec. |
