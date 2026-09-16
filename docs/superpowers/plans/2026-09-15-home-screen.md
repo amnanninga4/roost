@@ -20,8 +20,9 @@
 - Prefer native SwiftUI APIs over dependencies. The only approved third-party UI dependency is ConfettiSwiftUI.
 - Every `@State` property is `private`. `.animation(_:value:)` always carries its `value`. `ForEach` uses stable identity, never `.indices`.
 - Minimum tap target is 44 pt. Every tappable element is a `Button`, not a tappable `HStack`.
-- Before calling app work done: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test` prints `** TEST SUCCEEDED **`.
+- Before calling app work done: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' test` prints `** TEST SUCCEEDED **`.
 - **Never run two `xcodebuild` test runs concurrently on this Mac.** Another agent shares the simulator. Serialize.
+- **Pin `OS=26.3.1` in every destination.** This Mac now has two iOS runtimes, 26.3 and 27.0. `OS:latest` resolves to 27.0, which has no `iPhone 17 Pro`, so an unpinned destination fails with "Unable to find a device matching the provided destination specifier" — a red run that has nothing to do with the diff. Found by Apple-Dev-3 on 2026-09-15. Note that `CLAUDE.md`'s own verification command is still unpinned and will fail here; that is a separate change, and CI (Xcode 26.6) is unaffected.
 
 ---
 
@@ -231,8 +232,8 @@ enum TodayPlanTestBuilder {
                 id: "c\(index)",
                 title: "Chore \(index)",
                 cadence: .daily,
-                category: .chore,
-                fixedAssignee: index < anne ? .anne : .wes
+                fixedAssignee: index < anne ? .anne : .wes,
+                category: .chore
             )
         }
         return TodayPlanner.plan(
@@ -249,7 +250,7 @@ enum TodayPlanTestBuilder {
 
 - [ ] **Step 3: Run the test to verify it fails**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RoostTests/HomeSummaryTests test 2>&1 | tail -15`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/HomeSummaryTests test 2>&1 | tail -15`
 
 Expected: FAIL — `cannot find 'HomeSummary' in scope`.
 
@@ -330,7 +331,7 @@ struct HomeSummary {
 
 - [ ] **Step 5: Run the test to verify it passes**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RoostTests/HomeSummaryTests test 2>&1 | tail -15`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/HomeSummaryTests test 2>&1 | tail -15`
 
 Expected: `** TEST SUCCEEDED **`, 9 tests.
 
@@ -400,7 +401,7 @@ final class RootNavigationTests: XCTestCase {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RoostTests/RootNavigationTests test 2>&1 | tail -15`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/RootNavigationTests test 2>&1 | tail -15`
 
 Expected: FAIL — `type 'RootTab' has no member 'home'`.
 
@@ -517,7 +518,7 @@ and
 
 - [ ] **Step 6: Run the test — it will still fail to build**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RoostTests/RootNavigationTests test 2>&1 | tail -15`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/RootNavigationTests test 2>&1 | tail -15`
 
 Expected: FAIL — `cannot find 'HomeTabScreen' in scope`. That is Task 4. Do not stub it; go to Task 4 and return here.
 
@@ -778,7 +779,7 @@ Expected: the pbxproj shows the three new files added.
 
 - [ ] **Step 5: Run Tasks 2 and 3's tests**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RoostTests/HomeSummaryTests -only-testing:RoostTests/RootNavigationTests test 2>&1 | tail -15`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/HomeSummaryTests -only-testing:RoostTests/RootNavigationTests test 2>&1 | tail -15`
 
 Expected: `** TEST SUCCEEDED **`. This is also where Task 3's Step 7 commit happens.
 
@@ -844,7 +845,7 @@ final class HomeRowsCollapseTests: XCTestCase {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RoostTests/HomeRowsCollapseTests test 2>&1 | tail -15`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/HomeRowsCollapseTests test 2>&1 | tail -15`
 
 Expected: FAIL — `cannot find 'HomeRowsCollapse' in scope`.
 
@@ -915,7 +916,7 @@ struct HomeRowsView: View {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RoostTests/HomeRowsCollapseTests test 2>&1 | tail -15`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/HomeRowsCollapseTests test 2>&1 | tail -15`
 
 Expected: `** TEST SUCCEEDED **`, 5 tests.
 
@@ -970,7 +971,7 @@ and add the state it needs, next to the other `@State` properties:
 
 - [ ] **Step 3: Build and run the full app suite**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test 2>&1 | tail -20`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' test 2>&1 | tail -20`
 
 Expected: `** TEST SUCCEEDED **`. Existing tests that referenced `TodayHeaderView(date:streaks:notice:me:)` will fail to compile — fix each by dropping the `streaks:` argument. Do not delete a test to make it build.
 
@@ -1034,7 +1035,7 @@ final class HomeScreenUITests: XCTestCase {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -only-testing:RoostUITests/HomeScreenUITests test 2>&1 | tail -20`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostUITests/HomeScreenUITests test 2>&1 | tail -20`
 
 Expected: FAIL, or PASS if Tasks 4–5 already satisfy it. A pass here is fine — this test describes behaviour those tasks built.
 
@@ -1044,7 +1045,7 @@ Read `Roost/UITests/AccessibilityAuditTests.swift` and add a case that audits th
 
 - [ ] **Step 4: Run the whole suite**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test 2>&1 | tail -20`
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' test 2>&1 | tail -20`
 
 Expected: `** TEST SUCCEEDED **`.
 
