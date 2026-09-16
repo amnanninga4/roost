@@ -123,11 +123,18 @@ jobs:
       - name: xcodebuild test
         run: |
           set -o pipefail
+          # testShoppingScrollDeceleration records a scroll measurement and asserts nothing, so it
+          # is not a gate — but it can still fail the job. Its signpost metric drops samples on a
+          # loaded shared runner, and XCTest then fails on the inconsistent count ("Received
+          # unexpected number of metrics: 0 in iteration with index 1") rather than on anything the
+          # app did. It passed three for three locally the same morning it broke CI. The gate for
+          # that list is testShoppingListStaysLazy, which counts cells and has no timing in it.
           xcodebuild \
             -project Roost/Roost.xcodeproj \
             -scheme Roost \
             -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
             -skipPackagePluginValidation \
+            -skip-testing:RoostUITests/ScrollPerformanceTests/testShoppingScrollDeceleration \
             test
 
   packages:
