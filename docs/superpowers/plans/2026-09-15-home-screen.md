@@ -794,19 +794,259 @@ git commit -m "home: the arrival screen"
 
 ---
 
-## Task 5: HomeRowsView and the collapse rule
+## Task 5: Make Home's rows real — lift the check-off, then fold
 
 **Files:**
-- Create: `Roost/Sources/Home/HomeRowsView.swift`
-- Test: `Roost/Tests/HomeRowsCollapseTests.swift`
+- Create: `Roost/Sources/Models/ChoreCheckOff.swift`
+- Rewrite: `Roost/Sources/Home/HomeRowsView.swift` (currently a labelled compile bridge that draws `EmptyView`)
+- Modify: `Roost/Sources/Screens/TodayScreen.swift:177-204` (`toggle(_:among:)`)
+- Test: `Roost/Tests/HomeRowsCollapseTests.swift`, `Roost/Tests/ChoreCheckOffTests.swift`
+
+**Why this task exists in this shape.** Task 4 shipped `HomeRowsView` as a bridge because the plan
+called `ChoreRowView(row:)` and the real initializer also requires `onToggle`. That was a plan
+error. The underlying problem is real: **`TodayScreen` privately owns what a check-off means** —
+the `CompletionRecord` insert, the un-check path, the save, clearing handoff notices, and kicking a
+sync (`TodayScreen.swift:177-204`).
+
+**Ruling 2026-09-15:** Home's rows must be genuinely checkable. A front door you cannot tick a box
+on defeats the design. The action is **lifted, not duplicated** — two copies is how the two screens
+begin disagreeing about what a check-off means.
+
+**The seam, and it is the whole design of this task.** The store write is shared. The *feel* is
+not. `TodayScreen` keeps four `@State` counters that drive `.roostHaptic(...trigger:)` and the
+once-a-day celebration; those are view-local and each screen owns its own. So the lifted function
+performs the write and **returns what happened**, and each screen maps that to its own counters.
+Do not lift the counters. Do not pass bindings to them.
 
 **Interfaces:**
-- Consumes: `TodayRow`, `ChoreRowView`, `Strings.Home.more(_:)`, `Strings.Home.showLess`.
-- Produces: `HomeRowsView(rows:)`, and `HomeRowsCollapse.visible(_:expanded:)` / `HomeRowsCollapse.hiddenCount(_:)`.
+- Consumes: `TodayRow`, `CompletionRecord`, `TodayBoard.Celebration`, `HandoffActions.clearNotices(for:in:)`, `SyncCoordinator.syncSoon()`.
+- Produces:
+  - `enum ChoreCheckOff` with `static func toggle(...) -> Outcome`
+  - `enum ChoreCheckOff.Outcome { case checked(celebrates: Bool); case unchecked }`
+  - `HomeRowsView(rows:onToggle:)`
+  - `HomeRowsCollapse.visible(_:expanded:)` / `.hiddenCount(_:)`
 
-**Ruling from the spec:** the threshold is **6**. Six or fewer rows render in full; more than six render the first six plus a "N more" line. Six sits under the "around 5" daily cap Anne asked for, so collapse is the exception rather than the greeting. When the cap lane lands, the cap wins and this follows it.
+- [ ] **Step 1: Write the failing test for the lifted action**
 
-- [ ] **Step 1: Write the failing test**
+Create `Roost/Tests/ChoreCheckOffTests.swift`:
+
+```swift
+// What a check-off means, in one place, tested against a real store. Before this existed the
+// answer lived privately inside TodayScreen, which is why Home could not tick a box.
+@testable import Roost
+import RoostCore
+import SwiftData
+import XCTest
+
+@MainActor
+final class ChoreCheckOffTests: XCTestCase {
+    private func freshContext() throws -> ModelContext {
+        let container = try ModelContainer(
+            for: ChoreRecord.self, CompletionRecord.self, HandoffRecord.self, SyncState.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        return ModelContext(container)
+    }
+
+    func testCheckingADueRowInsertsOneCompletion() throws {
+        let context = try freshContext()
+        let row = TodayRowFixture.due(chore: "scoop-litter", person: .wes)
+        var celebration = TodayBoard.Celebration()
+
+        let outcome = ChoreCheckOff.toggle(
+            row, among: [row], me: .wes, completions: [], celebration: &celebration,
+            calendar: HouseholdCalendar(), context: context, sync: nil, now: TodayRowFixture.noon
+        )
+
+        let saved = try context.fetch(FetchDescriptor<CompletionRecord>())
+        XCTAssertEqual(saved.count, 1)
+        XCTAssertEqual(saved.first?.choreId, "scoop-litter")
+        XCTAssertEqual(saved.first?.person, Person.wes.rawValue)
+        if case .checked = outcome {} else { XCTFail("expected .checked, got \(outcome)") }
+    }
+
+    func testUncheckingMarksTheCompletionRemoved() throws {
+        let context = try freshContext()
+        let completion = CompletionRecord(
+            id: "c1", choreId: "scoop-litter", person: Person.wes.rawValue, completedAt: TodayRowFixture.noon
+        )
+        context.insert(completion)
+        let row = TodayRowFixture.done(chore: "scoop-litter", person: .wes, completionId: "c1")
+        var celebration = TodayBoard.Celebration()
+
+        let outcome = ChoreCheckOff.toggle(
+            row, among: [row], me: .wes, completions: [completion], celebration: &celebration,
+            calendar: HouseholdCalendar(), context: context, sync: nil, now: TodayRowFixture.noon
+        )
+
+        XCTAssertTrue(completion.removed)
+        if case .unchecked = outcome {} else { XCTFail("expected .unchecked, got \(outcome)") }
+    }
+
+    // A completion that never reached the server has nothing to replay, so it is marked as
+    // already-deleted rather than queued as a deletion.
+    func testUncheckingAnUnsyncedCompletionNeedsNoDeleteReplay() throws {
+        let context = try freshContext()
+        let completion = CompletionRecord(
+            id: "c1", choreId: "scoop-litter", person: Person.wes.rawValue, completedAt: TodayRowFixture.noon
+        )
+        context.insert(completion)
+        let row = TodayRowFixture.done(chore: "scoop-litter", person: .wes, completionId: "c1")
+        var celebration = TodayBoard.Celebration()
+
+        _ = ChoreCheckOff.toggle(
+            row, among: [row], me: .wes, completions: [completion], celebration: &celebration,
+            calendar: HouseholdCalendar(), context: context, sync: nil, now: TodayRowFixture.noon
+        )
+
+        XCTAssertTrue(completion.deleteSynced)
+    }
+
+    func testClearingYourLastRowCelebratesOnceOnly() throws {
+        let context = try freshContext()
+        let row = TodayRowFixture.due(chore: "scoop-litter", person: .wes)
+        var celebration = TodayBoard.Celebration()
+
+        let first = ChoreCheckOff.toggle(
+            row, among: [row], me: .wes, completions: [], celebration: &celebration,
+            calendar: HouseholdCalendar(), context: context, sync: nil, now: TodayRowFixture.noon
+        )
+        let second = ChoreCheckOff.toggle(
+            row, among: [row], me: .wes, completions: [], celebration: &celebration,
+            calendar: HouseholdCalendar(), context: context, sync: nil, now: TodayRowFixture.noon
+        )
+
+        guard case let .checked(firstCelebrates) = first, case let .checked(secondCelebrates) = second else {
+            return XCTFail("expected two .checked outcomes")
+        }
+        XCTAssertTrue(firstCelebrates)
+        XCTAssertFalse(secondCelebrates, "the celebration fires once a day, not once a tap")
+    }
+}
+```
+
+**`TodayRowFixture` does not exist yet.** Build it from the real `TodayRow` type — read
+`Roost/Sources/Models/TodayPlanner.swift` for its actual shape and initializer before writing it,
+rather than guessing. Put it at the bottom of this test file. If `TodayRow` cannot be constructed
+directly in a test, build a one-chore plan through `TodayPlanner.plan(...)` and take the row out of
+it — that is what `HomeSummaryTests` already does, and copying that approach is correct.
+
+**`sync:` is `SyncCoordinator?` and nil in tests.** The lifted function must tolerate a nil
+coordinator so the store behaviour is testable without one. That is the only concession the
+signature makes to testing.
+
+- [ ] **Step 2: Run it to verify it fails**
+
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/ChoreCheckOffTests test 2>&1 | tail -15`
+
+Expected: FAIL — `cannot find 'ChoreCheckOff' in scope`.
+
+- [ ] **Step 3: Create `ChoreCheckOff`**
+
+Create `Roost/Sources/Models/ChoreCheckOff.swift`:
+
+```swift
+// What a check-off means, in one place. This used to live privately inside TodayScreen, which was
+// fine while the board was the only screen with rows on it. Home has rows too, and two copies of
+// this is how the two screens would begin disagreeing about what ticking a box does.
+//
+// The store write is shared. The *feel* is not: the haptic counters and the once-a-day celebration
+// are @State on each screen, because they are about that screen's frame rather than about the
+// household's data. So this performs the write and reports what happened, and the caller decides
+// what that feels like.
+import RoostCore
+import SwiftData
+
+enum ChoreCheckOff {
+    enum Outcome {
+        /// `celebrates` is true only on the tap that clears this phone's own column, once a day.
+        case checked(celebrates: Bool)
+        case unchecked
+    }
+
+    @discardableResult
+    static func toggle(
+        _ row: TodayRow,
+        among rows: [TodayRow],
+        me: Person?,
+        completions: [CompletionRecord],
+        celebration: inout TodayBoard.Celebration,
+        calendar: HouseholdCalendar,
+        context: ModelContext,
+        sync: SyncCoordinator?,
+        now: Date = .now
+    ) -> Outcome {
+        let outcome: Outcome
+        switch row.kind {
+        case .due:
+            let record = CompletionRecord(
+                id: UUID().uuidString, choreId: row.chore.id, person: row.person.rawValue, completedAt: now
+            )
+            context.insert(record)
+            let celebrates = celebration.fires(
+                when: rows, checking: row, as: me, on: calendar.startOfDay(now)
+            )
+            outcome = .checked(celebrates: celebrates)
+        case let .done(completionId):
+            if let record = completions.first(where: { $0.id == completionId }) {
+                record.removed = true
+                if record.syncedAt == nil, !record.rejected {
+                    record.deleteSynced = true // never reached the server; nothing to replay
+                }
+            }
+            outcome = .unchecked
+        }
+        try? context.save()
+        if case .due = row.kind {
+            // "Wes said no" has been read by the time you are checking things off again.
+            try? HandoffActions.clearNotices(for: row.person, in: context)
+        }
+        sync?.syncSoon()
+        return outcome
+    }
+}
+```
+
+- [ ] **Step 4: Point `TodayScreen` at it**
+
+Replace the body of `TodayScreen.toggle(_:among:)` (`TodayScreen.swift:177-204`) with a call to the
+lifted function, mapping the outcome to the screen's existing counters. **Keep the method** — the
+call sites inside `PersonColumnView` do not change:
+
+```swift
+    private func toggle(_ row: TodayRow, among rows: [TodayRow]) {
+        switch ChoreCheckOff.toggle(
+            row, among: rows, me: me, completions: completionRecords,
+            celebration: &celebration, calendar: calendar, context: context, sync: sync
+        ) {
+        case let .checked(celebrates):
+            checkOffs += 1
+            if celebrates { celebrations += 1 }
+        case .unchecked:
+            undos += 1
+        }
+    }
+```
+
+- [ ] **Step 5: Run the whole app suite to prove the board still behaves**
+
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' test 2>&1 | tail -20`
+
+Expected: `** TEST SUCCEEDED **`. The board's existing tests are the real check here — the lift is
+correct only if they pass untouched. **If any of them needed editing to pass, stop and say so**;
+that means the lift changed behaviour, which it must not.
+
+- [ ] **Step 6: Commit the lift on its own**
+
+```bash
+git add Roost/Sources/Models/ChoreCheckOff.swift Roost/Sources/Screens/TodayScreen.swift \
+        Roost/Tests/ChoreCheckOffTests.swift
+cd Roost && xcodegen generate && cd ..
+git add Roost/Roost.xcodeproj/project.pbxproj
+git commit -m "lift the check-off out of TodayScreen"
+```
+
+- [ ] **Step 7: Write the collapse test**
 
 Create `Roost/Tests/HomeRowsCollapseTests.swift`:
 
@@ -843,15 +1083,10 @@ final class HomeRowsCollapseTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [ ] **Step 8: Rewrite `HomeRowsView` for real**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/HomeRowsCollapseTests test 2>&1 | tail -15`
-
-Expected: FAIL — `cannot find 'HomeRowsCollapse' in scope`.
-
-- [ ] **Step 3: Write `HomeRowsView`**
-
-Create `Roost/Sources/Home/HomeRowsView.swift`:
+Replace the whole of `Roost/Sources/Home/HomeRowsView.swift` — it is currently a bridge drawing
+`EmptyView`:
 
 ```swift
 // This phone's chores on the front door, checkable where they are. Long lists fold to a "N more"
@@ -879,6 +1114,8 @@ enum HomeRowsCollapse {
 
 struct HomeRowsView: View {
     let rows: [TodayRow]
+    /// The screen owns what a tap feels like; this view only says which row was tapped.
+    let onToggle: (TodayRow) -> Void
 
     @AppStorage("roost.home.rowsExpanded") private var expanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -890,7 +1127,7 @@ struct HomeRowsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(rows.prefix(HomeRowsCollapse.visible(rows.count, expanded: expanded))) { row in
-                ChoreRowView(row: row)
+                ChoreRowView(row: row, onToggle: { onToggle(row) })
             }
             if hidden > 0 {
                 Button {
@@ -912,20 +1149,56 @@ struct HomeRowsView: View {
 }
 ```
 
-**If `ChoreRowView(row:)` does not have that exact initializer**, read `Roost/Sources/Tasks/ChoreRowView.swift` and `PersonColumnView.swift` to see how the board constructs a row, and match it — including the toggle/offer closures. Do not invent a wrapper. If the row cannot be built without the board's action closures, stop and report it: threading those into Home is a design question, not an implementation detail.
+**`ChoreRowView` has more parameters than `row` and `onToggle`** — read
+`Roost/Sources/Tasks/ChoreRowView.swift` and `PersonColumnView.swift` for the full initializer.
+Pass what it requires and omit what is optional. Home has no handoff affordances in this lane: if
+offer/withdraw/answer are required rather than optional, **stop and report it** — putting handoffs
+on the front door is a design question, not an implementation detail.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [ ] **Step 9: Wire it up in `HomeScreen`**
 
-Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' -only-testing:RoostTests/HomeRowsCollapseTests test 2>&1 | tail -15`
+`HomeScreen` already calls `HomeRowsView(rows: summary.myRows)`. It now needs the toggle, the
+counters, and the same haptics the board has. Add to `HomeScreen`:
 
-Expected: `** TEST SUCCEEDED **`, 5 tests.
+```swift
+    @Environment(\.modelContext) private var context
+    @State private var checkOffs = 0
+    @State private var undos = 0
+    @State private var celebrations = 0
+    @State private var celebration = TodayBoard.Celebration()
+```
 
-- [ ] **Step 5: Commit**
+apply the same haptic modifiers the board uses (`.roostHaptic(.checkOff, trigger: checkOffs)` and
+the undo and milestone ones), and pass the toggle:
+
+```swift
+                HomeRowsView(rows: summary.myRows) { row in
+                    switch ChoreCheckOff.toggle(
+                        row, among: summary.myRows, me: me, completions: completionRecords,
+                        celebration: &celebration, calendar: calendar, context: context, sync: sync
+                    ) {
+                    case let .checked(celebrates):
+                        checkOffs += 1
+                        if celebrates { celebrations += 1 }
+                    case .unchecked:
+                        undos += 1
+                    }
+                }
+```
+
+- [ ] **Step 10: Run the whole suite**
+
+Run: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' test 2>&1 | tail -20`
+
+Expected: `** TEST SUCCEEDED **`.
+
+- [ ] **Step 11: Commit**
 
 ```bash
 cd Roost && xcodegen generate && cd ..
-git add Roost/Sources/Home/HomeRowsView.swift Roost/Tests/HomeRowsCollapseTests.swift Roost/Roost.xcodeproj/project.pbxproj
-git commit -m "home: fold a long list at six, and remember it"
+git add Roost/Sources/Home/HomeRowsView.swift Roost/Sources/Screens/HomeScreen.swift \
+        Roost/Tests/HomeRowsCollapseTests.swift Roost/Roost.xcodeproj/project.pbxproj
+git commit -m "home: rows you can actually check off, folded at six"
 ```
 
 ---
