@@ -43,7 +43,7 @@ floor=$(sed -n 's/^ *iOS: *"\([0-9.]*\)".*/\1/p' Roost/project.yml | head -1)
 
 # --- which phone ------------------------------------------------------------------------
 devices_json=$(mktemp)
-trap 'rm -f "$devices_json"' EXIT
+trap 'rm -f "$devices_json"' EXIT   # widened by the signing check below
 xcrun devicectl list devices --json-output "$devices_json" >/dev/null 2>&1 \
   || fail "xcrun devicectl could not list devices"
 
@@ -94,6 +94,32 @@ if grep -qE 'developerModeStatus: *(disabled|notSupported|unknown)' <<<"$details
   echo "Developer Mode is off on the phone. On the phone: Settings > Privacy & Security >" >&2
   echo "Developer Mode, turn it on, let it restart, unlock it, then run this again." >&2
   exit 4
+fi
+
+# --- can this session actually sign? -----------------------------------------------------
+# codesign reads the private key out of the login keychain, and a session that is not the
+# desktop one cannot open it unless somebody once answered "Always Allow" here. Learning
+# that from a failed ten-minute device build is a bad trade, so spend a second on it now.
+# Sign by certificate hash, not by name: a Mac can hold two certificates with identical
+# names, and `--sign "Apple Development: …"` fails as ambiguous on those.
+probe=$(mktemp -d)
+trap 'rm -f "$devices_json"; rm -rf "$probe"' EXIT
+cert=$(security find-identity -v -p codesigning 2>/dev/null \
+  | awk '/"Apple Develop|"Apple Distrib/ { print $2; exit }')
+if [ -z "$cert" ]; then
+  fail "no Apple Development or Apple Distribution certificate in the login keychain"
+fi
+cp /usr/bin/true "$probe/probe"
+if ! codesign --force --sign "$cert" "$probe/probe" >/dev/null 2>"$probe/err"; then
+  if grep -q errSecInternalComponent "$probe/err"; then
+    echo "codesign cannot reach the signing key from this session (launchd manager:" >&2
+    echo "$(launchctl managername)). Run this once from a Terminal window on this Mac," >&2
+    echo "not over ssh, and answer \"Always Allow\" to the keychain prompt. Every later" >&2
+    echo "run, ssh included, goes through." >&2
+    fail "cannot sign; stopped before the build rather than after it"
+  fi
+  cat "$probe/err" >&2
+  fail "the codesign check failed; stopped before the build"
 fi
 
 # --- build -------------------------------------------------------------------------------
