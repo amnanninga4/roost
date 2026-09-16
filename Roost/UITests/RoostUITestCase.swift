@@ -73,11 +73,24 @@ class RoostUITestCase: XCTestCase {
         row.tap()
     }
 
-    /// Waits for the Tasks tab to have drawn its board, which is the app's slowest first screen.
+    /// Waits for the two-column board to be drawn, navigating to it first.
+    ///
+    /// The app no longer opens onto the board: tab one is Home, and the board is the second segment
+    /// of that tab. Every caller of this helper wants the board, so the navigation belongs here
+    /// rather than in twenty test bodies. The launch is still what makes this the app's slowest
+    /// first screen, so the wait on Home comes first and carries its own message — "the app never
+    /// launched" and "the board never appeared" are different failures and should read differently.
     func waitForTasks(in app: XCUIApplication) {
         XCTAssertTrue(
+            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            "the app never reached Home"
+        )
+        let board = app.buttons["listsPicker.board"]
+        XCTAssertTrue(board.waitForExistence(timeout: Self.timeout), "the board segment is not on Home")
+        board.tap()
+        XCTAssertTrue(
             app.staticTexts["Today"].waitForExistence(timeout: Self.timeout),
-            "the Tasks tab never appeared"
+            "the board never appeared"
         )
     }
 

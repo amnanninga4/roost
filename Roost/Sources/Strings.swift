@@ -2,6 +2,7 @@
 // Functions take a title or a count; edit the text inside the quotes and keep the \(...) where the value goes.
 import Foundation
 
+// swiftlint:disable:next type_body_length - one enum per screen is the point of this file; it grows with the app.
 enum Strings {
     /// The bar title on every tab.
     static let appTitle = "Roost"
@@ -20,6 +21,58 @@ enum Strings {
         static let meals = "Meals"
         static let projects = "Projects"
         static let wishlist = "Wishlist"
+    }
+
+    /// The Home tab's own words. The app does not greet: every line here names a thing.
+    /// Anne edits this file directly, so nothing in it may be assembled from fragments
+    /// elsewhere — a sentence that only exists at runtime is a sentence she cannot change.
+    enum Home {
+        /// The tab's title in the bar.
+        static let title = "Home"
+
+        /// The two segments inside the Home tab.
+        static let segmentHome = "Home"
+        static let segmentBoard = "Anne & Wes"
+        /// What the segments show at accessibility text sizes, where the words no longer fit.
+        static let segmentHomeSymbol = "house"
+        static let segmentBoardSymbol = "person.2"
+
+        /// The orientation sentence, in place of the word "Today". Four states, in the order
+        /// the screen checks them.
+        /// Both people still owe something: "5 for you, 4 for Anne."
+        static func split(_ mine: Int, _ theirs: Int, other: String) -> String {
+            "\(mine) for you, \(theirs) for \(other)."
+        }
+
+        /// This phone is clear, the other person is not: "Nothing left for you. Anne still has 4."
+        static func clearForYou(_ theirs: Int, other: String) -> String {
+            "Nothing left for you. \(other) still has \(theirs)."
+        }
+
+        /// Both clear, and something was checked off today.
+        static let allCaught = "All caught up."
+
+        /// Nothing is owed by anybody — a fresh household, or a day with no window open.
+        /// Deliberately the same words the empty column already uses.
+        static let nothingDue = "Nothing due today"
+
+        /// The other person as one line, tapping through to the board.
+        static func otherStillHas(_ count: Int, other: String) -> String {
+            "\(other) still has \(count)"
+        }
+
+        /// The collapse control under a long list of rows: "3 more".
+        static func more(_ count: Int) -> String {
+            "\(count) more"
+        }
+
+        /// Collapses an expanded list again.
+        static let showLess = "Show less"
+
+        /// VoiceOver for the collapse control, which must say what it does, not just how many.
+        static func moreHint(_ count: Int) -> String {
+            count == 1 ? "Shows 1 more chore" : "Shows \(count) more chores"
+        }
     }
 
     /// The More tab: what the gear menu held, as a page.

@@ -149,4 +149,21 @@ final class SyncCoordinator {
             return SyncStatusCopy.synced(at: lastSyncAt)
         }
     }
+
+    /// The sync notice both Home and the board draw, from the four things it is decided by.
+    ///
+    /// The rule itself is `TodayBoard.notice` and stays there, with no store and no SwiftUI in it. What
+    /// lives here is the wiring — three of the four inputs are this object's own, and the fourth is the
+    /// pairing state. Two screens draw this line, so the wiring is written once: a second copy is how
+    /// they would start disagreeing about what offline means.
+    func notice(for syncStates: [SyncState], now: Date = Date()) -> TodayBoard.Notice {
+        TodayBoard.notice(
+            isPaired: syncStates.first?.isPaired ?? false,
+            outcome: lastOutcome,
+            lastSyncAt: lastSyncAt,
+            // The same line the list tabs print, so no two screens disagree about the last pass.
+            statusLine: statusLine,
+            now: now
+        )
+    }
 }

@@ -50,6 +50,22 @@ Everything else is fair-game split; only those two weekly tasks are pinned.
 
 Visual system already has light/dark tokens, Fraunces + IBM Plex Mono, accent / gold / meal / assign / alert colors — good seed for a real design system.
 
+## The iOS 26 floating tab bar does not need a clearance constant (measured 2026-09-16)
+
+A scrolling screen inside the tab bar needs **no** bottom clearance of its own, and a
+`RoostSpacing.tabBarClearance` was proposed and rejected on measurement. On an iPhone 17 Pro at
+OS 26.3.1, read from a `GeometryReader` in the tab's content: the bottom safe-area inset is **83 pt**
+— the 49-pt glass bar plus the 34-pt home indicator, the exact band `XCUIElement` reports for the tab
+bar, `(0, 791, 402, 83)` in an 874-pt window. The `ScrollView` inside `HomeTabScreen`'s `VStack`
+receives that 83 pt and insets its scroll content by it. So `.padding(.bottom, RoostSpacing.xxl)` is
+32 pt of breathing room **on top of** the bar, not instead of it: at rest Home's last section stops
+32 pt above the bar's top edge, measured. Adding 96 pt on top would have parked 179 pt of dead air
+under the last row.
+
+What was mistaken for the bug is content passing under the glass **during** a flick, which is iOS 26
+drawing content under the bar deliberately and is not changed by any amount of padding. The audit that
+was believed to fail on this state (`testHomeScrolledToTheDoorsAudit`) passes and is now in the suite.
+
 ## Gaps / open questions (Wes + Anne)
 
 **Decided by Wes, 2026-09-13:** native iOS, SwiftUI. Wes has an Apple Developer account. Web/PWA is off the table.

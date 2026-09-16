@@ -93,6 +93,47 @@ final class AccessibilityAuditTests: RoostUITestCase {
 
     // MARK: - the tabs
 
+    /// Home is the screen the app opens on, so the launch is the whole setup — there is nothing to
+    /// navigate to.
+    func testHomeAudit() throws {
+        let app = launch(.paired)
+        XCTAssertTrue(
+            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            "the app never reached Home"
+        )
+        try audit(app, allowing: [dateLineWraps])
+    }
+
+    /// The bottom of Home — the door strip and the row fold — which starts below the fold on a 17 Pro.
+    ///
+    /// This audit was owed: an earlier version of it was believed to fail because 32 pt of bottom
+    /// padding did not clear the floating tab bar. It does clear it. The bar contributes its whole
+    /// 83-pt band to the bottom safe area, the `ScrollView` insets its content by that, and the 32 pt
+    /// is breathing room on top — at rest the door strip ends 38 pt above the bar. Content passing
+    /// under the glass *during* a flick is iOS 26 drawing content under the bar on purpose, and no
+    /// amount of bottom padding changes it. The scroll is settled before the audit runs, so what is
+    /// audited is where the doors come to rest.
+    func testHomeScrolledToTheDoorsAudit() throws {
+        let app = launch(.paired)
+        XCTAssertTrue(
+            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            "the app never reached Home"
+        )
+        let lastDoor = app.buttons["home.door.wishlist"]
+        XCTAssertTrue(lastDoor.waitForExistence(timeout: Self.timeout), "the door strip was never built")
+        // Flicked to the end rather than until the doors are merely visible: the state worth auditing is
+        // the one where the last row is as close to the bar as it ever gets.
+        for _ in 0 ..< 6 {
+            app.swipeUp()
+        }
+        let bar = app.tabBars.firstMatch.frame
+        XCTAssertFalse(
+            lastDoor.frame.intersects(bar),
+            "the last door rests under the floating tab bar: door \(lastDoor.frame), bar \(bar)"
+        )
+        try audit(app, allowing: [dateLineWraps])
+    }
+
     func testTasksAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)

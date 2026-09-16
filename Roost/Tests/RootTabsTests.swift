@@ -3,9 +3,9 @@ import XCTest
 
 final class RootTabsTests: XCTestCase {
     func testRootHasThreeTabsInOrder() {
-        XCTAssertEqual(RootTab.allCases, [.tasks, .lists, .more])
-        XCTAssertEqual(RootTab.allCases.map(\.title), ["Tasks", "Lists", "More"])
-        XCTAssertEqual(RootTab.allCases.map(\.symbol), ["checklist", "list.bullet.rectangle", "ellipsis.circle"])
+        XCTAssertEqual(RootTab.allCases, [.home, .lists, .more])
+        XCTAssertEqual(RootTab.allCases.map(\.title), ["Home", "Lists", "More"])
+        XCTAssertEqual(RootTab.allCases.map(\.symbol), ["house", "list.bullet.rectangle", "ellipsis.circle"])
     }
 
     func testListsPagesInOrderWithTheirSymbolsAndAStableStorageKey() {

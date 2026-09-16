@@ -34,6 +34,19 @@
         /// `-roostUITestState <name>`.
         static let launchArgumentName = "roostUITestState"
 
+        /// Everything the app remembers on the phone that a fixture launch must not inherit: the two
+        /// folds and the Home tab's segment. The store is in memory, but what is remembered is not —
+        /// without this, a run that was left expanded, or left on the board, launches that way, which is
+        /// not a fresh install and is not what a screenshot of one should show.
+        ///
+        /// One list rather than three hand-written lines, because that is how the second key came to be
+        /// missed when it was added. A new remembered key goes here.
+        static let rememberedKeys = [
+            "roost.today.streakExpanded",
+            "roost.home.rowsExpanded",
+            HomeSegment.storageKey,
+        ]
+
         /// The fixture this process was launched with, if any.
         static var current: UITestSeed? {
             UserDefaults.standard.string(forKey: launchArgumentName)
@@ -51,8 +64,10 @@
         /// the container's `mainContext` — the same context the app's views write through.
         @MainActor
         func makeContainer() -> ModelContainer {
-            // Launch reset: every fixture starts with the streak card collapsed.
-            UserDefaults.standard.removeObject(forKey: "roost.today.streakExpanded")
+            // Launch reset: see `rememberedKeys`.
+            for key in Self.rememberedKeys {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
             let container: ModelContainer
             do {
                 container = try ModelContainer(

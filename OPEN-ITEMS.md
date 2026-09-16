@@ -8,7 +8,14 @@ tracks the lane in flight; anything that outlives the lane belongs here instead.
 An item that has not moved gets louder, not quieter. Delete an item only when it is done or
 explicitly dropped; say which in the commit message.
 
-_Last swept: 2026-09-15 13:28 CDT (Fable)_
+_Last swept: 2026-09-16 01:35 CDT (home-screen visual pass)_
+
+Five items came off the Fable list in that sweep. Four were done: Home's sync notice, the remembered
+Home/board segment, `TodayScreen`'s nested `NavigationStack`, and the UI-test launch reset (now driven
+off `UITestSeed.rememberedKeys` rather than three hand-written lines). The fifth — "scroll screens do
+not reserve room for the floating tab bar" — was **dropped as misdiagnosed, not fixed**; the bar's
+whole 83-pt band is already in the bottom safe area and the `ScrollView` already insets for it. The
+measurement is in NOTES.md so the 96-pt constant it asked for does not get proposed again.
 
 ## Blocked on Wes
 
@@ -35,10 +42,12 @@ _Last swept: 2026-09-15 13:28 CDT (Fable)_
 | Handoffs ignore early due windows | 2026-09-15 | Shipped knowingly. `HandoffRules` counts calendar periods, so a chore with a `dueDay` of 1–6 (window opens in the previous month) refuses a handoff until the 1st. Documented in the due-windows spec. |
 | Density scorecard test unowned | 2026-09-13 | Flagged in the UX audit, never picked up. |
 | This Mac is on Xcode 27.0 / Swift 6.4; CI is on 26.6 | 2026-09-15 | Local green no longer proves CI green. CI is the authority on disagreement. |
+| No UI-test fixture with empty rooms | 2026-09-15 | `paired` fills all four lists, so the empty-household door strip — the state the spec designs for, and the one a new household actually arrives in — cannot be audited or screenshotted by the suite. It was checked once by hand against a throwaway fixture and reads correctly (four titles over four grey dashes). A `paired-empty-rooms` seed would make that checkable. |
 
 ## In flight
 
 | Item | State |
 |---|---|
 | Lane 2 — litter rotations | **Done.** Merged as #87 (main f5aff0e); server deployed and verified at chores v5 / schema v5. A stale worktree for it is still checked out at `~/Developer/roost-bot-work/worktrees/l1-litter` on the bot's machine-side clone. |
+| Home screen — the front door | **Built.** Tasks 1–8 of the lane are done and sitting in the working tree on `feat/home-screen`; Wes commits and opens the PR. The measurement is in the spec's "What it measured": 156 pt to the first checkable row against ~190–210 pt on the old screen. What outlived the lane is on the Fable list above. |
 | Lanes 3–6, unstarted | daily cap + bonus list; step deadlines + approaching notifications; add-a-chore from the app; Movies & TV watchlist. Order is Fable's; 4 and 6 depend on the APNs key above. |

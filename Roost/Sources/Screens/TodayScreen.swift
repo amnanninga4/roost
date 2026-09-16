@@ -36,6 +36,9 @@ struct TodayScreen: View {
     @State private var celebration = TodayBoard.Celebration()
     /// The row waiting on the one confirmation before an offer is made. Nil the rest of the time.
     @State private var pendingOffer: TodayRow?
+    /// Ruling 2026-09-14, carried over from the header: expand state persists; default collapsed
+    /// on a fresh install. The key is unchanged so a phone that had it open keeps it open.
+    @AppStorage("roost.today.streakExpanded") private var streaksExpanded = false
 
     private let calendar = HouseholdCalendar()
 
@@ -53,15 +56,14 @@ struct TodayScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                content(asOf: context.date)
-            }
-            .background(RoostColor.Role.background.color)
-            .navigationTitle(Strings.appTitle)
-            .toolbarTitleDisplayMode(.inline)
+        // No `NavigationStack` here. `HomeTabScreen` owns the one stack both segments live in, and it
+        // carries the title, the inline display mode and the tint this screen used to set on a stack of
+        // its own — the same values, so nothing about the bar changes. A second stack rendered without a
+        // second bar, which is why it survived: what it actually broke is a push from a board row, which
+        // landed on the inner stack instead of the tab's.
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            content(asOf: context.date)
         }
-        .tint(RoostColor.Role.accent.color)
         .overlay { CelebrationView(trigger: $celebrations) }
         .roostHaptic(.checkOff, trigger: checkOffs)
         .roostHaptic(.undo, trigger: undos)
@@ -103,7 +105,8 @@ struct TodayScreen: View {
         let plan = plan(asOf: now)
         return ScrollView {
             VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
-                TodayHeaderView(date: now, streaks: StreakHeaderModel(plan: plan), notice: notice(asOf: now), me: me)
+                TodayHeaderView(date: now, notice: sync.notice(for: syncStates, now: now))
+                StreakSummaryView(model: StreakHeaderModel(plan: plan), me: me, expanded: $streaksExpanded)
                 ForEach(TodayBoard.columnPeople(me: me), id: \.self) { person in
                     let rows = TodayBoard.ordered(plan.rows(for: person))
                     let isMine = person == me
@@ -159,48 +162,23 @@ struct TodayScreen: View {
         )
     }
 
-    private func notice(asOf now: Date) -> TodayBoard.Notice {
-        TodayBoard.notice(
-            isPaired: state?.isPaired ?? false,
-            outcome: sync.lastOutcome,
-            lastSyncAt: sync.lastSyncAt,
-            // The same line the list tabs print, so the two never disagree about the last pass.
-            statusLine: sync.statusLine,
-            now: now
-        )
-    }
-
     // MARK: - Actions
 
     /// Check off, or un-check. `rows` is the column the row was tapped in, as it stood a moment ago:
     /// the store's query has not caught up yet, so the celebration rule is decided from what was drawn.
     private func toggle(_ row: TodayRow, among rows: [TodayRow]) {
-        let now = Date()
-        switch row.kind {
-        case .due:
-            let record = CompletionRecord(
-                id: UUID().uuidString, choreId: row.chore.id, person: row.person.rawValue, completedAt: now
-            )
-            context.insert(record)
+        switch ChoreCheckOff.toggle(
+            row, among: rows, me: me, completions: completionRecords,
+            celebration: &celebration, calendar: calendar, context: context, sync: sync
+        ) {
+        case let .checked(celebrates):
             checkOffs += 1
-            if celebration.fires(when: rows, checking: row, as: me, on: calendar.startOfDay(now)) {
+            if celebrates {
                 celebrations += 1
             }
-        case let .done(completionId):
-            if let record = completionRecords.first(where: { $0.id == completionId }) {
-                record.removed = true
-                if record.syncedAt == nil, !record.rejected {
-                    record.deleteSynced = true // never reached the server; nothing to replay
-                }
-            }
+        case .unchecked:
             undos += 1
         }
-        try? context.save()
-        if case .due = row.kind {
-            // "Wes said no" has been read by the time you are checking things off again.
-            try? HandoffActions.clearNotices(for: row.person, in: context)
-        }
-        sync.syncSoon()
     }
 
     // MARK: - Handoffs
