@@ -10,7 +10,11 @@ import RoostDesign
 import SwiftUI
 
 struct ChoreRowView: View {
+    enum Style: Equatable { case standard, quiet }
+
     let row: TodayRow
+    var style: Style = .standard
+    var showsEscalationSubtitle: Bool = true
     /// Offers this turn to the other person. Nil when `row.canOffer` is false, or on a column that is
     /// not this phone's — you cannot give away work that was never yours.
     var onOffer: (() -> Void)?
@@ -33,9 +37,9 @@ struct ChoreRowView: View {
         row.chore.category == .catCare ? .catCare : .home
     }
 
-    /// Done rows step back to secondary; the rest wear their stage.
+    /// Done, quiet, and alert are the only title colours; late-but-not-alert stays readable.
     private var titleRole: RoostColor.Role {
-        row.isDone ? .textSecondary : row.stage.role
+        ChoreRowPresentation.titleRole(isDone: row.isDone, stage: row.stage, style: style)
     }
 
     var body: some View {
@@ -112,7 +116,11 @@ struct ChoreRowView: View {
                 check
                 VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
                     titleLine
-                    if let subtitle = EscalationCopy.subtitle(for: row) {
+                    if let subtitle = EscalationCopy.subtitle(for: row),
+                       ChoreRowPresentation.showsSubtitle(
+                           subtitle, title: row.chore.title, allowed: showsEscalationSubtitle
+                       )
+                    {
                         Text(subtitle)
                             .roostType(.subheadline)
                             .foregroundStyle(row.stage.role.color)
@@ -130,7 +138,7 @@ struct ChoreRowView: View {
             .frame(minHeight: RoostSpacing.minTapTarget)
             .contentShape(Rectangle())
             .overlay(alignment: .leading) {
-                if !row.isDone, row.stage.fillRole != nil {
+                if style == .standard, !row.isDone, row.stage.fillRole != nil {
                     Capsule()
                         .fill(row.stage.role.color)
                         .frame(width: EdgeBar.width)
