@@ -1,12 +1,18 @@
 import RoostDesign
 
-// The root of the app: three tabs. Tasks is the Today screen; Lists holds Shopping, Meals, Projects and
-// Wishlist behind a segmented control; More holds what the gear menu used to. Calendar arrives with the
-// reminders design and slots in second; nothing here reserves it a place.
+// The root of the app: three tabs. Home is arrival (with the board one segment away); Lists holds
+// Shopping, Meals, Projects and Wishlist behind a segmented control; More holds what the gear menu
+// used to. Calendar arrives with the reminders design and slots in second; nothing here reserves
+// it a place.
 import SwiftUI
 
 enum RootTab: String, CaseIterable, Identifiable {
-    case tasks, lists, more
+    // The raw value stays "tasks" after the rename to .home. It is what any persisted selection
+    // already holds, and changing it would reset the open tab on every phone that upgrades —
+    // a silent, confusing one-off for a cosmetic gain.
+    case home = "tasks"
+    case lists
+    case more
 
     var id: String {
         rawValue
@@ -14,7 +20,7 @@ enum RootTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .tasks: Strings.Tabs.tasks
+        case .home: Strings.Home.title
         case .lists: Strings.Tabs.lists
         case .more: Strings.Tabs.more
         }
@@ -22,9 +28,33 @@ enum RootTab: String, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
-        case .tasks: "checklist"
+        case .home: "house"
         case .lists: "list.bullet.rectangle"
         case .more: "ellipsis.circle"
+        }
+    }
+}
+
+/// The two halves of the Home tab. Home is arrival; the board is the two columns, which are the
+/// same screen they have always been.
+enum HomeSegment: String, CaseIterable, Identifiable {
+    case home, board
+
+    var id: String {
+        rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .home: Strings.Home.segmentHome
+        case .board: Strings.Home.segmentBoard
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .home: Strings.Home.segmentHomeSymbol
+        case .board: Strings.Home.segmentBoardSymbol
         }
     }
 }
@@ -36,13 +66,23 @@ enum RootTab: String, CaseIterable, Identifiable {
 /// dropped — both seen in the simulator.)
 @Observable
 final class RootNavigation {
-    var selected: RootTab = .tasks
+    var selected: RootTab = .home
+    /// Which half of the Home tab is showing. Lives here rather than in `@AppStorage` inside the
+    /// screen so a cross-tab jump can set both at once, and so a minute tick in the board's
+    /// TimelineView cannot invalidate it.
+    var segment: HomeSegment = .home
     /// The More tab's navigation path. Empty is the More page itself.
     var morePath: [MoreRoute] = []
 
     func showAllChores() {
         morePath = [.allChores]
         selected = .more
+    }
+
+    /// From Home's "Anne still has 4" line: the board, in the tab the reader is already in.
+    func showBoard() {
+        segment = .board
+        selected = .home
     }
 }
 
@@ -66,17 +106,19 @@ struct RootTabView: View {
         }
         .tint(RoostColor.accent)
         .environment(navigation)
-        // A tapped push lands on Tasks: everything the server pushes is about a chore. A counter rather
-        // than a flag, so a second tap works even if the reader has moved to another tab since the first.
+        // A tapped push lands on Home: everything the server pushes is about a chore, and Home
+        // carries this phone's chores. A counter rather than a flag, so a second tap works even if
+        // the reader has moved to another tab since the first.
         .onChange(of: sync.push.openTasksRequests) {
-            navigation.selected = .tasks
+            navigation.selected = .home
+            navigation.segment = .home
         }
     }
 
     @ViewBuilder
     private func screen(for tab: RootTab) -> some View {
         switch tab {
-        case .tasks: TodayScreen()
+        case .home: HomeTabScreen()
         case .lists: ListsScreen()
         case .more: MoreScreen()
         }
