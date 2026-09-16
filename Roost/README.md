@@ -1,6 +1,6 @@
 # Roost/ — the iOS app
 
-SwiftUI + SwiftData, iOS 26+, offline-first. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy; R-11 added the Shopping, Meals, and Projects tabs and their sync; R-17 added Kitchen mode, the counter display; D-2 was a craft pass over the Tasks tab (design tokens throughout, the check-off interaction, visible escalation, the empty and offline states, and one celebration a day); D-3 made the three list tabs finished screens (a composer, a Bought section, a five-second undo on every delete, drag-to-reorder steps, finished projects); D-4 added first-run onboarding, pairing by six-digit code, and the Settings screen; D-4b restyled Settings in the design system and gave it the server's own device label and pairing date from `GET /me`; D-5 registered this phone for the server's APNs pushes and added the Home Screen and Lock Screen widget; D-8 added handoffs — offering a turn to the other person — and moved the household start date onto the server. D-6 added the UI test target: an accessibility audit per screen that runs in CI, the fixes it found, and the Shopping list's scroll metrics. The 2026-09-13 bar change replaced the four tabs with Tasks · Lists · More, put Shopping, Meals, Projects and a new Wishlist under Lists, and moved the gear menu to the More page, and gave projects an optional due day and steps an optional owner, with a reminder on the morning a project is due.
+SwiftUI + SwiftData, iOS 26+, offline-first. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy; R-11 added the Shopping, Meals, and Projects tabs and their sync; R-17 added Kitchen mode, the counter display; D-2 was a craft pass over the Tasks tab (design tokens throughout, the check-off interaction, visible escalation, the empty and offline states, and one celebration a day); D-3 made the three list tabs finished screens (a composer, a Bought section, a five-second undo on every delete, drag-to-reorder steps, finished projects); D-4 added first-run onboarding, pairing by six-digit code, and the Settings screen; D-4b restyled Settings in the design system and gave it the server's own device label and pairing date from `GET /me`; D-5 registered this phone for the server's APNs pushes and added the Home Screen and Lock Screen widget; D-8 added handoffs — offering a turn to the other person — and moved the household start date onto the server. D-6 added the UI test target: an accessibility audit per screen that runs in CI, the fixes it found, and the Shopping list's scroll metrics. The 2026-09-13 bar change replaced the four tabs with Tasks · Lists · More, put Shopping, Meals, Projects and a new Wishlist under Lists, and moved the gear menu to the More page, and gave projects an optional due day and steps an optional owner, with a reminder on the morning a project is due. D-10 added the Appearance choice in Settings.
 
 | Tasks | Lists | Wishlist | More |
 | --- | --- | --- | --- |
@@ -60,7 +60,7 @@ Roost/
   Config/Local.xcconfig       committed, no values; `#include?`s the override below
   Config/Local.override.xcconfig  gitignored: DEVELOPMENT_TEAM, and nothing else
   Sources/
-    RoostApp.swift            @main: registers fonts, opens (or rebuilds) the store, seeds, owns SyncCoordinator, shows RootGate
+    RoostApp.swift            @main: registers fonts, opens (or rebuilds) the store, seeds, owns SyncCoordinator, shows RootGate, applies the appearance choice to the window
     Strings.swift             every user-facing string: tab titles, list headers, Wishlist and More strings, placeholders and empty states, the undo and "Didn't sync" wording, streak labels, escalation copy, Kitchen mode, onboarding and Settings
     Root/RootTabView.swift    the tab bar (RootTab: Tasks, Lists, More) and the screen behind each
     Screens/ListsScreen.swift  the Lists tab: ListPage, RoostSegmentedControl, the paged TabView that hosts the four pages and applies the list chrome once
@@ -89,6 +89,7 @@ Roost/
     Models/ChoreSeeder.swift  idempotent seed from the bundled chores.json (also used for server-sent chores)
     Models/TodayPlanner.swift pure: records -> per-person rows via RoostCore Scheduler/Tallies
     Models/ProjectComposer.swift pure: Return on the title never clears first steps; when the steps field stays visible
+    Models/Appearance.swift   the System / Light / Dark choice: its UserDefaults key, its ColorScheme, and the fallback for a value this build does not know
     Models/ChoreRowMeta.swift pure: the two-slot meta line for a chore row (days-late / handoff / together/giver/name)
     Models/StreakHeaderModel.swift pure: streaks + weekly tallies -> two sides, the leader from the week tally (nil on a tie), the tally line, scoreLine(me:)
     Models/EscalationCopy.swift pure: EscalationStage + category -> row subtitle (nil for dueToday and done rows)
@@ -357,10 +358,27 @@ Gear → Settings (`SettingsScreen`) replaced the old paste-a-token Pairing shee
 
 - **This phone** — the person the server paired, in their colour; the device as the server lists it
   ("Anne test · iPhone 17 Pro", the `mkcode` label joined to the name the phone sent); and the date it paired.
+- **Appearance** — System, Light, or Dark, as a segmented picker. The choice is per device and never
+  synced: two phones, two people, two ideas about a screen at midnight.
 - **Server** — the host. In a DEBUG build it is an editable field; see below.
 - **Sync** — when the last pass landed, and what state it left behind ("Up to date", "Syncing…",
   "Offline · will retry").
 - **Unpair this phone** — a confirmation, then `DELETE /pair/self`. On a `200` the app drops back to onboarding.
+
+**Appearance** is one key in `UserDefaults` (`Appearance`, in `Models/Appearance.swift`), read by `RoostApp`
+as an `@AppStorage` and applied as a single `.preferredColorScheme` on the `WindowGroup` content — which is
+why one tap repaints the tabs and Kitchen mode's full-screen cover together. `system` maps to `nil`, meaning
+do not override. A value this build does not recognise falls back to system rather than leaving the picker
+with no selection.
+
+`SettingsScreen` repeats `.preferredColorScheme` for itself, **and that line is load-bearing**: a sheet
+presented while the window already carries an override keeps the scheme it was born with. Verified in the
+simulator — with Dark on, picking Light repainted the screen behind and left the Settings sheet dark until
+it was dismissed, which is exactly the moment you are looking at it.
+
+**The widget cannot follow it.** A widget is a separate process WidgetKit renders in the system appearance,
+and nothing the app writes reaches it. The Home Screen stays on the phone's setting, and the footer under
+the picker says so.
   On a `403` (the token came from the tokens file, so only that file can revoke it) or on no answer at all, the
   local token is cleared anyway and an alert explains what is still live on the server before onboarding returns.
 - The app version and build at the bottom, from the bundle.
