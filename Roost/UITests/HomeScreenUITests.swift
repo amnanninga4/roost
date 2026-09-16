@@ -42,4 +42,44 @@ final class HomeScreenUITests: RoostUITestCase {
             XCTAssertTrue(app.buttons["home.door.\(room)"].exists, "missing door: \(room)")
         }
     }
+
+    /// Home's last section. The fixture's `SyncState` has no `baseURL`, so this phone is unpaired and the
+    /// line is the notice wording — which is the point of building it: the screen the app opens on says so
+    /// itself instead of leaving it to the board.
+    func testHomeDrawsTheSyncNoticeLast() {
+        let app = launch(.paired)
+        XCTAssertTrue(
+            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            "the app never reached Home"
+        )
+        let notice = app.staticTexts["home.syncNotice"]
+        XCTAssertTrue(notice.waitForExistence(timeout: Self.timeout), "Home draws no sync notice")
+        XCTAssertEqual(notice.label, Self.unpairedLine)
+        // Last: below the door strip, which is the section the spec puts above it.
+        let lastDoor = app.buttons["home.door.wishlist"]
+        XCTAssertTrue(lastDoor.exists, "the door strip was never built")
+        XCTAssertGreaterThan(
+            notice.frame.minY, lastDoor.frame.maxY,
+            "the notice is not last: it sits at or above the door strip"
+        )
+    }
+
+    /// The same line, from the same wiring, on the other segment — so neither screen can start saying
+    /// something different about being offline.
+    func testTheBoardSaysTheSameThingAboutSync() {
+        let app = launch(.paired)
+        XCTAssertTrue(
+            app.staticTexts["home.syncNotice"].waitForExistence(timeout: Self.timeout),
+            "Home draws no sync notice"
+        )
+        let onHome = app.staticTexts["home.syncNotice"].label
+        waitForTasks(in: app)
+        XCTAssertTrue(
+            app.staticTexts[onHome].waitForExistence(timeout: Self.timeout),
+            "the board says something else about sync; Home said '\(onHome)'"
+        )
+    }
+
+    /// Spelled out rather than assembled, because it is what the reader sees. `Strings.Tasks.notPaired`.
+    private static let unpairedLine = "Not paired yet · More → Settings"
 }

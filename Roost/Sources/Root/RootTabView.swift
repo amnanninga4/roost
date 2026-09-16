@@ -40,6 +40,16 @@ enum RootTab: String, CaseIterable, Identifiable {
 enum HomeSegment: String, CaseIterable, Identifiable {
     case home, board
 
+    /// Where the remembered segment is written, spelled once so the app, the tests and the UI-test
+    /// launch reset cannot disagree. Renaming it silently sends every phone back to Home.
+    static let storageKey = "roost.home.segment"
+
+    /// What a stored string means, including one this build has never heard of: `.home`, the arrival
+    /// screen, rather than nothing. Same read as `Appearance.stored`.
+    static func stored(_ raw: String?) -> HomeSegment {
+        raw.flatMap(HomeSegment.init(rawValue:)) ?? .home
+    }
+
     var id: String {
         rawValue
     }
@@ -67,12 +77,36 @@ enum HomeSegment: String, CaseIterable, Identifiable {
 @Observable
 final class RootNavigation {
     var selected: RootTab = .home
-    /// Which half of the Home tab is showing. Lives here rather than in `@AppStorage` inside the
-    /// screen so a cross-tab jump can set both at once, and so a minute tick in the board's
-    /// TimelineView cannot invalidate it.
-    var segment: HomeSegment = .home
+
+    /// Which half of the Home tab is showing. Lives here rather than inside the screen so a cross-tab
+    /// jump can set both at once, and so a minute tick in the board's TimelineView cannot invalidate it.
+    ///
+    /// Remembered across launches, so whoever lives on the board is not sent back to the foyer every
+    /// morning. The write is by hand rather than `@AppStorage`, and not by preference: `@AppStorage`
+    /// cannot be a property of an `@Observable` class — the macro and the wrapper both synthesize
+    /// `_segment`, which does not compile — and `@ObservationIgnored @AppStorage` gets past that only by
+    /// taking the property out of observation, which is the one thing the segmented control and
+    /// `showBoard()` depend on. The key and the stored raw string are what an `@AppStorage` would have
+    /// written, so either could read the other's value.
+    var segment: HomeSegment = .home {
+        didSet {
+            guard segment != oldValue else { return }
+            defaults.set(segment.rawValue, forKey: HomeSegment.storageKey)
+        }
+    }
+
     /// The More tab's navigation path. Empty is the More page itself.
     var morePath: [MoreRoute] = []
+
+    @ObservationIgnored private let defaults: UserDefaults
+
+    /// `defaults` is a parameter so a test can pin the key against its own suite rather than the
+    /// phone's. The remembered segment is read here, which is what makes a relaunch land where the
+    /// reader left off.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        segment = HomeSegment.stored(defaults.string(forKey: HomeSegment.storageKey))
+    }
 
     func showAllChores() {
         morePath = [.allChores]

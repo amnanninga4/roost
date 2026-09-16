@@ -105,6 +105,11 @@ struct HomeScreen: View {
                     navigation.selected = .lists
                     UserDefaults.standard.set(id, forKey: ListPage.storageKey)
                 }
+
+                // Last, per the spec. The same line the board draws, from the same wiring, so the
+                // screen the app opens on is not the one that stays quiet about being offline.
+                SyncNoticeLine(notice: sync.notice(for: syncStates, now: now))
+                    .accessibilityIdentifier("home.syncNotice")
             }
             .padding(.horizontal, RoostSpacing.screenMargin)
             .padding(.top, RoostSpacing.sm)

@@ -56,15 +56,14 @@ struct TodayScreen: View {
     }
 
     var body: some View {
-        NavigationStack {
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                content(asOf: context.date)
-            }
-            .background(RoostColor.Role.background.color)
-            .navigationTitle(Strings.appTitle)
-            .toolbarTitleDisplayMode(.inline)
+        // No `NavigationStack` here. `HomeTabScreen` owns the one stack both segments live in, and it
+        // carries the title, the inline display mode and the tint this screen used to set on a stack of
+        // its own — the same values, so nothing about the bar changes. A second stack rendered without a
+        // second bar, which is why it survived: what it actually broke is a push from a board row, which
+        // landed on the inner stack instead of the tab's.
+        TimelineView(.periodic(from: .now, by: 60)) { context in
+            content(asOf: context.date)
         }
-        .tint(RoostColor.Role.accent.color)
         .overlay { CelebrationView(trigger: $celebrations) }
         .roostHaptic(.checkOff, trigger: checkOffs)
         .roostHaptic(.undo, trigger: undos)
@@ -106,7 +105,7 @@ struct TodayScreen: View {
         let plan = plan(asOf: now)
         return ScrollView {
             VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
-                TodayHeaderView(date: now, notice: notice(asOf: now))
+                TodayHeaderView(date: now, notice: sync.notice(for: syncStates, now: now))
                 StreakSummaryView(model: StreakHeaderModel(plan: plan), me: me, expanded: $streaksExpanded)
                 ForEach(TodayBoard.columnPeople(me: me), id: \.self) { person in
                     let rows = TodayBoard.ordered(plan.rows(for: person))
@@ -160,17 +159,6 @@ struct TodayScreen: View {
         return HandoffRules(
             scheduler: Scheduler(chores: chores, activeFrom: activeFrom, calendar: calendar),
             handoffs: live
-        )
-    }
-
-    private func notice(asOf now: Date) -> TodayBoard.Notice {
-        TodayBoard.notice(
-            isPaired: state?.isPaired ?? false,
-            outcome: sync.lastOutcome,
-            lastSyncAt: sync.lastSyncAt,
-            // The same line the list tabs print, so the two never disagree about the last pass.
-            statusLine: sync.statusLine,
-            now: now
         )
     }
 

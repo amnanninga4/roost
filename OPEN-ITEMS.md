@@ -8,7 +8,14 @@ tracks the lane in flight; anything that outlives the lane belongs here instead.
 An item that has not moved gets louder, not quieter. Delete an item only when it is done or
 explicitly dropped; say which in the commit message.
 
-_Last swept: 2026-09-15 23:40 CDT (home-screen lane)_
+_Last swept: 2026-09-16 01:35 CDT (home-screen visual pass)_
+
+Five items came off the Fable list in that sweep. Four were done: Home's sync notice, the remembered
+Home/board segment, `TodayScreen`'s nested `NavigationStack`, and the UI-test launch reset (now driven
+off `UITestSeed.rememberedKeys` rather than three hand-written lines). The fifth — "scroll screens do
+not reserve room for the floating tab bar" — was **dropped as misdiagnosed, not fixed**; the bar's
+whole 83-pt band is already in the bottom safe area and the `ScrollView` already insets for it. The
+measurement is in NOTES.md so the 96-pt constant it asked for does not get proposed again.
 
 ## Blocked on Wes
 
@@ -35,12 +42,7 @@ _Last swept: 2026-09-15 23:40 CDT (home-screen lane)_
 | Handoffs ignore early due windows | 2026-09-15 | Shipped knowingly. `HandoffRules` counts calendar periods, so a chore with a `dueDay` of 1–6 (window opens in the previous month) refuses a handoff until the 1st. Documented in the due-windows spec. |
 | Density scorecard test unowned | 2026-09-13 | Flagged in the UX audit, never picked up. |
 | This Mac is on Xcode 27.0 / Swift 6.4; CI is on 26.6 | 2026-09-15 | Local green no longer proves CI green. CI is the authority on disagreement. |
-| Home draws no sync notice | 2026-09-15 | The home-screen spec lists `SyncNoticeLine` as Home's last section; it was never built. Only the board says "Not paired yet" or how long ago the last pass was, so the screen the app opens on is silent about being unpaired or offline. Either build it or strike item 7 from the spec. |
-| The Home/board segment does not survive a launch | 2026-09-15 | The spec says the selection persists and does not reset to Home on foreground. `RootNavigation.segment` is plain in-memory state, so every cold launch lands on Home. Someone who lives on the board is sent back to the foyer each morning. |
-| `TodayScreen` still builds its own `NavigationStack` | 2026-09-15 | It is now inside `HomeTabScreen`'s. It happens to render without a second bar, but it is a nested stack: a push from a board row would go onto the inner one, and the board's title and toolbar are dead configuration. |
-| Scroll screens do not reserve room for the floating tab bar | 2026-09-15 | `RoostSpacing.xxl` is 32 pt and the iOS 26 floating tab bar is roughly 90. At the **end** of the scroll — not mid-flick — Home's door counts sit behind the bar; whether they do depends on content height, which is why it is intermittent to the eye. `/tmp/home-screen-shots/home-doors-under-tabbar.png` is it happening. An accessibility audit of that state fails with "Potentially inaccessible text" every run, which is how it was found. Home, the board and the list pages all use the same `.padding(.bottom, RoostSpacing.xxl)`, so the fix is one decision for all of them — a bottom safe-area inset rather than a bigger magic number — and not a one-screen patch. `RoostUITestCase.scrollIntoView` has been working around this since before this lane. Once fixed, add the scrolled Home audit that is commented out in `AccessibilityAuditTests.swift`. |
 | No UI-test fixture with empty rooms | 2026-09-15 | `paired` fills all four lists, so the empty-household door strip — the state the spec designs for, and the one a new household actually arrives in — cannot be audited or screenshotted by the suite. It was checked once by hand against a throwaway fixture and reads correctly (four titles over four grey dashes). A `paired-empty-rooms` seed would make that checkable. |
-| A new `@AppStorage` key needs adding to the UI-test launch reset | 2026-09-15 | `UITestSeed.makeContainer()` clears the keys by hand, and `roost.home.rowsExpanded` was missed when Task 5 added it — so the fixture launched with Home's row fold already open, which is not a fresh install. Fixed for that key; the next one will be missed the same way unless the reset is driven off a list. |
 
 ## In flight
 
