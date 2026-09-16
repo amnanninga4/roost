@@ -161,6 +161,29 @@ class RoostUITestCase: XCTestCase {
         shot.lifetime = .keepAlways
         add(shot)
 
+        // `performAccessibilityAudit` intermittently gives up with XCTest's own
+        // "Audit failed to complete in time" (`com.apple.xcode.xctest.accessibilityAudit`, -56).
+        // It is not a duration problem and not a finding: measured 2026-09-16, the longest audit in
+        // this file passes reliably at 42 s while a 20 s one fails, and the one that fails passes in
+        // 18 s when it is the only test in the run. What it depends on is position — thirteen audits
+        // back to back in one simulator session degrade something in the accessibility server, and
+        // whichever one lands at the wrong moment tips over. It cost two false red CI runs on
+        // 2026-09-15 alone, on two different screens, both green on re-run of the same commit.
+        //
+        // So the timeout gets exactly one retry, and nothing else does. A real finding still fails
+        // the first time and every time: this catches one specific infrastructure error by domain
+        // and code, never an accessibility result.
+        do {
+            try runAudit(app, allowing: known)
+        } catch let error as NSError where error.domain == "com.apple.xcode.xctest.accessibilityAudit"
+            && error.code == -56
+        {
+            print("AUDIT \(name) | timed out, retrying once — this is the known -56 flake")
+            try runAudit(app, allowing: known)
+        }
+    }
+
+    private func runAudit(_ app: XCUIApplication, allowing known: [KnownIssue]) throws {
         try app.performAccessibilityAudit { issue in
             let names = [issue.element?.label, issue.element?.identifier].compactMap(\.self)
             let allowed = issue.auditType == .contrast
