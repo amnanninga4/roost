@@ -1,5 +1,5 @@
-// The collapse threshold, as arithmetic rather than as a view. Six is a spec ruling, not a taste
-// call, so it gets a test that will fail loudly if someone "tidies" it.
+// The collapse threshold, as arithmetic rather than as a view. Six is a spec ruling, applied
+// per bucket now, not as a stand-in for a daily cap.
 @testable import Roost
 import XCTest
 
