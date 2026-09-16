@@ -289,8 +289,9 @@ Then:
 2. When processing finishes, Automatic Distribution hands it to the Household group and
    TestFlight notifies both phones. If a build is ever rejected, App Store Connect emails
    the reason — it does not appear in the app.
-3. Commit the build number bump the script made on a branch and open a pull request, since
-   `main` takes pull requests only.
+3. Commit the build number bump the script made on a branch, open a pull request, and merge
+   it yourself on green CI. It is the record of which commit became which TestFlight build,
+   and nothing else reads it.
 
    ```bash
    git checkout -b release-0.1.0-128
