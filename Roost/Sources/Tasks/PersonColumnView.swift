@@ -14,6 +14,8 @@ struct PersonColumnView: View {
     let dueCount: Int
     /// True for the person this phone is paired as.
     let isMine: Bool
+    let calendar: HouseholdCalendar
+    let now: Date
     /// Offers waiting for an answer, above the rows. Only ever this phone's own person's: an offer the
     /// other phone has to answer already reads on this one as "Asked Wes · waiting" on the row it came
     /// from, and a card with two buttons nobody here may press would be the same news twice.
@@ -84,6 +86,10 @@ struct PersonColumnView: View {
 
     // MARK: - Card
 
+    private var groups: HomeRowGroups {
+        HomeRowBuckets.group(rows, calendar: calendar, on: now)
+    }
+
     private var card: some View {
         // A hairline gap so two tinted rows next to each other still read as two rows.
         VStack(spacing: RoostSpacing.xxs) {
@@ -102,26 +108,22 @@ struct PersonColumnView: View {
                 // Nothing due and nothing checked off: a day with none of this person's chores on it.
                 clearLine(Strings.Tasks.nothingDue)
             } else {
-                if dueCount == 0 {
-                    // Everything they owed today is checked off; the done rows stay under it to un-check.
-                    clearLine(Strings.Tasks.nothingLeft)
-                        .roostTransition(.row)
-                }
-                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
-                    ChoreRowView(
-                        row: row,
-                        onOffer: offerAction(for: row),
-                        onWithdraw: withdrawAction(for: row),
-                        onShowInAllChores: showInAllChores
-                    ) { toggle(row) }
-                        .roostTransition(.checkOff)
-                        .opacity(entered ? 1 : 0)
-                        .offset(y: entered ? 0 : RoostSpacing.xs)
-                        .animation(
-                            RoostMotion.reduceMotionAware(.standard, reduceMotion: reduceMotion)
-                                .delay(RoostMotion.staggerDelay(index: index, reduceMotion: reduceMotion)),
-                            value: entered
-                        )
+                VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
+                    bucket(
+                        groups.overdue,
+                        title: Strings.Home.overdue,
+                        style: .standard,
+                        identifier: "board.\(person.rawValue).overdue",
+                        startIndex: 0
+                    )
+                    todayBucket
+                    bucket(
+                        groups.later,
+                        title: Strings.Home.ifYouHaveTime,
+                        style: .quiet,
+                        identifier: "board.\(person.rawValue).later",
+                        startIndex: groups.overdue.count + groups.today.count
+                    )
                 }
             }
         }
@@ -136,6 +138,70 @@ struct PersonColumnView: View {
             // a scroll, or a re-render never staggers the card again.
             entered = true
         }
+    }
+
+    @ViewBuilder
+    private var todayBucket: some View {
+        if !groups.today.isEmpty {
+            VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                Text(Strings.Home.today)
+                    .roostType(.monoLabel)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("board.\(person.rawValue).today")
+                if dueCount == 0 {
+                    // Everything they owed today is checked off; the done rows stay under Today.
+                    clearLine(Strings.Tasks.nothingLeft)
+                        .roostTransition(.row)
+                }
+                ForEach(Array(groups.today.enumerated()), id: \.element.id) { offset, row in
+                    choreRow(row, style: .standard, index: groups.overdue.count + offset)
+                }
+            }
+        } else if dueCount == 0 {
+            clearLine(Strings.Tasks.nothingLeft)
+                .roostTransition(.row)
+        }
+    }
+
+    @ViewBuilder
+    private func bucket(
+        _ rows: [TodayRow],
+        title: String,
+        style: ChoreRowView.Style,
+        identifier: String,
+        startIndex: Int
+    ) -> some View {
+        if !rows.isEmpty {
+            VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                Text(title)
+                    .roostType(.monoLabel)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier(identifier)
+                ForEach(Array(rows.enumerated()), id: \.element.id) { offset, row in
+                    choreRow(row, style: style, index: startIndex + offset)
+                }
+            }
+        }
+    }
+
+    private func choreRow(_ row: TodayRow, style: ChoreRowView.Style, index: Int) -> some View {
+        ChoreRowView(
+            row: row,
+            style: style,
+            onOffer: offerAction(for: row),
+            onWithdraw: withdrawAction(for: row),
+            onShowInAllChores: showInAllChores
+        ) { toggle(row) }
+            .roostTransition(.checkOff)
+            .opacity(entered ? 1 : 0)
+            .offset(y: entered ? 0 : RoostSpacing.xs)
+            .animation(
+                RoostMotion.reduceMotionAware(.standard, reduceMotion: reduceMotion)
+                    .delay(RoostMotion.staggerDelay(index: index, reduceMotion: reduceMotion)),
+                value: entered
+            )
     }
 
     /// Whether this row may be offered is `row.canOffer` — `RoostCore.HandoffRules.canOffer`, decided in
