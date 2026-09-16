@@ -170,17 +170,42 @@ class RoostUITestCase: XCTestCase {
         // whichever one lands at the wrong moment tips over. It cost two false red CI runs on
         // 2026-09-15 alone, on two different screens, both green on re-run of the same commit.
         //
-        // So the timeout gets exactly one retry, and nothing else does. A real finding still fails
-        // the first time and every time: this catches one specific infrastructure error by domain
-        // and code, never an accessibility result.
+        // So the timeout gets exactly one retry. On 2026-09-16 that proved not to be enough — both
+        // the retry and the original timed out in the same run, on two screens, because a retry
+        // issued a second later asks the same degraded server the same question.
+        //
+        // The second timeout therefore skips rather than fails, and the reason is a distinction
+        // worth keeping: **a timeout is no result, not a bad result.** A failing audit is a claim
+        // about the app. A timeout is the harness admitting it did not look. Reporting "no" as
+        // "bad" is how three CI runs came back red for reasons that had nothing to do with their
+        // diffs — one of them a branch whose only change was a shell script.
+        //
+        // What is not given up: the audit still gates every real finding, on the first attempt and
+        // every attempt. Only this one error — matched on domain and code, never on an audit
+        // result — turns into a skip, and a skip is visible in the test report, so an audit that
+        // stopped running for good shows up as a row of skips rather than as silence.
         do {
             try runAudit(app, allowing: known)
-        } catch let error as NSError where error.domain == "com.apple.xcode.xctest.accessibilityAudit"
-            && error.code == -56
-        {
+        } catch let error as NSError where Self.isAuditTimeout(error) {
             print("AUDIT \(name) | timed out, retrying once — this is the known -56 flake")
-            try runAudit(app, allowing: known)
+            do {
+                try runAudit(app, allowing: known)
+            } catch let retryError as NSError where Self.isAuditTimeout(retryError) {
+                throw XCTSkip("""
+                the accessibility audit timed out twice (\(Self.auditTimeoutDomain) -56). That is \
+                the audit failing to run, not the screen failing it — see the note on \
+                RoostUITestCase.audit.
+                """)
+            }
         }
+    }
+
+    private static let auditTimeoutDomain = "com.apple.xcode.xctest.accessibilityAudit"
+
+    /// XCTest's own "Audit failed to complete in time", and nothing else. Matched on domain and code
+    /// so that no accessibility finding can ever reach the retry or the skip.
+    private static func isAuditTimeout(_ error: NSError) -> Bool {
+        error.domain == auditTimeoutDomain && error.code == -56
     }
 
     private func runAudit(_ app: XCUIApplication, allowing known: [KnownIssue]) throws {
