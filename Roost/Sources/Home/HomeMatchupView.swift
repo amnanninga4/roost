@@ -53,6 +53,7 @@ struct HomeMatchupView: View {
             HStack(spacing: RoostSpacing.sm) {
                 if !trailing {
                     RoostAvatar(person: column.person.design, label: column.person.displayName)
+                        .accessibilityHidden(true)
                 }
                 VStack(alignment: trailing ? .trailing : .leading, spacing: 0) {
                     HStack(spacing: RoostSpacing.xs) {
@@ -66,6 +67,7 @@ struct HomeMatchupView: View {
                                 .padding(.horizontal, RoostSpacing.xs)
                                 .padding(.vertical, 2)
                                 .background(column.person.design.color, in: RoostRadius.pillShape)
+                                .accessibilityHidden(true)
                         }
                     }
                     Text("\(column.dueCount)")
@@ -78,11 +80,14 @@ struct HomeMatchupView: View {
                 .frame(maxWidth: .infinity, alignment: trailing ? .trailing : .leading)
                 if trailing {
                     RoostAvatar(person: column.person.design, label: column.person.displayName)
+                        .accessibilityHidden(true)
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.roostPressQuiet)
+        .frame(minHeight: RoostSpacing.minTapTarget)
+        .accessibilityElement(children: .combine)
         .accessibilityHint(Strings.Home.openPerson)
         .accessibilityIdentifier("home.open.\(column.person.rawValue)")
         .accessibilityLabel(column.person.displayName)
@@ -166,8 +171,8 @@ struct HomeMatchupRow: View {
                             ? RoostColor.Role.danger.color
                             : RoostColor.Role.textPrimary.color
                     )
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if row.daysOverdue > 0 {
                     Text("\(row.daysOverdue)")
@@ -181,6 +186,7 @@ struct HomeMatchupRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.roostPressQuiet)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel(row.chore.title)
         .accessibilityValue(row.daysOverdue > 0 ? Strings.daysLate(row.daysOverdue) : "")
         .accessibilityHint(Strings.Tasks.hintCheck)
