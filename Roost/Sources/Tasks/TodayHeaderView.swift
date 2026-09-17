@@ -22,6 +22,7 @@ struct TodayHeaderView: View {
                     .roostType(.displayLarge)
                     .foregroundStyle(RoostColor.Role.textPrimary.color)
                     .accessibilityAddTraits(.isHeader)
+                    .accessibilityIdentifier("board.title")
             }
             SyncNoticeLine(notice: notice)
         }

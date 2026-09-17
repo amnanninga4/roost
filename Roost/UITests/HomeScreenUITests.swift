@@ -11,7 +11,7 @@ final class HomeScreenUITests: RoostUITestCase {
             app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
-        XCTAssertFalse(app.staticTexts["Today"].exists, "the board was already showing on launch")
+        XCTAssertFalse(app.staticTexts["board.title"].exists, "the board was already showing on launch")
     }
 
     func testTheSegmentReachesTheBoard() {
@@ -24,7 +24,7 @@ final class HomeScreenUITests: RoostUITestCase {
         // The board's own title is the proof we switched. Not the date eyebrow: Home draws that line
         // under the same identifier, so it is on screen either way and would assert nothing.
         XCTAssertTrue(
-            app.staticTexts["Today"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["board.title"].waitForExistence(timeout: Self.timeout),
             "the board never appeared"
         )
     }
@@ -78,6 +78,16 @@ final class HomeScreenUITests: RoostUITestCase {
             app.staticTexts[onHome].waitForExistence(timeout: Self.timeout),
             "the board says something else about sync; Home said '\(onHome)'"
         )
+    }
+
+    func testHomeSplitsTheListIntoBuckets() {
+        let app = launch(.paired)
+        XCTAssertTrue(app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.staticTexts["home.today"].exists, "Today bucket missing")
+        // Overdue / later are fixture-dependent; only assert they are headings if present,
+        // and that the old mixed fold is gone.
+        XCTAssertFalse(app.buttons["home.more"].exists)
+        XCTAssertTrue(app.staticTexts["home.overdue"].exists)
     }
 
     /// Spelled out rather than assembled, because it is what the reader sees. `Strings.Tasks.notPaired`.

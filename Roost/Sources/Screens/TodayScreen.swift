@@ -115,6 +115,8 @@ struct TodayScreen: View {
                         rows: rows,
                         dueCount: plan.dueCount(for: person),
                         isMine: isMine,
+                        calendar: calendar,
+                        now: now,
                         offers: isMine ? plan.offers(for: person) : [],
                         toggle: { row in toggle(row, among: rows) },
                         offer: { row in pendingOffer = row },

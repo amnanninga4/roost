@@ -41,6 +41,7 @@
 		3C7B79C3D945E6637054DAFD /* RoostWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C968E6FA3FA75A1861CBDC5 /* RoostWidgetBundle.swift */; };
 		3D0447DB07FB8BDDB9FA2F25 /* ChoreCheckOffTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FC22DCC22E7C1DEFACAB498 /* ChoreCheckOffTests.swift */; };
 		3E3B14F1F50EB593606F7052 /* RoostSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78E23F806BDBC0294DF5F617 /* RoostSnapshot.swift */; };
+		41BD552E814B0476F4E3F5FC /* HomeRowBuckets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0524CBAA69E9F316F618D9C2 /* HomeRowBuckets.swift */; };
 		42F8A05EE517129AF986F4EA /* ShoppingScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A208594856956F7ED982DE /* ShoppingScreen.swift */; };
 		43DE111DBBCA3E0D6B5E2135 /* PairingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 363D5D355D39B62D4830AA8F /* PairingTests.swift */; };
 		44D27F99E8BDDF205D29CE41 /* PushRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF7362B41DC0796EE08C6576 /* PushRegistration.swift */; };
@@ -49,6 +50,7 @@
 		47641B203590A9E1117FB6F1 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437D3C9DA2143287D04065E3 /* RootTabView.swift */; };
 		4798048D31F0170904D22EFE /* NotificationCenterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942C42CA2EA09654B4A81C62 /* NotificationCenterClient.swift */; };
 		482F3F523C9CB57C640A68FA /* MealsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A097437EB479AA01D6F9E7E8 /* MealsScreen.swift */; };
+		488F1848FE1D4BDC514018CF /* ChoreRowViewStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA573717F5BAA35A35CE26E /* ChoreRowViewStyleTests.swift */; };
 		4AEB7C87DB9D887D01AF8168 /* ListActions+Wishlist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B4F24B76FC332F357199931 /* ListActions+Wishlist.swift */; };
 		4C25971AEC9CDF6ACC9626E7 /* PersonColumnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C48A55826328A91D661A3B83 /* PersonColumnView.swift */; };
 		4E249EBF76630E883E798BB8 /* RoostAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08D23A2D3FFCC9B7EDDDA809 /* RoostAppDelegate.swift */; };
@@ -73,6 +75,7 @@
 		69ABA499AC16E169D237F1CC /* NotificationsStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B62EB6553B1FB18A2AC5B0 /* NotificationsStep.swift */; };
 		6CA79C2F0062517D8D9BEFDA /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF47E231287D8E2BFAA4331 /* Appearance.swift */; };
 		6CDDED92F97B6061266FEBAF /* RoostCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4F04D4416C0FDE8B1AA930 /* RoostCopy.swift */; };
+		6F08976985A59E5958B616CD /* HomeRowBucketsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9B1126EBC79FB6CDE87CC8 /* HomeRowBucketsTests.swift */; };
 		6F52FABDA34337C7FFC4199D /* RoostSegmentedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E663527CC81BACD2C0116B /* RoostSegmentedControl.swift */; };
 		70F202A0221F1E136998D85D /* ListsBehaviourTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29E5825B310A3BD8F8FD479 /* ListsBehaviourTests.swift */; };
 		7160C3F19E5CC4844DE92492 /* WindowCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB854AD7E44AB4632548E399 /* WindowCopy.swift */; };
@@ -147,6 +150,7 @@
 		E35E03E05E5B7C537A12365E /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC47AB8F7A08A46B66B44C8C /* TokenStore.swift */; };
 		E47DCEBEA986507FED31AE00 /* SnapshotBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8FFCB888BE7FC4E80115A0 /* SnapshotBuilder.swift */; };
 		E47FFE8D2CD21A8ED78A4467 /* ListsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFE8685558FAA02631C43590 /* ListsScreen.swift */; };
+		E910082B32610B3FA07DF546 /* ChoreRowPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 559E16B826E1829DBF473F84 /* ChoreRowPresentation.swift */; };
 		E95E22092316D40DA5A03453 /* TodayHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D61495BD8F24558544DA45CB /* TodayHeaderView.swift */; };
 		EAE46CF8C08A8EC16963D42B /* RoostCore in Frameworks */ = {isa = PBXBuildFile; productRef = DD721A217C1DD1E947483581 /* RoostCore */; };
 		EDF0DF81C19C4A0EE5C7DE7F /* TodayPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 080ACA808436919384EF6875 /* TodayPlanner.swift */; };
@@ -205,6 +209,7 @@
 
 /* Begin PBXFileReference section */
 		03D97423E2D76EEB04A31D60 /* HomeSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSummary.swift; sourceTree = "<group>"; };
+		0524CBAA69E9F316F618D9C2 /* HomeRowBuckets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeRowBuckets.swift; sourceTree = "<group>"; };
 		06641AAFA324A99E75897A98 /* HandoffSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffSyncTests.swift; sourceTree = "<group>"; };
 		080ACA808436919384EF6875 /* TodayPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayPlanner.swift; sourceTree = "<group>"; };
 		08D23A2D3FFCC9B7EDDDA809 /* RoostAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoostAppDelegate.swift; sourceTree = "<group>"; };
@@ -236,10 +241,12 @@
 		43E00B3E9B1753F2ABC5091F /* HandoffPlanningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffPlanningTests.swift; sourceTree = "<group>"; };
 		44CCD096BBB922543491A867 /* WishlistScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WishlistScreen.swift; sourceTree = "<group>"; };
 		4A666833E62DF35DF41BD3FC /* TodayWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayWidget.swift; sourceTree = "<group>"; };
+		4B9B1126EBC79FB6CDE87CC8 /* HomeRowBucketsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeRowBucketsTests.swift; sourceTree = "<group>"; };
 		507910A45ED91863058461A2 /* ListSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListSync.swift; sourceTree = "<group>"; };
 		520CFA81EEB9959E54E1AC45 /* SnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotTests.swift; sourceTree = "<group>"; };
 		5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModelTests.swift; sourceTree = "<group>"; };
 		536756D46ADB902008069020 /* ListParts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListParts.swift; sourceTree = "<group>"; };
+		559E16B826E1829DBF473F84 /* ChoreRowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreRowPresentation.swift; sourceTree = "<group>"; };
 		57AB7F74DE8FDA9B0E77587B /* HomeRowsCollapseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeRowsCollapseTests.swift; sourceTree = "<group>"; };
 		57AFB8DE9407778272B26CCE /* HomeRowsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeRowsView.swift; sourceTree = "<group>"; };
 		59C7E3B2C6B03A58C3A3C989 /* SyncAPI+Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Push.swift"; sourceTree = "<group>"; };
@@ -357,6 +364,7 @@
 		FAABFF10436145260720977A /* EscalationCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EscalationCopy.swift; sourceTree = "<group>"; };
 		FB7E2D2040607F9F3DD01B58 /* RoostTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RoostTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FBF0A17F51BBAD90D575556D /* KitchenScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenScreen.swift; sourceTree = "<group>"; };
+		FCA573717F5BAA35A35CE26E /* ChoreRowViewStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreRowViewStyleTests.swift; sourceTree = "<group>"; };
 		FF7362B41DC0796EE08C6576 /* PushRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushRegistration.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -549,6 +557,7 @@
 			isa = PBXGroup;
 			children = (
 				0D7BEE702A9915E49C6684BE /* HomeDoorsView.swift */,
+				0524CBAA69E9F316F618D9C2 /* HomeRowBuckets.swift */,
 				57AFB8DE9407778272B26CCE /* HomeRowsView.swift */,
 			);
 			path = Home;
@@ -598,10 +607,12 @@
 				E5D996E23C2D6628444D44D9 /* AppearanceTests.swift */,
 				2FC22DCC22E7C1DEFACAB498 /* ChoreCheckOffTests.swift */,
 				7475C43FFF3F8D58BC6E35E3 /* ChoreRowMetaTests.swift */,
+				FCA573717F5BAA35A35CE26E /* ChoreRowViewStyleTests.swift */,
 				F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */,
 				D50964424ABF72DB3DC551BA /* HandoffActionsTests.swift */,
 				43E00B3E9B1753F2ABC5091F /* HandoffPlanningTests.swift */,
 				06641AAFA324A99E75897A98 /* HandoffSyncTests.swift */,
+				4B9B1126EBC79FB6CDE87CC8 /* HomeRowBucketsTests.swift */,
 				57AB7F74DE8FDA9B0E77587B /* HomeRowsCollapseTests.swift */,
 				BD24FCFEE24F2852BA66C067 /* HomeSummaryTests.swift */,
 				5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */,
@@ -692,6 +703,7 @@
 			isa = PBXGroup;
 			children = (
 				914CE8A769B8F22F8D11E3C7 /* CelebrationView.swift */,
+				559E16B826E1829DBF473F84 /* ChoreRowPresentation.swift */,
 				D4FB2096EA8937E8ADFE9F25 /* ChoreRowView.swift */,
 				3D5790C8BCC584A338E1C947 /* HandoffOfferCard.swift */,
 				C48A55826328A91D661A3B83 /* PersonColumnView.swift */,
@@ -861,6 +873,7 @@
 				274F7D8EC4D68D124DA56AE4 /* ChoreCheckOff.swift in Sources */,
 				5C3E33554F496E34DB9C74FF /* ChoreListScreen.swift in Sources */,
 				B1A61BB2D698BACADC67CAE2 /* ChoreRowMeta.swift in Sources */,
+				E910082B32610B3FA07DF546 /* ChoreRowPresentation.swift in Sources */,
 				2F7772077A0025FA02E2647F /* ChoreRowView.swift in Sources */,
 				C71145DD7AB59557F27CE674 /* ChoreSeeder.swift in Sources */,
 				B9C4B9191FC4BF20EBC4B3C7 /* CodeEntryField.swift in Sources */,
@@ -874,6 +887,7 @@
 				60CB0F0B357600B28E2B36D6 /* HandoffRecords.swift in Sources */,
 				BA23590F33F0011174D3858E /* HandoffSync.swift in Sources */,
 				A1916C218ECE934AC5D0E1ED /* HomeDoorsView.swift in Sources */,
+				41BD552E814B0476F4E3F5FC /* HomeRowBuckets.swift in Sources */,
 				26BD3337085FA721EC107D15 /* HomeRowsView.swift in Sources */,
 				C064197CF9AEDF0ECEFB403C /* HomeScreen.swift in Sources */,
 				FD4F08F336CCF2AB45565F55 /* HomeSummary.swift in Sources */,
@@ -988,10 +1002,12 @@
 				AC03B8E557EC773D56AED242 /* AppearanceTests.swift in Sources */,
 				3D0447DB07FB8BDDB9FA2F25 /* ChoreCheckOffTests.swift in Sources */,
 				A9165A950F3F3036E8705DCF /* ChoreRowMetaTests.swift in Sources */,
+				488F1848FE1D4BDC514018CF /* ChoreRowViewStyleTests.swift in Sources */,
 				CAECD7BEBC9EAB3C0F829554 /* EscalationCopyTests.swift in Sources */,
 				24F12B4EEEAC70C87210E9E6 /* HandoffActionsTests.swift in Sources */,
 				122C556EB733BF68D6564E88 /* HandoffPlanningTests.swift in Sources */,
 				DF80DEF69382BCEA3873F926 /* HandoffSyncTests.swift in Sources */,
+				6F08976985A59E5958B616CD /* HomeRowBucketsTests.swift in Sources */,
 				91F882550F96AA407B5B6FC0 /* HomeRowsCollapseTests.swift in Sources */,
 				F39A37890B11E667AC7B3C15 /* HomeSummaryTests.swift in Sources */,
 				B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */,

@@ -79,7 +79,7 @@ struct HomeScreen: View {
                         .accessibilityIdentifier("home.sentence")
                 }
 
-                HomeRowsView(rows: summary.myRows) { row in
+                HomeRowsView(rows: summary.myRows, calendar: calendar, now: now) { row in
                     toggle(row, among: summary.myRows)
                 }
 

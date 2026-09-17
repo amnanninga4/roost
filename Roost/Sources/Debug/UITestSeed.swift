@@ -43,7 +43,9 @@
         /// missed when it was added. A new remembered key goes here.
         static let rememberedKeys = [
             "roost.today.streakExpanded",
-            "roost.home.rowsExpanded",
+            "roost.home.overdueExpanded",
+            "roost.home.todayExpanded",
+            "roost.home.laterExpanded",
             HomeSegment.storageKey,
         ]
 
