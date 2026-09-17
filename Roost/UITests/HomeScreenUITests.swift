@@ -8,7 +8,7 @@ final class HomeScreenUITests: RoostUITestCase {
     func testTheAppOpensOnHomeNotTheBoard() {
         let app = launch(.paired)
         XCTAssertTrue(
-            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
         XCTAssertFalse(app.staticTexts["board.title"].exists, "the board was already showing on launch")
@@ -17,7 +17,7 @@ final class HomeScreenUITests: RoostUITestCase {
     func testTheSegmentReachesTheBoard() {
         let app = launch(.paired)
         XCTAssertTrue(
-            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
         app.buttons["listsPicker.board"].tap()
@@ -35,7 +35,7 @@ final class HomeScreenUITests: RoostUITestCase {
     func testEveryDoorIsOnTheStrip() {
         let app = launch(.paired)
         XCTAssertTrue(
-            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
         for room in ["shopping", "meals", "projects", "wishlist"] {
@@ -49,7 +49,7 @@ final class HomeScreenUITests: RoostUITestCase {
     func testHomeDrawsTheSyncNoticeLast() {
         let app = launch(.paired)
         XCTAssertTrue(
-            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
         let notice = app.staticTexts["home.syncNotice"]
@@ -80,14 +80,18 @@ final class HomeScreenUITests: RoostUITestCase {
         )
     }
 
-    func testHomeSplitsTheListIntoBuckets() {
+    func testHomeShowsBothPeopleSideBySide() {
         let app = launch(.paired)
-        XCTAssertTrue(app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout))
-        XCTAssertTrue(app.staticTexts["home.today"].exists, "Today bucket missing")
-        // Overdue / later are fixture-dependent; only assert they are headings if present,
-        // and that the old mixed fold is gone.
-        XCTAssertFalse(app.buttons["home.more"].exists)
-        XCTAssertTrue(app.staticTexts["home.overdue"].exists)
+        XCTAssertTrue(app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.buttons["home.open.anne"].exists, "Anne's side missing")
+        XCTAssertTrue(app.buttons["home.open.wes"].exists, "Wes's side missing")
+    }
+
+    func testOpeningAPersonPage() {
+        let app = launch(.paired)
+        XCTAssertTrue(app.buttons["home.open.wes"].waitForExistence(timeout: Self.timeout))
+        app.buttons["home.open.wes"].tap()
+        XCTAssertTrue(app.navigationBars["Wes"].waitForExistence(timeout: Self.timeout), "Wes's page did not open")
     }
 
     /// Spelled out rather than assembled, because it is what the reader sees. `Strings.Tasks.notPaired`.

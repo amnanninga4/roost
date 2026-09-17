@@ -22,16 +22,25 @@ struct HomeSummary {
         let count: Int?
     }
 
+    /// One person on the Home matchup. Left is this phone; right is the other.
+    struct Column: Identifiable {
+        var id: Person {
+            person
+        }
+
+        let person: Person
+        let rows: [TodayRow]
+        let dueCount: Int
+        let isMine: Bool
+    }
+
     let sentence: String
-    let myRows: [TodayRow]
-    let otherCount: Int
-    let otherName: String
+    let columns: [Column]
     let doors: [Door]
 
-    /// The other person's line is not drawn when they owe nothing. Hiding it is the point: a line
-    /// reading "Anne still has 0" is noise pretending to be information.
-    var showsOtherLine: Bool {
-        otherCount > 0
+    /// Every row on the matchup, for the check-off celebration rule.
+    var allRows: [TodayRow] {
+        columns.flatMap(\.rows)
     }
 
     init(plan: TodayPlan, me: Person?, doorCounts: DoorCounts) {
@@ -39,9 +48,14 @@ struct HomeSummary {
         let mine = me.map { plan.dueCount(for: $0) } ?? 0
         let theirs = other.map { plan.dueCount(for: $0) } ?? 0
 
-        myRows = me.map { TodayBoard.ordered(plan.rows(for: $0)) } ?? []
-        otherCount = theirs
-        otherName = other?.displayName ?? ""
+        columns = TodayBoard.columnPeople(me: me).map { person in
+            Column(
+                person: person,
+                rows: TodayBoard.ordered(plan.rows(for: person)),
+                dueCount: plan.dueCount(for: person),
+                isMine: person == me
+            )
+        }
 
         // Order matters: an unpaired phone has no "you", so it can never reach the first three.
         if me == nil {

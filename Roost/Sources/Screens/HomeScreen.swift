@@ -1,6 +1,5 @@
-// The front door. The date, one sentence, this phone's chores — checkable right here, so the
-// standing-in-the-kitchen tick still happens on the first screen — the other person as a single
-// line, and four doors into the rest of the house.
+// The front door. Both people, side by side, compact enough to tick a chore from the kitchen.
+// The streak card and week bar stay on the board segment.
 //
 // What is deliberately NOT here: the Anne-vs-Wes streak card and the week bar. They are a
 // scoreboard, they cost ~200 pt at the top of the old screen, and the household already collapsed
@@ -14,6 +13,8 @@ import SwiftData
 import SwiftUI
 
 struct HomeScreen: View {
+    var onOpenPerson: (Person) -> Void = { _ in }
+
     @Environment(\.modelContext) private var context
     @Environment(SyncCoordinator.self) private var sync
     @Environment(RootNavigation.self) private var navigation
@@ -67,39 +68,14 @@ struct HomeScreen: View {
         let summary = summary(asOf: now)
         return ScrollView {
             VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
-                VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
-                    Text(dateLine(now))
-                        .roostType(.monoLabel)
-                        .foregroundStyle(RoostColor.Role.accent.color)
-                        .accessibilityIdentifier("dateEyebrow")
-                    Text(summary.sentence)
-                        .roostType(.displayLarge)
-                        .foregroundStyle(RoostColor.Role.textPrimary.color)
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityIdentifier("home.sentence")
-                }
+                Text(dateLine(now))
+                    .roostType(.monoLabel)
+                    .foregroundStyle(RoostColor.Role.accent.color)
+                    .accessibilityIdentifier("dateEyebrow")
 
-                HomeRowsView(rows: summary.myRows, calendar: calendar, now: now) { row in
-                    toggle(row, among: summary.myRows)
-                }
-
-                if summary.showsOtherLine {
-                    Button {
-                        navigation.showBoard()
-                    } label: {
-                        HStack {
-                            Text(Strings.Home.otherStillHas(summary.otherCount, other: summary.otherName))
-                                .roostType(.rowTitle)
-                                .foregroundStyle(RoostColor.Role.textPrimary.color)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundStyle(RoostColor.Role.textSecondary.color)
-                        }
-                        .frame(minHeight: 44)
-                    }
-                    .buttonStyle(.roostPressQuiet)
-                    .accessibilityIdentifier("home.otherLine")
-                }
+                HomeMatchupView(columns: summary.columns, onToggle: { row in
+                    toggle(row, among: summary.allRows)
+                }, onOpenPerson: onOpenPerson)
 
                 HomeDoorsView(doors: summary.doors) { id in
                     navigation.selected = .lists

@@ -22,6 +22,7 @@
 		18485F39E0B4CDB1B02E6B81 /* ListFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0EA2666CD9A7448A86A8628 /* ListFailureTests.swift */; };
 		1C991038CB712AADE71B097E /* SyncClient+Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE93B4C8DAF7D3CCA6E71FE1 /* SyncClient+Push.swift */; };
 		1EFAAEA608D06F7D5638004F /* WishlistSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FF4B638FEC296252DE256F9 /* WishlistSyncTests.swift */; };
+		1FBC49AD2D629D320FF9478C /* HomeMatchupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F4C32E66A6BEFE03EA4F75E /* HomeMatchupView.swift */; };
 		2318818D8FCC06D80C2BC34B /* WidgetStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8039038BD9D6EB376251654 /* WidgetStrings.swift */; };
 		2347B4ABDED89703835BF319 /* OnboardingFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAEAF0E0517F0553804A8F8C /* OnboardingFlow.swift */; };
 		24F12B4EEEAC70C87210E9E6 /* HandoffActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50964424ABF72DB3DC551BA /* HandoffActionsTests.swift */; };
@@ -118,6 +119,7 @@
 		AC03B8E557EC773D56AED242 /* AppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D996E23C2D6628444D44D9 /* AppearanceTests.swift */; };
 		AC14A11C97221EBC79C9EAE8 /* SeasonCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC0F1AFFE563A4CEB9E0EEA /* SeasonCopy.swift */; };
 		B01BF9A2D2C00916619A9657 /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A666833E62DF35DF41BD3FC /* TodayWidget.swift */; };
+		B0EB9749D563A49067CA2340 /* PersonDayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7373501EA0D4E3CFEFB5BB25 /* PersonDayScreen.swift */; };
 		B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */; };
 		B1A61BB2D698BACADC67CAE2 /* ChoreRowMeta.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C42DA385682B08D301915DD /* ChoreRowMeta.swift */; };
 		B3248869A1EB3EE86F578391 /* RoostDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 1922EF25AF56393DCBF441DE /* RoostDesign */; };
@@ -259,8 +261,10 @@
 		681283D1E95BBDF68BC6BFF0 /* RoostWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RoostWidget.entitlements; sourceTree = "<group>"; };
 		6A61A06C665B3EA1D63BBC4F /* PushService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushService.swift; sourceTree = "<group>"; };
 		6A9D18E18A848E75999983A1 /* RoostDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoostDesign; path = ../Packages/RoostDesign; sourceTree = SOURCE_ROOT; };
+		6F4C32E66A6BEFE03EA4F75E /* HomeMatchupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeMatchupView.swift; sourceTree = "<group>"; };
 		70EEA3303FF22CD208D77A66 /* KitchenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModel.swift; sourceTree = "<group>"; };
 		714F89110CAB1289D39246BC /* ListActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListActions.swift; sourceTree = "<group>"; };
+		7373501EA0D4E3CFEFB5BB25 /* PersonDayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonDayScreen.swift; sourceTree = "<group>"; };
 		7450DA745986794A3E6746CA /* ListPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListPresentation.swift; sourceTree = "<group>"; };
 		7475C43FFF3F8D58BC6E35E3 /* ChoreRowMetaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreRowMetaTests.swift; sourceTree = "<group>"; };
 		76764903F0C41339B67FE451 /* Roost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Roost.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -557,8 +561,10 @@
 			isa = PBXGroup;
 			children = (
 				0D7BEE702A9915E49C6684BE /* HomeDoorsView.swift */,
+				6F4C32E66A6BEFE03EA4F75E /* HomeMatchupView.swift */,
 				0524CBAA69E9F316F618D9C2 /* HomeRowBuckets.swift */,
 				57AFB8DE9407778272B26CCE /* HomeRowsView.swift */,
+				7373501EA0D4E3CFEFB5BB25 /* PersonDayScreen.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -887,6 +893,7 @@
 				60CB0F0B357600B28E2B36D6 /* HandoffRecords.swift in Sources */,
 				BA23590F33F0011174D3858E /* HandoffSync.swift in Sources */,
 				A1916C218ECE934AC5D0E1ED /* HomeDoorsView.swift in Sources */,
+				1FBC49AD2D629D320FF9478C /* HomeMatchupView.swift in Sources */,
 				41BD552E814B0476F4E3F5FC /* HomeRowBuckets.swift in Sources */,
 				26BD3337085FA721EC107D15 /* HomeRowsView.swift in Sources */,
 				C064197CF9AEDF0ECEFB403C /* HomeScreen.swift in Sources */,
@@ -912,6 +919,7 @@
 				329775D2FAB960D6284980BD /* OnboardingPage.swift in Sources */,
 				78EC0CDCB1FF0855CAF558F0 /* PairingModel.swift in Sources */,
 				4C25971AEC9CDF6ACC9626E7 /* PersonColumnView.swift in Sources */,
+				B0EB9749D563A49067CA2340 /* PersonDayScreen.swift in Sources */,
 				A2B9ECBC57FF9AF680901183 /* ProjectComposer.swift in Sources */,
 				F179D4A20958CF6C5C074DD0 /* ProjectsScreen.swift in Sources */,
 				44D27F99E8BDDF205D29CE41 /* PushRegistration.swift in Sources */,
