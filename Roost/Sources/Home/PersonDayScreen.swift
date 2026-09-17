@@ -55,7 +55,9 @@ struct PersonDayScreen: View {
         .confirmationDialog(
             offerPrompt,
             isPresented: .init(get: { pendingOffer != nil }, set: {
-                if !$0 { pendingOffer = nil }
+                if !$0 {
+                    pendingOffer = nil
+                }
             }),
             titleVisibility: .visible
         ) {
@@ -140,7 +142,9 @@ struct PersonDayScreen: View {
         ) {
         case let .checked(celebrates):
             checkOffs += 1
-            if celebrates { celebrations += 1 }
+            if celebrates {
+                celebrations += 1
+            }
         case .unchecked:
             undos += 1
         }

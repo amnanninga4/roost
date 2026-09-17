@@ -24,7 +24,10 @@ struct HomeSummary {
 
     /// One person on the Home matchup. Left is this phone; right is the other.
     struct Column: Identifiable {
-        var id: Person { person }
+        var id: Person {
+            person
+        }
+
         let person: Person
         let rows: [TodayRow]
         let dueCount: Int
