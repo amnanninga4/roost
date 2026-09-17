@@ -13,6 +13,8 @@ import SwiftData
 import SwiftUI
 
 struct HomeScreen: View {
+    var onOpenPerson: (Person) -> Void = { _ in }
+
     @Environment(\.modelContext) private var context
     @Environment(SyncCoordinator.self) private var sync
     @Environment(RootNavigation.self) private var navigation
@@ -71,9 +73,9 @@ struct HomeScreen: View {
                     .foregroundStyle(RoostColor.Role.accent.color)
                     .accessibilityIdentifier("dateEyebrow")
 
-                HomeMatchupView(columns: summary.columns) { row in
+                HomeMatchupView(columns: summary.columns, onToggle: { row in
                     toggle(row, among: summary.allRows)
-                }
+                }, onOpenPerson: onOpenPerson)
 
                 HomeDoorsView(doors: summary.doors) { id in
                     navigation.selected = .lists

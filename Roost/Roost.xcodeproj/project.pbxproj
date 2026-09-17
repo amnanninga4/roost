@@ -119,6 +119,7 @@
 		AC03B8E557EC773D56AED242 /* AppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D996E23C2D6628444D44D9 /* AppearanceTests.swift */; };
 		AC14A11C97221EBC79C9EAE8 /* SeasonCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC0F1AFFE563A4CEB9E0EEA /* SeasonCopy.swift */; };
 		B01BF9A2D2C00916619A9657 /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A666833E62DF35DF41BD3FC /* TodayWidget.swift */; };
+		B0EB9749D563A49067CA2340 /* PersonDayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7373501EA0D4E3CFEFB5BB25 /* PersonDayScreen.swift */; };
 		B1199F7237232905074FBCAE /* KitchenModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5229815BA23FF8D40ACFBAA9 /* KitchenModelTests.swift */; };
 		B1A61BB2D698BACADC67CAE2 /* ChoreRowMeta.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C42DA385682B08D301915DD /* ChoreRowMeta.swift */; };
 		B3248869A1EB3EE86F578391 /* RoostDesign in Frameworks */ = {isa = PBXBuildFile; productRef = 1922EF25AF56393DCBF441DE /* RoostDesign */; };
@@ -263,6 +264,7 @@
 		6F4C32E66A6BEFE03EA4F75E /* HomeMatchupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeMatchupView.swift; sourceTree = "<group>"; };
 		70EEA3303FF22CD208D77A66 /* KitchenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModel.swift; sourceTree = "<group>"; };
 		714F89110CAB1289D39246BC /* ListActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListActions.swift; sourceTree = "<group>"; };
+		7373501EA0D4E3CFEFB5BB25 /* PersonDayScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonDayScreen.swift; sourceTree = "<group>"; };
 		7450DA745986794A3E6746CA /* ListPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListPresentation.swift; sourceTree = "<group>"; };
 		7475C43FFF3F8D58BC6E35E3 /* ChoreRowMetaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreRowMetaTests.swift; sourceTree = "<group>"; };
 		76764903F0C41339B67FE451 /* Roost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Roost.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -562,6 +564,7 @@
 				6F4C32E66A6BEFE03EA4F75E /* HomeMatchupView.swift */,
 				0524CBAA69E9F316F618D9C2 /* HomeRowBuckets.swift */,
 				57AFB8DE9407778272B26CCE /* HomeRowsView.swift */,
+				7373501EA0D4E3CFEFB5BB25 /* PersonDayScreen.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -916,6 +919,7 @@
 				329775D2FAB960D6284980BD /* OnboardingPage.swift in Sources */,
 				78EC0CDCB1FF0855CAF558F0 /* PairingModel.swift in Sources */,
 				4C25971AEC9CDF6ACC9626E7 /* PersonColumnView.swift in Sources */,
+				B0EB9749D563A49067CA2340 /* PersonDayScreen.swift in Sources */,
 				A2B9ECBC57FF9AF680901183 /* ProjectComposer.swift in Sources */,
 				F179D4A20958CF6C5C074DD0 /* ProjectsScreen.swift in Sources */,
 				44D27F99E8BDDF205D29CE41 /* PushRegistration.swift in Sources */,
