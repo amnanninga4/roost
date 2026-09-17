@@ -98,7 +98,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
     func testHomeAudit() throws {
         let app = launch(.paired)
         XCTAssertTrue(
-            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
         try audit(app, allowing: [dateLineWraps])
@@ -116,7 +116,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
     func testHomeScrolledToTheDoorsAudit() throws {
         let app = launch(.paired)
         XCTAssertTrue(
-            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
         let lastDoor = app.buttons["home.door.wishlist"]

@@ -37,16 +37,17 @@ final class HomeSummaryTests: XCTestCase {
         XCTAssertEqual(summary.sentence, "Nothing due today")
     }
 
-    func testOtherLineHidesWhenTheOtherPersonIsClear() {
-        let summary = HomeSummary(plan: plan(anne: 0, wes: 3), me: .wes, doorCounts: noDoors)
-        XCTAssertFalse(summary.showsOtherLine)
+    func testColumnsLeadWithThisPhone() {
+        let summary = HomeSummary(plan: plan(anne: 4, wes: 5), me: .wes, doorCounts: noDoors)
+        XCTAssertEqual(summary.columns.map(\.person), [.wes, .anne])
+        XCTAssertEqual(summary.columns.map(\.dueCount), [5, 4])
+        XCTAssertEqual(summary.columns.map(\.isMine), [true, false])
     }
 
-    func testOtherLineShowsWhenTheOtherPersonOwesSomething() {
-        let summary = HomeSummary(plan: plan(anne: 4, wes: 3), me: .wes, doorCounts: noDoors)
-        XCTAssertTrue(summary.showsOtherLine)
-        XCTAssertEqual(summary.otherCount, 4)
-        XCTAssertEqual(summary.otherName, "Anne")
+    func testColumnsOnTheOtherPhoneLeadWithAnne() {
+        let summary = HomeSummary(plan: plan(anne: 4, wes: 5), me: .anne, doorCounts: noDoors)
+        XCTAssertEqual(summary.columns.map(\.person), [.anne, .wes])
+        XCTAssertTrue(summary.columns[0].isMine)
     }
 
     /// A door is always shown. Its count is shown only when the room holds something — the

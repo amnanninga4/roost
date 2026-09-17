@@ -82,7 +82,7 @@ class RoostUITestCase: XCTestCase {
     /// launched" and "the board never appeared" are different failures and should read differently.
     func waitForTasks(in app: XCUIApplication) {
         XCTAssertTrue(
-            app.staticTexts["home.sentence"].waitForExistence(timeout: Self.timeout),
+            app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
         let board = app.buttons["listsPicker.board"]
