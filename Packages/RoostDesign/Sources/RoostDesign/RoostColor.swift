@@ -1,11 +1,5 @@
-// Roost color tokens, ported from roost-app-mockup.html.
-//
-// The mockup has two light palettes: `:root` (the marketing page) and `.app-shell` (the phone frame,
-// which overrides ten tokens with a more saturated set). The app is the phone frame, so the default
-// `RoostColor.<name>` light values are the .app-shell values where one exists and the :root values
-// otherwise. Dark values come from the :root dark block; .app-shell has no dark override.
-// The page-level light palette is kept under `RoostColor.Page` for a future SwiftUI marketing page.
-// Each token resolves light/dark automatically through a platform dynamic color.
+// Roost household palette: navy and slate, teal actions, mint Anne, pink Wes.
+// Light appearance uses pale slate surfaces and darker accessible accents.
 import SwiftUI
 #if canImport(UIKit)
     import UIKit
@@ -61,37 +55,35 @@ public struct RoostColorToken: Sendable, Hashable {
     }
 }
 
-/// The palette. Values are the mockup's CSS custom properties, unchanged.
+/// Semantic palette for the approved household screens.
 public enum RoostColor {
-    public static let bgToken = RoostColorToken("bg", light: 0xF3F6F2, dark: 0x121A15)
-    public static let surfaceToken = RoostColorToken("surface", light: 0xFFFFFF, dark: 0x1B241D)
-    public static let surface2Token = RoostColorToken("surface2", light: 0xFBFDFA, dark: 0x212C22)
-    public static let inkToken = RoostColorToken("ink", light: 0x1F2A22, dark: 0xEAF2EC)
-    public static let inkSoftToken = RoostColorToken("inkSoft", light: 0x5C6C60, dark: 0x9FB3A4)
-    public static let lineToken = RoostColorToken("line", light: 0xDCE6DA, dark: 0x2B3830)
-    public static let accentToken = RoostColorToken("accent", light: 0x2F8F72, dark: 0x6FC2A6)
-    public static let accentSoftToken = RoostColorToken("accentSoft", light: 0xCFEEE1, dark: 0x1E362E)
-    public static let goldToken = RoostColorToken("gold", light: 0xE08F2E, dark: 0xD9A754)
-    public static let goldSoftToken = RoostColorToken("goldSoft", light: 0xFBE3C2, dark: 0x3A2D15)
-    public static let infoToken = RoostColorToken("info", light: 0x4C7FE0, dark: 0x7FB3D9)
-    public static let infoSoftToken = RoostColorToken("infoSoft", light: 0xDEE6FC, dark: 0x1E2E3A)
-    public static let teaseToken = RoostColorToken("tease", light: 0xD6487A, dark: 0xE389A8)
-    public static let teaseSoftToken = RoostColorToken("teaseSoft", light: 0xFBDCE8, dark: 0x3A2129)
-    public static let alertToken = RoostColorToken("alert", light: 0xE2233F, dark: 0xFF6478)
-    public static let alertSoftToken = RoostColorToken("alertSoft", light: 0xFCD9DF, dark: 0x3D1620)
-    public static let mealToken = RoostColorToken("meal", light: 0xC2571F, dark: 0xE8935A)
-    public static let mealSoftToken = RoostColorToken("mealSoft", light: 0xF5DCC8, dark: 0x3A2415)
-    public static let assignToken = RoostColorToken("assign", light: 0x6B4FA0, dark: 0xB79EE0)
-    public static let assignSoftToken = RoostColorToken("assignSoft", light: 0xE6DFF5, dark: 0x332750)
-    // Own person + nudge tokens: same hex as the roles they used to borrow, so the mockup palette
-    // character stays, but Anne is no longer "the accent", Wes is no longer "info", and the 1–2 day
-    // nudge is no longer "a notice".
-    public static let anneToken = RoostColorToken("anne", light: 0x2F8F72, dark: 0x6FC2A6)
-    public static let anneSoftToken = RoostColorToken("anneSoft", light: 0xCFEEE1, dark: 0x1E362E)
-    public static let wesToken = RoostColorToken("wes", light: 0x4C7FE0, dark: 0x7FB3D9)
-    public static let wesSoftToken = RoostColorToken("wesSoft", light: 0xDEE6FC, dark: 0x1E2E3A)
-    public static let nudgeToken = RoostColorToken("nudge", light: 0x4C7FE0, dark: 0x7FB3D9)
-    public static let nudgeSoftToken = RoostColorToken("nudgeSoft", light: 0xDEE6FC, dark: 0x1E2E3A)
+    public static let bgToken = RoostColorToken("bg", light: 0xF1F5F9, dark: 0x071323)
+    public static let surfaceToken = RoostColorToken("surface", light: 0xFFFFFF, dark: 0x0E1D30)
+    public static let surface2Token = RoostColorToken("surface2", light: 0xE7EEF5, dark: 0x16283D)
+    public static let inkToken = RoostColorToken("ink", light: 0x102137, dark: 0xF4F7FC)
+    public static let inkSoftToken = RoostColorToken("inkSoft", light: 0x506680, dark: 0x91AACC)
+    public static let lineToken = RoostColorToken("line", light: 0xC5D2E1, dark: 0x2C4663)
+    public static let accentToken = RoostColorToken("accent", light: 0x00776F, dark: 0x00DDD3)
+    public static let accentSoftToken = RoostColorToken("accentSoft", light: 0xD5F3EE, dark: 0x103B40)
+    public static let goldToken = RoostColorToken("gold", light: 0x916000, dark: 0xFFC247)
+    public static let goldSoftToken = RoostColorToken("goldSoft", light: 0xFFF0D1, dark: 0x392E1C)
+    public static let infoToken = RoostColorToken("info", light: 0x42648D, dark: 0x91B4E0)
+    public static let infoSoftToken = RoostColorToken("infoSoft", light: 0xE4EDF8, dark: 0x1A304C)
+    public static let teaseToken = RoostColorToken("tease", light: 0x925700, dark: 0xFFB746)
+    public static let teaseSoftToken = RoostColorToken("teaseSoft", light: 0xFFF0D1, dark: 0x392E1C)
+    public static let alertToken = RoostColorToken("alert", light: 0xA45100, dark: 0xFFA24B)
+    public static let alertSoftToken = RoostColorToken("alertSoft", light: 0xFFF0D1, dark: 0x392E1C)
+    public static let mealToken = RoostColorToken("meal", light: 0x935327, dark: 0xF2AB77)
+    public static let mealSoftToken = RoostColorToken("mealSoft", light: 0xFBEBDD, dark: 0x382C27)
+    public static let assignToken = RoostColorToken("assign", light: 0x7250A4, dark: 0xC2ACE9)
+    public static let assignSoftToken = RoostColorToken("assignSoft", light: 0xEEE7F7, dark: 0x2F2945)
+    // Person identity stays independent from action and status colors.
+    public static let anneToken = RoostColorToken("anne", light: 0x16765D, dark: 0xA0ECD5)
+    public static let anneSoftToken = RoostColorToken("anneSoft", light: 0xD6F3E9, dark: 0x153B36)
+    public static let wesToken = RoostColorToken("wes", light: 0xA42E66, dark: 0xF3A0C1)
+    public static let wesSoftToken = RoostColorToken("wesSoft", light: 0xFBE2EE, dark: 0x41233A)
+    public static let nudgeToken = RoostColorToken("nudge", light: 0x886000, dark: 0xFFD06A)
+    public static let nudgeSoftToken = RoostColorToken("nudgeSoft", light: 0xFFF0D1, dark: 0x392E1C)
     /// rgba(31,42,34,0.14) light, rgba(0,0,0,0.45) dark
     public static let shadowToken = RoostColorToken(
         "shadow",
@@ -227,7 +219,7 @@ public enum RoostColor {
     ]
 
     /// The marketing page's light palette (`:root`), for the ten tokens `.app-shell` overrides.
-    /// Dark values are the same as the app's. Not used by the app screens.
+    /// Retained for historical marketing content. Not used by app screens.
     public enum Page {
         public static let accentToken = RoostColorToken("page.accent", light: 0x2F6F5E, dark: 0x6FC2A6)
         public static let accentSoftToken = RoostColorToken("page.accentSoft", light: 0xDCEBE3, dark: 0x1E362E)

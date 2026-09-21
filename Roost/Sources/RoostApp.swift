@@ -14,7 +14,7 @@ struct RoostApp: App {
     /// Gear → Settings → Appearance, stored on this phone and nowhere else. The raw value rather than the
     /// enum, so a string this build does not know reads as `.system` instead of taking the screen with it;
     /// `Appearance.stored` is that read. See Models/Appearance.swift.
-    @AppStorage(Appearance.storageKey) private var storedAppearance = Appearance.system.rawValue
+    @AppStorage(Appearance.storageKey) private var storedAppearance = Appearance.defaultChoice.rawValue
 
     init() {
         try? RoostFonts.register()

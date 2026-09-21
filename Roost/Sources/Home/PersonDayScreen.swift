@@ -7,7 +7,9 @@ import SwiftUI
 
 struct PersonDayScreen: View {
     let person: Person
+    var onOpenMatchup: () -> Void = {}
 
+    @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.modelContext) private var context
     @Environment(SyncCoordinator.self) private var sync
     @Environment(RootNavigation.self) private var navigation
@@ -26,6 +28,7 @@ struct PersonDayScreen: View {
     @State private var answers = 0
     @State private var celebration = TodayBoard.Celebration()
     @State private var pendingOffer: TodayRow?
+    @State private var reviewingOffer: IncomingOffer?
 
     private let calendar = HouseholdCalendar()
 
@@ -46,7 +49,7 @@ struct PersonDayScreen: View {
             content(asOf: context.date)
         }
         .navigationTitle(person.displayName)
-        .toolbarTitleDisplayMode(.large)
+        .toolbarTitleDisplayMode(.inline)
         .overlay { CelebrationView(trigger: $celebrations) }
         .roostHaptic(.checkOff, trigger: checkOffs)
         .roostHaptic(.undo, trigger: undos)
@@ -65,6 +68,16 @@ struct PersonDayScreen: View {
                 Button(Strings.Handoffs.confirmAction(other.displayName)) { makeOffer(row) }
             }
             Button(Strings.Settings.cancel, role: .cancel) { pendingOffer = nil }
+        }
+        .sheet(item: $reviewingOffer) { offer in
+            HandoffOfferCard(
+                offer: offer,
+                accept: { answerOffer(offer, .accept); reviewingOffer = nil },
+                decline: { answerOffer(offer, .decline); reviewingOffer = nil }
+            )
+            .padding(RoostSpacing.screenMargin)
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
         }
         .refreshable { await sync.syncNow() }
     }
@@ -87,6 +100,31 @@ struct PersonDayScreen: View {
         let rows = TodayBoard.ordered(plan.rows(for: person))
         return ScrollView {
             VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
+                identitySummary(plan)
+                if isMine {
+                    ForEach(plan.offers(for: person)) { offer in
+                        Button { reviewingOffer = offer } label: {
+                            HStack(spacing: RoostSpacing.md) {
+                                RoostAvatar(person: offer.from.design).accessibilityHidden(true)
+                                VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                                    Text(Strings.Matchup.handoff(from: offer.from.displayName))
+                                        .roostType(.callout)
+                                        .foregroundStyle(RoostColor.Role.textPrimary.color)
+                                    Text(offer.chore.title).roostType(.caption)
+                                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                                }
+                                Spacer(minLength: 0)
+                                Text(Strings.Matchup.review)
+                                    .roostType(.headline)
+                                    .foregroundStyle(RoostColor.Role.accent.color)
+                            }
+                            .frame(minHeight: RoostSpacing.minTapTarget)
+                            .padding(RoostSpacing.md)
+                            .roostCard()
+                        }
+                        .buttonStyle(.roostPressQuiet)
+                    }
+                }
                 PersonColumnView(
                     person: person,
                     rows: rows,
@@ -94,7 +132,7 @@ struct PersonDayScreen: View {
                     isMine: isMine,
                     calendar: calendar,
                     now: now,
-                    offers: isMine ? plan.offers(for: person) : [],
+                    showsHeader: false,
                     toggle: { row in toggle(row, among: rows) },
                     offer: isMine ? { row in pendingOffer = row } : nil,
                     withdraw: isMine ? withdrawOffer : nil,
@@ -109,6 +147,44 @@ struct PersonDayScreen: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .background(RoostColor.Role.background.color)
+    }
+
+    private func identitySummary(_ plan: TodayPlan) -> some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.md))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: RoostSpacing.md))
+        return layout {
+            HStack(spacing: RoostSpacing.sm) {
+                HouseholdAvatar(person: person)
+                VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                    Text(person.displayName).roostType(.title)
+                        .foregroundStyle(RoostColor.Role.textPrimary.color)
+                    Text(Strings.Matchup.left(plan.dueCount(for: person)))
+                        .roostType(.callout)
+                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                Text(Strings.Matchup.weekDone(plan.doneThisWeek[person, default: 0]))
+                    .roostType(.caption)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+                Button(action: onOpenMatchup) {
+                    HStack(spacing: RoostSpacing.xs) {
+                        Text(Strings.Matchup.view)
+                        Image(systemName: "chevron.right")
+                    }
+                    .roostType(.callout)
+                    .foregroundStyle(RoostColor.Role.accent.color)
+                    .frame(minHeight: RoostSpacing.minTapTarget)
+                }
+                .buttonStyle(.roostPressQuiet)
+                .accessibilityIdentifier("person.openMatchup")
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(RoostSpacing.md)
+        .roostCard()
     }
 
     private func plan(asOf now: Date) -> TodayPlan {

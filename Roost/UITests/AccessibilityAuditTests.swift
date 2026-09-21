@@ -5,35 +5,12 @@
 // Anything a screen is not being fixed for is listed at its call site with the reason, so the list below is
 // also the list of what is still owed — see `RoostUITestCase.KnownIssue`.
 //
-// Two classes of finding recur, and both were checked against the rendered screen before being written off:
-//
-//   "Dynamic Type font sizes are partially unsupported" on a label set with a `RoostType` rung. Every rung
-//   is `Font.custom(_:size:relativeTo:)`, which scales — `Packages/RoostDesign` has a test that walks all
-//   twelve settings — but carries no `UIFontDescriptor` text style for the audit to read, so the audit
-//   cannot tell. Launching the app at `UICTContentSizeCategoryAccessibilityXXXL` shows every one of these
-//   labels at full size and none of them clipped.
-//
-//   "Text clipped" on a `TextField`. A single-line text field is a single-line text field: iOS scrolls its
-//   contents rather than wrapping them, and the alternative — `axis: .vertical` — turns Return into a
-//   newline and breaks the composer's whole reason for existing (Return adds the line and keeps the
-//   keyboard). Checked at the largest accessibility size: the placeholder and the typed line are legible.
-//
-// Contrast is printed rather than gated on for the whole suite; the reason is on `RoostUITestCase.audit`.
+// Single-line TextFields scroll their contents rather than wrapping them. Exceptions for those
+// fields stay explicit; the native fonts and redesigned Home have no blanket clipping exemptions.
+// Contrast remains reported under the existing policy in RoostUITestCase.audit.
 import XCTest
 
 final class AccessibilityAuditTests: RoostUITestCase {
-    // MARK: - the two classes written off across the app
-
-    /// A `RoostType` rung the audit cannot see the Dynamic Type support in. Verified at
-    /// `UICTContentSizeCategoryAccessibilityXXXL`.
-    private func customFontScales(_ element: String) -> KnownIssue {
-        KnownIssue(
-            compact: "Dynamic Type font sizes are partially unsupported",
-            element: element,
-            reason: "a RoostType rung — Font.custom(relativeTo:) scales but reports no text style"
-        )
-    }
-
     /// A single-line `TextField` whose contents scroll rather than wrap.
     private func textFieldScrolls(_ element: String) -> KnownIssue {
         KnownIssue(
@@ -55,25 +32,6 @@ final class AccessibilityAuditTests: RoostUITestCase {
         )
     }
 
-    /// The matchup card reports these without an identifier (`element: none`). Rows are 44 pt;
-    /// titles wrap to two lines. The unnamed nodes are the YOU pill and avatars, which are
-    /// accessibility-hidden under the named header buttons.
-    private var homeMatchupKnown: [KnownIssue] {
-        [
-            dateLineWraps,
-            KnownIssue(
-                compact: "Hit area is too small",
-                element: nil,
-                reason: "unnamed matchup decorations; header and rows are 44 pt buttons"
-            ),
-            KnownIssue(
-                compact: "Text clipped",
-                element: nil,
-                reason: "matchup titles wrap to two lines in the column"
-            ),
-        ]
-    }
-
     // MARK: - onboarding
 
     func testOnboardingWelcomeAudit() throws {
@@ -82,10 +40,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
             app.buttons["Get started"].waitForExistence(timeout: Self.timeout),
             "the welcome screen never appeared"
         )
-        try audit(app, allowing: [
-            customFontScales("Anne"),
-            customFontScales("Wes"),
-        ])
+        try audit(app)
     }
 
     func testOnboardingCodeEntryAudit() throws {
@@ -120,7 +75,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
             app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
-        try audit(app, allowing: homeMatchupKnown)
+        try audit(app, allowing: [dateLineWraps])
     }
 
     /// The bottom of Home — the door strip and the row fold — which starts below the fold on a 17 Pro.
@@ -138,7 +93,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
             app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
-        let lastDoor = app.buttons["home.door.wishlist"]
+        let lastDoor = app.buttons["home.door.meals"]
         XCTAssertTrue(lastDoor.waitForExistence(timeout: Self.timeout), "the door strip was never built")
         // Flicked to the end rather than until the doors are merely visible: the state worth auditing is
         // the one where the last row is as close to the bar as it ever gets.
@@ -150,7 +105,17 @@ final class AccessibilityAuditTests: RoostUITestCase {
             lastDoor.frame.intersects(bar),
             "the last door rests under the floating tab bar: door \(lastDoor.frame), bar \(bar)"
         )
-        try audit(app, allowing: homeMatchupKnown)
+        try audit(app, allowing: [dateLineWraps])
+    }
+
+    func testMatchupAudit() throws {
+        let app = launch(.paired)
+        let matchup = app.buttons["home.open.matchup"]
+        XCTAssertTrue(matchup.waitForExistence(timeout: Self.timeout))
+        scrollIntoView(matchup, in: app)
+        matchup.tap()
+        XCTAssertTrue(app.navigationBars["Matchup"].waitForExistence(timeout: Self.timeout))
+        try audit(app)
     }
 
     func testTasksAudit() throws {
@@ -163,13 +128,25 @@ final class AccessibilityAuditTests: RoostUITestCase {
         let app = launch(.paired)
         waitForTasks(in: app)
         openList("Shopping", in: app)
+        // Audit the Bought controls fully above the floating tab bar, not partially occluded.
+        scrollIntoView(app.buttons["Clear bought"], in: app)
         try audit(app, allowing: [
-            customFontScales("BOUGHT"),
-            customFontScales("Clear bought"),
             // The rendered field grows and Return still submits at accessibility XXXL;
             // ListsBehaviourTests.testShoppingComposerScalesAndSubmitsAtLargestTextSize checks both.
-            customFontScales("Add an item…"),
             textFieldScrolls("Add an item…"),
+            // Native supplementary header nodes are reported as partially unsupported even with
+            // semantic fonts. The dedicated sizing test measures >1.5x growth, stacked controls,
+            // and a working clear action; see docs/household-shopping-largest.png.
+            KnownIssue(
+                compact: "Dynamic Type font sizes are partially unsupported",
+                element: "BOUGHT",
+                reason: "native header audit false positive; actual largest-text growth is tested"
+            ),
+            KnownIssue(
+                compact: "Dynamic Type font sizes are partially unsupported",
+                element: "Clear bought",
+                reason: "native header audit false positive; actual largest-text growth and action are tested"
+            ),
         ])
     }
 
@@ -208,8 +185,12 @@ final class AccessibilityAuditTests: RoostUITestCase {
         let ownedValue = app.buttons["Shelve what stays"].value as? String ?? ""
         XCTAssertTrue(ownedValue.contains("For Wes"), "the owner is spoken; got \(ownedValue)")
         try audit(app, allowing: [
-            customFontScales("Archive"),
             textFieldScrolls("Start a project…"),
+            KnownIssue(
+                compact: "Dynamic Type font sizes are partially unsupported",
+                element: "Archive",
+                reason: "actual label growth is measured in testMoreVersionAndProjectArchiveScaleAtLargestTextSize"
+            ),
         ])
     }
 
@@ -222,7 +203,6 @@ final class AccessibilityAuditTests: RoostUITestCase {
             "the wishlist rows never appeared"
         )
         try audit(app, allowing: [
-            customFontScales("$599"),
             textFieldScrolls("Add something you'd like…"),
         ])
     }
@@ -235,9 +215,11 @@ final class AccessibilityAuditTests: RoostUITestCase {
         openTab("More", in: app)
         XCTAssertTrue(app.buttons["All chores"].waitForExistence(timeout: Self.timeout), "the More page never appeared")
         try audit(app, allowing: [
-            customFontScales("HOUSEHOLD"),
-            customFontScales("THIS PHONE"),
-            customFontScales("Roost 0.1.0 (1)"),
+            KnownIssue(
+                compact: "Dynamic Type font sizes are partially unsupported",
+                element: "more.version",
+                reason: "actual footer growth is measured in testMoreVersionAndProjectArchiveScaleAtLargestTextSize"
+            ),
         ])
     }
 
@@ -250,10 +232,6 @@ final class AccessibilityAuditTests: RoostUITestCase {
             "Settings never appeared"
         )
         try audit(app, allowing: [
-            customFontScales("SYNC"),
-            customFontScales("Roost 0.1.0 (1)"),
-            customFontScales("Roost forgets the token on this phone. You'll need a new code to pair again."),
-            customFontScales("Settings"),
             // The navigation bar's back button. Bar items keep a fixed size on iOS whatever the reader's
             // text setting says, and there is no modifier that changes that.
             KnownIssue(
@@ -276,6 +254,21 @@ final class AccessibilityAuditTests: RoostUITestCase {
         try audit(app)
     }
 
+    func testKitchenAtLargestTextSize() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-roostUITestState", "paired", "-appearance", "dark",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ]
+        app.launch()
+        openFromMore("Kitchen mode", in: app)
+        XCTAssertTrue(app.staticTexts["VISIBLE TO BOTH OF YOU"].waitForExistence(timeout: Self.timeout))
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Kitchen-largest-text"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
     func testKitchenModeAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
@@ -284,6 +277,13 @@ final class AccessibilityAuditTests: RoostUITestCase {
             app.staticTexts["DUE TODAY"].waitForExistence(timeout: Self.timeout),
             "Kitchen mode never appeared"
         )
-        try audit(app, allowing: [dateLineWraps])
+        try audit(app, allowing: [
+            dateLineWraps,
+            KnownIssue(
+                compact: "Text clipped",
+                element: "VISIBLE TO BOTH OF YOU",
+                reason: "wraps across three complete lines at maximum text size; see household-kitchen-largest.png"
+            ),
+        ])
     }
 }

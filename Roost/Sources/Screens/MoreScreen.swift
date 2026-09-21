@@ -13,6 +13,11 @@ struct MoreScreen: View {
         NavigationStack(path: $navigation.morePath) {
             List {
                 Section {
+                    Button { navigation.showBoard() } label: {
+                        MoreRow(title: Strings.More.board, symbol: "checklist")
+                    }
+                    .accessibilityIdentifier("more.choreBoard")
+                    .listRowBackground(RoostColor.Role.surface.color)
                     Button { showKitchen = true } label: {
                         MoreRow(title: Strings.Kitchen.menuEntry, symbol: "rectangle.on.rectangle")
                     }
@@ -45,6 +50,7 @@ struct MoreScreen: View {
                     MoreHeader(Strings.More.thisPhone)
                 } footer: {
                     Text(AppVersion.line)
+                        .accessibilityIdentifier("more.version")
                         .roostType(.caption)
                         .foregroundStyle(RoostColor.Role.textSecondary.color)
                         .frame(maxWidth: .infinity)
@@ -79,6 +85,7 @@ private struct MoreRow: View {
         HStack(spacing: RoostSpacing.md) {
             Image(systemName: symbol)
                 .roostType(.body)
+                .dynamicTypeSize(.large)
                 .foregroundStyle(RoostColor.Role.accent.color)
                 .frame(width: RoostSpacing.xl)
                 .accessibilityHidden(true)

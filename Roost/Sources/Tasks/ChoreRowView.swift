@@ -15,6 +15,7 @@ struct ChoreRowView: View {
     let row: TodayRow
     var style: Style = .standard
     var showsEscalationSubtitle: Bool = true
+    var compactPresentation = false
     /// Offers this turn to the other person. Nil when `row.canOffer` is false, or on a column that is
     /// not this phone's — you cannot give away work that was never yours.
     var onOffer: (() -> Void)?
@@ -118,7 +119,7 @@ struct ChoreRowView: View {
                     titleLine
                     if let subtitle = EscalationCopy.subtitle(for: row),
                        ChoreRowPresentation.showsSubtitle(
-                           subtitle, title: row.chore.title, allowed: showsEscalationSubtitle
+                           subtitle, title: row.chore.title, allowed: showsEscalationSubtitle && !compactPresentation
                        )
                     {
                         Text(subtitle)
@@ -129,16 +130,20 @@ struct ChoreRowView: View {
                     // The badges sit under the words rather than beside them, at every text size: a chip
                     // in the trailing slot takes a third of the width off a chore called "Wipe down
                     // kitchen counters, bathroom counters/mirror", and the title is what you read.
-                    meta
+                    if compactPresentation {
+                        compactMeta
+                    } else {
+                        meta
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.trailing, RoostSpacing.md)
-            .padding(.vertical, RoostSpacing.xs)
+            .padding(.vertical, compactPresentation ? RoostSpacing.md : RoostSpacing.xs)
             .frame(minHeight: RoostSpacing.minTapTarget)
             .contentShape(Rectangle())
             .overlay(alignment: .leading) {
-                if style == .standard, !row.isDone, row.stage.fillRole != nil {
+                if !compactPresentation, style == .standard, !row.isDone, row.stage.fillRole != nil {
                     Capsule()
                         .fill(row.stage.role.color)
                         .frame(width: EdgeBar.width)
@@ -193,7 +198,8 @@ struct ChoreRowView: View {
     private var check: some View {
         Image(systemName: row.isDone ? "checkmark.circle.fill" : "circle")
             .font(RoostType.title)
-            .foregroundStyle(row.isDone ? RoostColor.Role.success.color : checkRing.color)
+            .foregroundStyle(row.isDone ? RoostColor.Role.success
+                .color : (compactPresentation ? RoostColor.Role.textSecondary.color : checkRing.color))
             .contentTransition(.symbolEffect(.replace))
             .scaleEffect(checkBeat)
             .roostAnimation(.quick, value: checkBeat)
@@ -219,7 +225,7 @@ struct ChoreRowView: View {
         HStack(alignment: .firstTextBaseline, spacing: RoostSpacing.sm) {
             // The cat/house badge is a tint, not information — at accessibility sizes it would cost the
             // title a third of its column and break "Vacuum basement" across two lines mid-word.
-            if !typeSize.isAccessibilitySize {
+            if !typeSize.isAccessibilitySize, !compactPresentation {
                 Image(systemName: category.symbol)
                     .roostType(.caption)
                     .foregroundStyle(category.color)
@@ -229,9 +235,30 @@ struct ChoreRowView: View {
             }
             Text(row.chore.title)
                 .roostType(.rowTitle)
-                .foregroundStyle(titleRole.color)
+                .foregroundStyle(compactPresentation && !row.isDone ? RoostColor.Role.textPrimary.color : titleRole
+                    .color)
                 .strikethrough(row.isDone, color: RoostColor.Role.textSecondary.color)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var compactMeta: some View {
+        VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+            if !row.isDone {
+                Text(row.daysOverdue > 0 ? Strings.Home.daysLate(row.daysOverdue)
+                    : style == .quiet ? (WindowCopy.line(row.chore) ?? Strings.Home.ifYouHaveTime) : Strings.Home.today)
+                    .roostType(.caption)
+                    .foregroundStyle(row.daysOverdue > 0 ? RoostColor.Role.warning.color : RoostColor.Role.textSecondary
+                        .color)
+            }
+            if let note = ChoreRowMeta.handoffNote(for: row) {
+                Text(note).roostType(.caption)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+            }
+            if row.chore.together {
+                Text(Strings.Tasks.together).roostType(.caption)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+            }
         }
     }
 

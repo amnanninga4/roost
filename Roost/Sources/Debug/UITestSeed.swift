@@ -48,7 +48,6 @@
             "roost.home.overdueExpanded",
             "roost.home.todayExpanded",
             "roost.home.laterExpanded",
-            HomeSegment.storageKey,
         ]
 
         /// The fixture this process was launched with, if any.

@@ -50,8 +50,8 @@ final class AppearanceTests: XCTestCase {
     // MARK: - reading it back
 
     /// A phone that has never been to Settings.
-    func testNothingStoredIsSystem() {
-        XCTAssertEqual(Appearance.stored(nil), .system)
+    func testNothingStoredIsDark() {
+        XCTAssertEqual(Appearance.stored(nil), .dark)
     }
 
     func testAStoredChoiceComesBack() {
@@ -76,7 +76,7 @@ final class AppearanceTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
 
-        XCTAssertEqual(Appearance.stored(defaults.string(forKey: Appearance.storageKey)), .system)
+        XCTAssertEqual(Appearance.stored(defaults.string(forKey: Appearance.storageKey)), .dark)
 
         defaults.set("dark", forKey: Appearance.storageKey)
         XCTAssertEqual(Appearance.stored(defaults.string(forKey: Appearance.storageKey)), .dark)

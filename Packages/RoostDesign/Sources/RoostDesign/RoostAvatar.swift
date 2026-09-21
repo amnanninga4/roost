@@ -1,4 +1,4 @@
-// The person avatar the app's rows used to assemble by hand: the initial on a soft circle in the
+// The person avatar the app's rows used to assemble by hand: the initial on a filled circle in the
 // person's own colours, driven by `RoostPerson` so no screen names a colour. The accessibility label
 // is a parameter because what the avatar *means* is the caller's to say — "Added by Anne" on a list
 // row, "For Wes" on a project step.
@@ -29,9 +29,9 @@ public struct RoostAvatar: View {
         Text(String(person.shortName.prefix(1)))
             .roostType(.caption)
             .fontWeight(.bold)
-            .foregroundStyle(person.color)
+            .foregroundStyle(RoostColor.Role.onAccent.color)
             .frame(width: side, height: side)
-            .background(person.softColor, in: Circle())
+            .background(person.color, in: Circle())
             .accessibilityLabel(label ?? person.shortName)
     }
 }

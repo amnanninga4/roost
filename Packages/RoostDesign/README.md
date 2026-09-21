@@ -1,14 +1,15 @@
 # RoostDesign
 
 The app's design system as a Swift package: colour tokens and the semantic roles on top of
-them, a Dynamic Type ramp in the three Roost typefaces, spacing and radius scales, elevation,
+them, a native sans Dynamic Type ramp, spacing and radius scales, elevation,
 motion, Liquid Glass wrappers, haptics, and a swatchbook that shows the lot. SwiftUI only.
 iOS 26+, macOS 26+.
 
-Source of truth for the colour and type values is `roost-app-mockup.html` (the `:root` blocks
-and the `.app-shell` block). Change the HTML first, then this package, so the two never drift.
-Everything else — spacing, radius, elevation, motion, haptics — is native iOS practice and is
-documented here.
+The September 21 household design uses navy/slate surfaces, teal actions, mint Anne, pink Wes,
+and amber overdue metadata. Current values live in `RoostColor.swift` and `RoostType.swift`.
+`roost-app-mockup.html` is a historical concept, not the current palette or typography authority.
+Dark is the app's default when no appearance choice is stored; explicit System, Light, and Dark
+choices remain available. Light mode uses pale slate surfaces and darker accessible accents.
 
 ## The rules
 
@@ -29,40 +30,37 @@ If a screen needs something this package doesn't have, add it here first.
 `RoostColor.<name>` is a `Color` that resolves per appearance. `RoostColor.<name>Token` exposes
 the raw hex for both schemes.
 
-The mockup carries two light palettes. `:root` styles the marketing page; `.app-shell` (the phone
-frame, "Colorful app styling") overrides ten tokens with a more saturated set. The app is the phone
-frame, so the defaults below use the `.app-shell` values where they exist. Dark values are the
-`:root` dark block; `.app-shell` has no dark override.
+Both appearances use the same semantic roles. These values are the current app tokens:
 
 | Token | App light | Dark | Used for |
 |---|---|---|---|
-| `bg` | `#F3F6F2` | `#121A15` | page background |
-| `surface` | `#FFFFFF` | `#1B241D` | cards |
-| `surface2` | `#FBFDFA` | `#212C22` | inset panels |
-| `ink` | `#1F2A22` | `#EAF2EC` | text |
-| `inkSoft` | `#5C6C60` | `#9FB3A4` | secondary text |
-| `line` | `#DCE6DA` | `#2B3830` | dividers, strokes |
-| `accent` | `#2F8F72` | `#6FC2A6` | primary green |
-| `accentSoft` | `#CFEEE1` | `#1E362E` | accent background |
-| `gold` | `#E08F2E` | `#D9A754` | bonus / points |
-| `goldSoft` | `#FBE3C2` | `#3A2D15` | |
-| `info` | `#4C7FE0` | `#7FB3D9` | neutral notices |
-| `infoSoft` | `#DEE6FC` | `#1E2E3A` | |
-| `tease` | `#D6487A` | `#E389A8` | 3-day nudge |
-| `teaseSoft` | `#FBDCE8` | `#3A2129` | |
-| `alert` | `#E2233F` | `#FF6478` | 5-day red alert |
-| `alertSoft` | `#FCD9DF` | `#3D1620` | |
-| `meal` | `#C2571F` | `#E8935A` | meals tab |
-| `mealSoft` | `#F5DCC8` | `#3A2415` | |
-| `assign` | `#6B4FA0` | `#B79EE0` | auto-assigned / pinned |
-| `assignSoft` | `#E6DFF5` | `#332750` | |
-| `anne` | `#2F8F72` | `#6FC2A6` | Anne (own token; same hex as accent) |
-| `anneSoft` | `#CFEEE1` | `#1E362E` | |
-| `wes` | `#4C7FE0` | `#7FB3D9` | Wes (own token; same hex as info) |
-| `wesSoft` | `#DEE6FC` | `#1E2E3A` | |
-| `nudge` | `#4C7FE0` | `#7FB3D9` | 1–2 day nudge (own token; same hex as info) |
-| `nudgeSoft` | `#DEE6FC` | `#1E2E3A` | |
-| `shadow` | `rgba(31,42,34,0.14)` | `rgba(0,0,0,0.45)` | card shadow |
+| `bg` | `#F1F5F9` | `#071323` | page background |
+| `surface` | `#FFFFFF` | `#0E1D30` | cards |
+| `surface2` | `#E7EEF5` | `#16283D` | inset panels |
+| `ink` | `#102137` | `#F4F7FC` | text |
+| `inkSoft` | `#506680` | `#91AACC` | secondary text |
+| `line` | `#C5D2E1` | `#2C4663` | dividers, strokes |
+| `accent` | `#00776F` | `#00DDD3` | primary teal |
+| `accentSoft` | `#D5F3EE` | `#103B40` | accent background |
+| `gold` | `#916000` | `#FFC247` | bonus / points |
+| `goldSoft` | `#FFF0D1` | `#392E1C` | |
+| `info` | `#42648D` | `#91B4E0` | neutral notices |
+| `infoSoft` | `#E4EDF8` | `#1A304C` | |
+| `tease` | `#925700` | `#FFB746` | 3-day overdue |
+| `teaseSoft` | `#FFF0D1` | `#392E1C` | |
+| `alert` | `#A45100` | `#FFA24B` | 5-day overdue |
+| `alertSoft` | `#FFF0D1` | `#392E1C` | |
+| `meal` | `#935327` | `#F2AB77` | meals tab |
+| `mealSoft` | `#FBEBDD` | `#382C27` | |
+| `assign` | `#7250A4` | `#C2ACE9` | auto-assigned / pinned |
+| `assignSoft` | `#EEE7F7` | `#2F2945` | |
+| `anne` | `#16765D` | `#A0ECD5` | Anne identity |
+| `anneSoft` | `#D6F3E9` | `#153B36` | |
+| `wes` | `#A42E66` | `#F3A0C1` | Wes identity |
+| `wesSoft` | `#FBE2EE` | `#41233A` | |
+| `nudge` | `#886000` | `#FFD06A` | 1–2 days overdue |
+| `nudgeSoft` | `#FFF0D1` | `#392E1C` | |
+| `shadow` | `rgba(31,42,34,0.14)` | `rgba(0,0,0,0.45)` | lifted/floating shadow tint |
 
 `RoostColor.all` lists every token; `RoostColor.pairs` gives the ten strong/soft pairs.
 
@@ -86,32 +84,31 @@ there is one.
 | `accent` / `accentSoft` | `accent` / `accentSoft` | primary action, selection |
 | `onAccent` | `surface` | labels and glyphs sitting on an accent fill (near-white in light, near-black in dark) |
 | `success` / `successSoft` | `accent` / `accentSoft` | done, on time, claimed |
-| `warning` / `warningSoft` | `tease` / `teaseSoft` | the 3-day nudge |
+| `warning` / `warningSoft` | `tease` / `teaseSoft` | the 3-day overdue |
 | `danger` / `dangerSoft` | `alert` / `alertSoft` | 5 days late |
 | `bonus` / `bonusSoft` | `gold` / `goldSoft` | bonus chores, points |
 | `assigned` / `assignedSoft` | `assign` / `assignSoft` | auto-assigned by the rotation |
 | `notice` / `noticeSoft` | `info` / `infoSoft` | neutral information, sync state |
 | `nudge` / `nudgeSoft` | `nudge` / `nudgeSoft` | 1–2 days late (own tokens) |
-| `anne` / `anneSoft` | `anne` / `anneSoft` | Anne (mockup `.avatar-a`, `.tally-fill-a`; own tokens) |
-| `wes` / `wesSoft` | `wes` / `wesSoft` | Wes (mockup `.avatar-p`, `.tally-fill-p`; own tokens) |
-| `catCare` / `catCareSoft` | `accent` / `accentSoft` | cat care (mockup `.icon-cat`) |
-| `home` / `homeSoft` | `gold` / `goldSoft` | household chores (mockup `.icon-chore`) |
-| `meals` / `mealsSoft` | `meal` / `mealSoft` | meals (mockup `.icon-meal`) |
+| `anne` / `anneSoft` | `anne` / `anneSoft` | Anne |
+| `wes` / `wesSoft` | `wes` / `wesSoft` | Wes |
+| `catCare` / `catCareSoft` | `accent` / `accentSoft` | cat care |
+| `home` / `homeSoft` | `gold` / `goldSoft` | household chores |
+| `meals` / `mealsSoft` | `meal` / `mealSoft` | meals |
 | `shadow` | `shadow` | shadow tint; prefer `.roostElevation(_:)` |
 
-Cat care and "done" still share the accent green — that is the mockup's palette. Anne, Wes, and
-the 1–2 day nudge each have their own tokens (same hex as the roles they used to borrow), so
-tinting a person or a nudge does not also recolour notices or the primary action.
+Cat care and success share the action token. People and overdue stages have independent tokens,
+so changing identity colors does not recolor actions or neutral notices.
 
 `RoostPerson` (`.anne`, `.wes`) and `RoostCategory` (`.catCare`, `.home`, `.meals`, `.bonus`) wrap
 the person and category roles with a `color`, a `softColor`, and an SF Symbol name, so view code
 takes a person or a category rather than a colour.
 
-### Page palette
+### Historical page palette
 
 The marketing page's `:root` light values for the ten overridden tokens live under
-`RoostColor.Page.<name>` (same dark values), in case that page is ever rebuilt in SwiftUI. App
-screens should not use them.
+`RoostColor.Page.<name>`, with their original dark values. They are retained for compatibility;
+app screens should not use them.
 
 | Token | Page light |
 |---|---|
@@ -123,34 +120,27 @@ screens should not use them.
 
 ## Type
 
-Three faces, twelve rungs. Every rung is built with `Font.custom(_:size:relativeTo:)`, so the
-custom faces scale with the reader's text size. When a face isn't registered the rung falls back
-to `Font.system(textStyle, design:weight:)`, which lands on the same size.
-
-| Face | Family | File | Fallback |
-|---|---|---|---|
-| display | Fraunces | `Fraunces-Variable.ttf` | system serif |
-| body | Nunito Sans | `NunitoSans-Variable.ttf` | system sans |
-| mono | IBM Plex Mono | `IBMPlexMono-{Regular,Medium,SemiBold}.ttf` | system mono |
+Twelve semantic rungs use `Font.system(textStyle, design: .default, weight:)`, so every label
+follows native Dynamic Type. The `display`, `body`, and `mono` face names remain API groupings;
+all render native sans. Tallies use monospaced digits, while eyebrow labels retain tracking.
+Bundled font availability no longer changes the rendered ramp.
 
 | Rung | Face | Size | Scales with | Weight | Used for |
 |---|---|---|---|---|---|
-| `displayLarge` | Fraunces | 34 | `.largeTitle` | semibold | screen title ("Today") |
-| `display` | Fraunces | 28 | `.title` | semibold | hero line, empty states, a streak number |
-| `title` | Fraunces | 22 | `.title2` | semibold | card and section titles |
-| `rowTitle` | Fraunces | 17 | `.headline` | semibold | a chore row's title |
-| `headline` | Nunito Sans | 17 | `.headline` | semibold | emphasised sans line, form labels |
-| `body` | Nunito Sans | 17 | `.body` | regular | body copy |
-| `callout` | Nunito Sans | 16 | `.callout` | regular | notes under a control |
-| `subheadline` | Nunito Sans | 15 | `.subheadline` | regular | row subtitle, meta line |
-| `footnote` | Nunito Sans | 13 | `.footnote` | regular | hints |
-| `caption` | Nunito Sans | 12 | `.caption` | regular | timestamps, tag text |
-| `monoTally` | IBM Plex Mono | 13 | `.footnote` | medium | tallies and counts (monospaced digits) |
-| `monoLabel` | IBM Plex Mono | 12 | `.caption` | semibold | uppercase eyebrow label, tracking 1 |
+| `displayLarge` | native sans | 34 | `.largeTitle` | semibold | screen title ("Today") |
+| `display` | native sans | 28 | `.title` | semibold | hero line, empty states, a streak number |
+| `title` | native sans | 22 | `.title2` | semibold | card and section titles |
+| `rowTitle` | native sans | 17 | `.headline` | semibold | a chore row's title |
+| `headline` | native sans | 17 | `.headline` | semibold | emphasised sans line, form labels |
+| `body` | native sans | 17 | `.body` | regular | body copy |
+| `callout` | native sans | 16 | `.callout` | regular | notes under a control |
+| `subheadline` | native sans | 15 | `.subheadline` | regular | row subtitle, meta line |
+| `footnote` | native sans | 13 | `.footnote` | regular | hints |
+| `caption` | native sans | 12 | `.caption` | regular | timestamps, tag text |
+| `monoTally` | native sans | 13 | `.footnote` | medium | tallies and counts (monospaced digits) |
+| `monoLabel` | native sans | 12 | `.caption` | semibold | uppercase eyebrow label, tracking 1 |
 
-Row titles are serif on purpose: `.app-shell .item-title` in the mockup is Fraunces 600, and it is
-the detail that stops the app reading as a stock list. Body copy is never set in a custom display
-face — that rule is in the tests.
+Row titles use a semibold native headline, matching the rest of the household interface.
 
 ```swift
 Text("Today").roostType(.displayLarge)
@@ -165,27 +155,16 @@ and friends give the bare `Font` when a modifier isn't possible. `Text.roostFont
 
 `RoostType.scaledSize(_:at:)` and `RoostType.referenceBodySize(for:)` give the approximate rendered
 size at a Dynamic Type setting (the system `.body` ramp: 14 pt at `.xSmall` to 53 pt at
-`.accessibility5`). They're reference numbers for layout maths and tests — `Font.custom` does the
+`.accessibility5`). They're reference numbers for layout maths and tests — native semantic fonts do the
 real scaling.
 
-### Registering the fonts
+### Retained font resources
 
-The font files ship inside the package under `Resources/Fonts` with their SIL Open Font License
-texts. Register once at launch:
-
-```swift
-@main struct RoostApp: App {
-    init() { try? RoostFonts.register() }
-    ...
-}
-```
-
-Until `register()` runs, every rung returns the system fallback, so nothing breaks in previews or
-tests that skip it. `register()` is idempotent and throws only if a bundled file is missing, which
-is a packaging error.
-
-`RoostFont.display(size:weight:)` / `.body` / `.mono` are still here for a literal point size —
-a fixed-size numeral in custom-drawn content, for instance. Screens use `RoostType`.
+The legacy Fraunces, Nunito Sans, and IBM Plex Mono files and licenses remain bundled.
+`RoostFonts.register()` remains available for compatibility but is not required by the native
+ramp. `RoostFont.display(size:weight:)`, `.body`, and `.mono` also return native sans; the mono
+helper keeps fixed-width digits. These helpers take literal sizes, so callers must scale them
+(for example with `@ScaledMetric`). Ordinary screen text uses `RoostType`.
 
 ## Spacing
 
@@ -230,17 +209,17 @@ shapes, for `.background(_:in:)` and `.roostGlass(_:in:)`.
 
 ## Elevation
 
-Three steps, applied with `.roostElevation(_:cornerRadius:)`. Light-mode shadows are tinted with
-the mockup's ink-based `--shadow`, never pure black. Dark mode keeps 60% of the geometry and adds a
-1-pt white hairline instead, which is how the system's own dark surfaces read.
+Resting cards are flat: no shadow in either appearance, with a 1-pt semantic separator stroke.
+Lifted and floating controls retain the existing shadow steps. Apply them through
+`.roostElevation(_:cornerRadius:)`.
 
 | Step | Light | Dark | Used for |
 |---|---|---|---|
-| `card` | radius 8, y 3, 10% | radius 4.8, y 1.8, 28% + hairline 6% | resting cards and rows |
+| `card` | no shadow; separator stroke | no shadow; separator stroke | resting cards and rows |
 | `lifted` | radius 16, y 8, 14% | radius 9.6, y 4.8, 36% + hairline 8% | long-press lift, drag, popover |
 | `floating` | radius 24, y 12, 18% | radius 14.4, y 7.2, 45% + hairline 10% | glass bars, floating buttons |
 
-Pass the shape's corner radius so dark mode can draw its hairline in the right shape.
+Pass the shape's corner radius so the stroke follows the surface.
 
 ## Components
 
@@ -252,7 +231,7 @@ The rung above tokens: three pieces, each themed from the scales above and each 
   carries one. Put any background in the button's *label*, so the press scales it too.
 - **`.roostCard()`** — the surface fill, the `card` radius and the `card` elevation as one modifier.
   Padding stays the caller's.
-- **`RoostAvatar(person:label:)`** — the initial on a soft circle in a `RoostPerson`'s colours,
+- **`RoostAvatar(person:label:)`** — the initial on a person-colored filled circle with an `onAccent` label in a `RoostPerson`'s colours,
   capped at `glyphCeiling` so the largest text size cannot turn a marker into a button. The label
   says what the avatar means ("Added by Anne"); it defaults to the person's name.
 
@@ -424,7 +403,8 @@ accessibility 3, and one with the fonts deliberately unregistered so the fallbac
 cd Packages/RoostDesign && swift test
 ```
 
-Checks hex values against the mockup, resolves each dynamic colour per scheme, verifies every role
+Checks the household palette and AA text contrast on background/card/elevated surfaces in both
+appearances, resolves each dynamic colour per scheme, verifies every role
 lands on a real token, that the type ramp grows monotonically across all twelve Dynamic Type
 settings, that the spacing and radius numbers are the ones documented above, that Reduce Motion
 produces a non-spring animation for every spring, and that the fonts register with their OFL texts

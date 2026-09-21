@@ -14,13 +14,14 @@
 import SwiftUI
 
 enum Appearance: String, CaseIterable, Identifiable, Sendable {
-    /// Follow iOS. The default, and what every build before this one did.
+    /// Follow iOS when explicitly selected.
     case system
     case light
     case dark
 
     /// The `@AppStorage` key, spelled once so the app, the tests, and a future migration cannot disagree.
     static let storageKey = "appearance"
+    static let defaultChoice: Appearance = .dark
 
     var id: String {
         rawValue
@@ -43,10 +44,9 @@ enum Appearance: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Reads what is on disk. Nothing stored is `.system`, and so is anything this build does not recognise
-    /// — a value written by a newer version, or junk. A phone that has been downgraded shows the system
-    /// appearance rather than a crash.
+    /// New installs use dark. Explicit choices survive; unknown values follow the system.
     static func stored(_ raw: String?) -> Appearance {
-        raw.flatMap(Appearance.init(rawValue:)) ?? .system
+        guard let raw else { return defaultChoice }
+        return Appearance(rawValue: raw) ?? .system
     }
 }

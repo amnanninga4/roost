@@ -1,17 +1,4 @@
-// Roost elevation: three shadow steps, applied as a modifier, different in dark mode.
-//
-// iOS does not shadow much — it uses blur and depth instead — so these are deliberately
-// quiet. Two rules from the house style:
-//
-//   1. Never a pure black shadow. Light-mode shadows are tinted with the mockup's
-//      `--shadow` (rgba(31,42,34,…)), which is the ink colour, so a card's shadow looks
-//      like it belongs to the page rather than floating over it.
-//   2. In dark mode a shadow has almost nothing to darken. Dark mode keeps a much smaller
-//      ambient shadow and separates the surface with a 1-pt white hairline instead, which
-//      is how the system's own dark surfaces read.
-//
-// Provenance: the mockup's card shadow is `0 18px 40px -22px var(--shadow)`; `lifted`
-// carries that same 0.14 alpha.
+// Flat resting cards use a slate stroke. Lifted and floating controls retain depth.
 import SwiftUI
 
 /// One elevation step. Values are light-mode CSS-style numbers; the modifier scales them for dark.
@@ -47,7 +34,7 @@ public struct RoostElevation: Sendable, Hashable {
 
     /// Resting cards and rows. The default: if you are unsure, this is the one.
     public static let card = RoostElevation(
-        "card", radius: 8, yOffset: 3, lightOpacity: 0.10, darkOpacity: 0.28, darkHairline: 0.06
+        "card", radius: 0, yOffset: 0, lightOpacity: 0, darkOpacity: 0, darkHairline: 1
     )
     /// A card the user is holding: long-press lift, drag, popover.
     public static let lifted = RoostElevation(
@@ -90,9 +77,12 @@ private struct RoostElevationModifier: ViewModifier {
                 y: level.offsetY(scheme)
             )
             .overlay {
-                if scheme == .dark, let cornerRadius {
+                if let cornerRadius, level == .card || scheme == .dark {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .strokeBorder(Color.white.opacity(level.darkHairline), lineWidth: 1)
+                        .strokeBorder(
+                            level == .card ? RoostColor.Role.separator.color : Color.white.opacity(level.darkHairline),
+                            lineWidth: 1
+                        )
                         .allowsHitTesting(false)
                 }
             }

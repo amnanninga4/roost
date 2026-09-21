@@ -1,6 +1,4 @@
-// The four rooms as four words. A door is always drawn; its count only when the room holds
-// something. An empty household therefore sees four quiet labels rather than four empty cards
-// telling it to go and fill them in.
+// Everyday Shopping and Meals shortcuts; all four shared lists remain in Lists.
 import RoostDesign
 import SwiftUI
 
@@ -10,23 +8,28 @@ struct HomeDoorsView: View {
 
     var body: some View {
         HStack(spacing: RoostSpacing.xs) {
-            ForEach(doors) { door in
+            ForEach(doors.prefix(2)) { door in
                 Button {
                     open(door.id)
                 } label: {
-                    VStack(spacing: RoostSpacing.xxs) {
-                        Text(door.title)
-                            .roostType(.rowTitle)
-                            .foregroundStyle(RoostColor.Role.textPrimary.color)
-                        Text(door.count.map(String.init) ?? "—")
-                            .roostType(.monoTally)
-                            .foregroundStyle(
-                                door.count == nil
-                                    ? RoostColor.Role.textSecondary.color
-                                    : RoostColor.Role.accent.color
-                            )
+                    HStack(spacing: RoostSpacing.sm) {
+                        Image(systemName: door.id == "shopping" ? "cart" : "fork.knife")
+                            .roostType(.title)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                        VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                            Text(door.title)
+                                .roostType(.rowTitle)
+                                .foregroundStyle(RoostColor.Role.textPrimary.color)
+                            Text(door.count.map(String.init) ?? "—")
+                                .roostType(.monoTally)
+                                .foregroundStyle(
+                                    door.count == nil
+                                        ? RoostColor.Role.textSecondary.color
+                                        : RoostColor.Role.accent.color
+                                )
+                        }
                     }
-                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .frame(maxWidth: .infinity, minHeight: RoostSpacing.minTapTarget, alignment: .leading)
                     .padding(.vertical, RoostSpacing.xs)
                 }
                 .buttonStyle(.roostPressQuiet)
@@ -34,6 +37,8 @@ struct HomeDoorsView: View {
                 .accessibilityIdentifier("home.door.\(door.id)")
             }
         }
+        .padding(RoostSpacing.cardPadding)
+        .roostCard()
     }
 
     /// VoiceOver reads a door as a sentence, not as "Shopping, 3" — the count means items.

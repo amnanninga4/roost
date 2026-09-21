@@ -1,10 +1,20 @@
-// Arrival, and the one tap from the front door to the board.
+// Arrival, shared household navigation, and Home shortcuts.
 //
 // The launch goes through `RoostUITestCase.launch(_:)` like every other suite here, so these tests
 // get the same no-server fixture the rest of the app's UI tests stand on.
 import XCTest
 
 final class HomeScreenUITests: RoostUITestCase {
+    func testCheckingOffFromHomeRemovesTheOpenRow() {
+        let app = launch(.paired)
+        let row = app.buttons["home.chore.uitest-litter"]
+        XCTAssertTrue(row.waitForExistence(timeout: Self.timeout))
+        scrollIntoView(row, in: app)
+        row.tap()
+        let removed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: row)
+        wait(for: [removed], timeout: Self.timeout)
+    }
+
     func testPersonHeadersHaveFullWidthAtLargestTextSize() {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -24,7 +34,7 @@ final class HomeScreenUITests: RoostUITestCase {
         add(shot)
         let wes = app.buttons["home.open.wes"]
         scrollIntoView(wes, in: app)
-        XCTAssertTrue(wes.isHittable, "Wes's section remains reachable below Anne's chores")
+        XCTAssertTrue(wes.isHittable, "Wes's summary remains reachable")
         XCTAssertGreaterThan(wes.frame.width, app.frame.width * 0.75)
     }
 
@@ -37,34 +47,75 @@ final class HomeScreenUITests: RoostUITestCase {
         XCTAssertFalse(app.staticTexts["board.title"].exists, "the board was already showing on launch")
     }
 
-    func testTheSegmentReachesTheBoard() {
-        let app = launch(.paired)
-        XCTAssertTrue(
-            app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
-            "the app never reached Home"
-        )
-        app.buttons["listsPicker.board"].tap()
-        // The board's own title is the proof we switched. Not the date eyebrow: Home draws that line
-        // under the same identifier, so it is on screen either way and would assert nothing.
-        XCTAssertTrue(
-            app.staticTexts["board.title"].waitForExistence(timeout: Self.timeout),
-            "the board never appeared"
-        )
+    func testMatchupAndPersonPagesReturnToHome() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-roostUITestState", "paired", "-appearance", "dark"]
+        app.launch()
+        let matchup = app.buttons["home.open.matchup"]
+        XCTAssertTrue(matchup.waitForExistence(timeout: Self.timeout))
+        attachScreenshot("Home-dark", of: app)
+        scrollIntoView(matchup, in: app)
+        matchup.tap()
+        XCTAssertTrue(app.navigationBars["Matchup"].waitForExistence(timeout: Self.timeout))
+        attachScreenshot("Matchup-dark", of: app)
+
+        let matchupAnne = app.buttons["matchup.open.anne"]
+        XCTAssertTrue(matchupAnne.waitForExistence(timeout: Self.timeout))
+        matchupAnne.tap()
+        XCTAssertTrue(app.navigationBars["Anne"].waitForExistence(timeout: Self.timeout))
+        attachScreenshot("Anne-dark", of: app)
+        app.navigationBars["Anne"].buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Matchup"].waitForExistence(timeout: Self.timeout))
+        app.navigationBars["Matchup"].buttons.firstMatch.tap()
+
+        let anne = app.buttons["home.open.anne"]
+        XCTAssertTrue(anne.waitForExistence(timeout: Self.timeout))
+        anne.tap()
+        XCTAssertTrue(app.navigationBars["Anne"].waitForExistence(timeout: Self.timeout))
+        let personMatchup = app.buttons["person.openMatchup"]
+        XCTAssertTrue(personMatchup.waitForExistence(timeout: Self.timeout))
+        scrollIntoView(personMatchup, in: app)
+        personMatchup.tap()
+        XCTAssertTrue(app.navigationBars["Matchup"].waitForExistence(timeout: Self.timeout))
+        app.navigationBars["Matchup"].buttons.firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["Anne"].waitForExistence(timeout: Self.timeout))
+        app.navigationBars["Anne"].buttons.firstMatch.tap()
+        XCTAssertTrue(matchup.waitForExistence(timeout: Self.timeout))
+
+        openList("Shopping", in: app)
+        attachScreenshot("Shopping-dark", of: app)
     }
 
-    /// All four populated rooms remain reachable from Home.
-    func testEveryDoorIsOnTheStrip() {
+    func testHomeInLightAppearance() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-roostUITestState", "paired", "-appearance", "light"]
+        app.launch()
+        XCTAssertTrue(app.buttons["home.open.anne"].waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(app.buttons["home.open.wes"].exists)
+        XCTAssertTrue(app.buttons["home.open.matchup"].exists)
+        attachScreenshot("Home-light", of: app)
+    }
+
+    private func attachScreenshot(_ name: String, of app: XCUIApplication) {
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = name
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    /// Home keeps the two everyday list shortcuts visible.
+    func testShoppingAndMealsHaveHomeShortcuts() {
         let app = launch(.paired)
         XCTAssertTrue(
             app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"
         )
-        for room in ["shopping", "meals", "projects", "wishlist"] {
+        for room in ["shopping", "meals"] {
             XCTAssertTrue(app.buttons["home.door.\(room)"].exists, "missing door: \(room)")
         }
     }
 
-    func testEmptyRoomsKeepTheirDoorsAndOpenTheirEmptyStates() {
+    func testEmptyListsRemainReachableFromHomeAndLists() {
         let app = launch(.pairedEmptyRooms)
         XCTAssertTrue(app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout))
         let rooms = [
@@ -73,15 +124,19 @@ final class HomeScreenUITests: RoostUITestCase {
             ("projects", "Projects", "No projects yet."),
             ("wishlist", "Wishlist", "Nothing on the wishlist."),
         ]
-        for (id, title, _) in rooms {
+        for (id, title, _) in rooms.prefix(2) {
             let door = app.buttons["home.door.\(id)"]
             XCTAssertTrue(door.exists, "missing empty-room door: \(title)")
             XCTAssertEqual(door.label, title, "an empty room must not announce a count")
         }
         for (id, title, emptyState) in rooms {
-            let door = app.buttons["home.door.\(id)"]
-            scrollIntoView(door, in: app)
-            door.tap()
+            if id == "shopping" || id == "meals" {
+                let door = app.buttons["home.door.\(id)"]
+                scrollIntoView(door, in: app)
+                door.tap()
+            } else {
+                openList(title, in: app)
+            }
             XCTAssertTrue(
                 app.staticTexts[emptyState].waitForExistence(timeout: Self.timeout),
                 "\(title)'s door did not reach its empty state"
@@ -104,7 +159,7 @@ final class HomeScreenUITests: RoostUITestCase {
         XCTAssertTrue(notice.waitForExistence(timeout: Self.timeout), "Home draws no sync notice")
         XCTAssertEqual(notice.label, Self.unpairedLine)
         // Last: below the door strip, which is the section the spec puts above it.
-        let lastDoor = app.buttons["home.door.wishlist"]
+        let lastDoor = app.buttons["home.door.meals"]
         XCTAssertTrue(lastDoor.exists, "the door strip was never built")
         XCTAssertGreaterThan(
             notice.frame.minY, lastDoor.frame.maxY,
@@ -112,7 +167,7 @@ final class HomeScreenUITests: RoostUITestCase {
         )
     }
 
-    /// The same line, from the same wiring, on the other segment — so neither screen can start saying
+    /// The same line, from the same wiring, on the chore board — so neither screen can start saying
     /// something different about being offline.
     func testTheBoardSaysTheSameThingAboutSync() {
         let app = launch(.paired)
@@ -128,7 +183,7 @@ final class HomeScreenUITests: RoostUITestCase {
         )
     }
 
-    func testHomeShowsBothPeopleSideBySide() {
+    func testHomeShowsBothPeople() {
         let app = launch(.paired)
         XCTAssertTrue(app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout))
         XCTAssertTrue(app.buttons["home.open.anne"].exists, "Anne's side missing")

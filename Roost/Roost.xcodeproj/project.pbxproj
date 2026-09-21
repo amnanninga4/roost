@@ -98,6 +98,7 @@
 		8D84EA9322134F83B06C6A68 /* ListSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507910A45ED91863058461A2 /* ListSync.swift */; };
 		8F63429AFE3DE3BE709E0A25 /* StreakHeaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 334905B7A9952B9FF0F8BC28 /* StreakHeaderTests.swift */; };
 		9089E08218077921FCFA42E5 /* HandoffPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0B51DECE9534ADC90073D27 /* HandoffPresentation.swift */; };
+		90F70617C62B52A99BF7BF3A /* MatchupSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6542A3C374D38205141B5 /* MatchupSummary.swift */; };
 		91B2E1CAF4C7FFE8B09A7656 /* ListDeltaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E7ED3A3F187B7D465B0F1EB /* ListDeltaTests.swift */; };
 		91F882550F96AA407B5B6FC0 /* HomeRowsCollapseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AB7F74DE8FDA9B0E77587B /* HomeRowsCollapseTests.swift */; };
 		9305004166815524383CAF5C /* NotificationPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103C16FCB5D256A44FC78EEB /* NotificationPlanner.swift */; };
@@ -116,6 +117,7 @@
 		A9165A950F3F3036E8705DCF /* ChoreRowMetaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7475C43FFF3F8D58BC6E35E3 /* ChoreRowMetaTests.swift */; };
 		A9ABFEEFF2D1A273421DA4CD /* WelcomeStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE87345DE3AD1EF332142F9A /* WelcomeStep.swift */; };
 		AAD4E63D814A2EAD1E3612A2 /* TodayWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40FBE395869733B4F7A6B18 /* TodayWidgetView.swift */; };
+		AB84F1E7D47503898BFACDBC /* MatchupScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D34040CA5F93DEF58237214 /* MatchupScreen.swift */; };
 		AC03B8E557EC773D56AED242 /* AppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5D996E23C2D6628444D44D9 /* AppearanceTests.swift */; };
 		AC14A11C97221EBC79C9EAE8 /* SeasonCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DC0F1AFFE563A4CEB9E0EEA /* SeasonCopy.swift */; };
 		B01BF9A2D2C00916619A9657 /* TodayWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A666833E62DF35DF41BD3FC /* TodayWidget.swift */; };
@@ -129,9 +131,11 @@
 		BAC436B176DB6FE3306811FF /* Strings+Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F79602D4F3643CD00DC45C0 /* Strings+Onboarding.swift */; };
 		BF0EE3ABA49837A1C4D714D4 /* ProjectFieldsCraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBD94A178BECE764F21DE052 /* ProjectFieldsCraftTests.swift */; };
 		C064197CF9AEDF0ECEFB403C /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E811DD683EB23D34685FEAC /* HomeScreen.swift */; };
+		C1B8E33EF5C9E78296BAA5FF /* MatchupSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DFE5B989CEAB74C71B94039 /* MatchupSummaryTests.swift */; };
 		C1C3CF35B5C1452B552942F6 /* SyncChoresTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C6A70E643D7D526195B06C1 /* SyncChoresTests.swift */; };
 		C369D78023DDEEE13AA30A34 /* chores.json in Resources */ = {isa = PBXBuildFile; fileRef = AEDE70E38B5C767CEBF25D6B /* chores.json */; };
 		C71145DD7AB59557F27CE674 /* ChoreSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AF01D4B0027DC9BFEA9C94 /* ChoreSeeder.swift */; };
+		C74E2A00AC8CA6C2F453FF06 /* Strings+Matchup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BCEC668C445AC2B05D96B77 /* Strings+Matchup.swift */; };
 		C853344873DAF928B5A701AA /* TokenSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B7CB6EA6C1C6F20BCAD2797 /* TokenSheet.swift */; };
 		C88E648BDD73E1D2A3D3BC69 /* SyncAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C322C42624D2C3E5EF44F476 /* SyncAPI.swift */; };
 		CAECD7BEBC9EAB3C0F829554 /* EscalationCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0358F08CD57FDAD9FB75D31 /* EscalationCopyTests.swift */; };
@@ -218,6 +222,7 @@
 		0B4F24B76FC332F357199931 /* ListActions+Wishlist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ListActions+Wishlist.swift"; sourceTree = "<group>"; };
 		0D07271A0DB7B2161F47FEC0 /* StreakHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakHeaderView.swift; sourceTree = "<group>"; };
 		0D7BEE702A9915E49C6684BE /* HomeDoorsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDoorsView.swift; sourceTree = "<group>"; };
+		0DFE5B989CEAB74C71B94039 /* MatchupSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchupSummaryTests.swift; sourceTree = "<group>"; };
 		0F79602D4F3643CD00DC45C0 /* Strings+Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Strings+Onboarding.swift"; sourceTree = "<group>"; };
 		103C16FCB5D256A44FC78EEB /* NotificationPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationPlanner.swift; sourceTree = "<group>"; };
 		18A4CEECAD86D14ECE082C3B /* ProjectFieldsSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectFieldsSyncTests.swift; sourceTree = "<group>"; };
@@ -254,6 +259,7 @@
 		59C7E3B2C6B03A58C3A3C989 /* SyncAPI+Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Push.swift"; sourceTree = "<group>"; };
 		59D8308455A41EC775A156EE /* HandoffRecords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffRecords.swift; sourceTree = "<group>"; };
 		5BA7D9CFBDE2D59E17D85996 /* SyncAPI+Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SyncAPI+Lists.swift"; sourceTree = "<group>"; };
+		5BCEC668C445AC2B05D96B77 /* Strings+Matchup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Strings+Matchup.swift"; sourceTree = "<group>"; };
 		5C65C2C4812D1C987EF3FF38 /* ChoreCheckOff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreCheckOff.swift; sourceTree = "<group>"; };
 		5C6A70E643D7D526195B06C1 /* SyncChoresTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncChoresTests.swift; sourceTree = "<group>"; };
 		6297B456DD7EB7A1202308B9 /* TodayBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayBoard.swift; sourceTree = "<group>"; };
@@ -261,6 +267,7 @@
 		681283D1E95BBDF68BC6BFF0 /* RoostWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RoostWidget.entitlements; sourceTree = "<group>"; };
 		6A61A06C665B3EA1D63BBC4F /* PushService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushService.swift; sourceTree = "<group>"; };
 		6A9D18E18A848E75999983A1 /* RoostDesign */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RoostDesign; path = ../Packages/RoostDesign; sourceTree = SOURCE_ROOT; };
+		6D34040CA5F93DEF58237214 /* MatchupScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchupScreen.swift; sourceTree = "<group>"; };
 		6F4C32E66A6BEFE03EA4F75E /* HomeMatchupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeMatchupView.swift; sourceTree = "<group>"; };
 		70EEA3303FF22CD208D77A66 /* KitchenModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KitchenModel.swift; sourceTree = "<group>"; };
 		714F89110CAB1289D39246BC /* ListActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListActions.swift; sourceTree = "<group>"; };
@@ -336,6 +343,7 @@
 		CE52B0C57CE02C2906E1DB63 /* SyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncCoordinator.swift; sourceTree = "<group>"; };
 		CFB9C34AFDBB0663C84144C4 /* WidgetRenderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetRenderTests.swift; sourceTree = "<group>"; };
 		D03CADE52293190641364504 /* ProjectComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectComposer.swift; sourceTree = "<group>"; };
+		D1A6542A3C374D38205141B5 /* MatchupSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchupSummary.swift; sourceTree = "<group>"; };
 		D4FB2096EA8937E8ADFE9F25 /* ChoreRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoreRowView.swift; sourceTree = "<group>"; };
 		D50964424ABF72DB3DC551BA /* HandoffActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffActionsTests.swift; sourceTree = "<group>"; };
 		D61495BD8F24558544DA45CB /* TodayHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayHeaderView.swift; sourceTree = "<group>"; };
@@ -468,6 +476,7 @@
 				BB7CD878D6E5D1D301380265 /* RoostApp.swift */,
 				7A3CD8363F11629A32892822 /* RoostAppMarker.swift */,
 				9775AC21FAD79898ED7EB5F1 /* Strings.swift */,
+				5BCEC668C445AC2B05D96B77 /* Strings+Matchup.swift */,
 				0F79602D4F3643CD00DC45C0 /* Strings+Onboarding.swift */,
 				94E0CAB97F317C48E7DD625B /* Debug */,
 				90F643194DBF9FE73003F37F /* Home */,
@@ -564,6 +573,8 @@
 				6F4C32E66A6BEFE03EA4F75E /* HomeMatchupView.swift */,
 				0524CBAA69E9F316F618D9C2 /* HomeRowBuckets.swift */,
 				57AFB8DE9407778272B26CCE /* HomeRowsView.swift */,
+				6D34040CA5F93DEF58237214 /* MatchupScreen.swift */,
+				D1A6542A3C374D38205141B5 /* MatchupSummary.swift */,
 				7373501EA0D4E3CFEFB5BB25 /* PersonDayScreen.swift */,
 			);
 			path = Home;
@@ -629,6 +640,7 @@
 				DEA366473DADB3DD2FA0D65D /* ListRenameCraftTests.swift */,
 				F646A9ADB3D39E2B899084CA /* ListReplayTests.swift */,
 				A766015E6769CD2060D80A49 /* ListSyncTestCase.swift */,
+				0DFE5B989CEAB74C71B94039 /* MatchupSummaryTests.swift */,
 				E03CE0F01E84A59CEB8FA510 /* NotificationTests.swift */,
 				97311C9DACA1247F9240941D /* PairAPITests.swift */,
 				363D5D355D39B62D4830AA8F /* PairingTests.swift */,
@@ -909,6 +921,8 @@
 				E15A69E61CD7A0FD44EFC0D7 /* ListSync+Records.swift in Sources */,
 				8D84EA9322134F83B06C6A68 /* ListSync.swift in Sources */,
 				E47FFE8D2CD21A8ED78A4467 /* ListsScreen.swift in Sources */,
+				AB84F1E7D47503898BFACDBC /* MatchupScreen.swift in Sources */,
+				90F70617C62B52A99BF7BF3A /* MatchupSummary.swift in Sources */,
 				482F3F523C9CB57C640A68FA /* MealsScreen.swift in Sources */,
 				58E466B16CCC892DD3C342EE /* MoreScreen.swift in Sources */,
 				4798048D31F0170904D22EFE /* NotificationCenterClient.swift in Sources */,
@@ -945,6 +959,7 @@
 				0CEFFC7F0A2BBE9EE036A479 /* SnapshotWriter.swift in Sources */,
 				2F5F84EFDC6F2F1C4826C688 /* StreakHeaderModel.swift in Sources */,
 				0D3864D2C93A09F703225872 /* StreakHeaderView.swift in Sources */,
+				C74E2A00AC8CA6C2F453FF06 /* Strings+Matchup.swift in Sources */,
 				BAC436B176DB6FE3306811FF /* Strings+Onboarding.swift in Sources */,
 				E274B04EE2C27DEE16ECB458 /* Strings.swift in Sources */,
 				A6A6705F9B57F0C6862B1114 /* SyncAPI+Handoffs.swift in Sources */,
@@ -1026,6 +1041,7 @@
 				DAA170872C708CB1538A9759 /* ListRenameCraftTests.swift in Sources */,
 				62C9AC685C4EDDBDF0026817 /* ListReplayTests.swift in Sources */,
 				31978A5D325DC887E237D3B4 /* ListSyncTestCase.swift in Sources */,
+				C1B8E33EF5C9E78296BAA5FF /* MatchupSummaryTests.swift in Sources */,
 				986D647BFF97684348BA8C55 /* NotificationTests.swift in Sources */,
 				64DD6C6E65E107FD28D0D6F9 /* PairAPITests.swift in Sources */,
 				43DE111DBBCA3E0D6B5E2135 /* PairingTests.swift in Sources */,
@@ -1109,7 +1125,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 376;
+				CURRENT_PROJECT_VERSION = 377;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1248,7 +1264,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 376;
+				CURRENT_PROJECT_VERSION = 377;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_NS_ASSERTIONS = NO;

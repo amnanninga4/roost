@@ -1,6 +1,27 @@
 # Home screen
 
-## Current direction — 2026-09-20
+## Current direction — 2026-09-21
+
+Wes approved the connected Sleeper-inspired household direction for implementation and release.
+
+- **Home:** a compact two-person summary, followed by shared, full-width checkable chore rows.
+  Both people remain visible without splitting the chore list into narrow columns.
+- **Profiles:** each person is tappable and opens their own day of chores.
+- **Matchup:** a separate destination for weekly comparison statistics and read-only completion
+  activity. Historical activity is not a second place to toggle current chores.
+- **Lists:** Shopping, Meals, Projects, and Wishlist remain four sections within Lists.
+- **Navigation:** Home, Lists, and More remain the tab shell. The legacy chore board is reachable
+  through More; Home is the household front door.
+- **Theme:** dark navy backgrounds, slate cards with thin blue-gray borders, native semantic sans
+  type, teal actions, mint Anne, pink Wes, and amber overdue metadata. Resting cards are flat.
+- **Appearance:** dark when no preference is saved; preserve explicitly selected System, Light,
+  or Dark. Light remains a usable pale/slate equivalent, and text retains Dynamic Type support.
+
+The September 20 and September 15 sections below preserve earlier decisions. This direction
+supersedes their Home layout and typography choices. Current tokens and typography live in
+`Packages/RoostDesign`; the original HTML mockup is historical reference.
+
+## Previous direction — 2026-09-20 (historical)
 
 Wes approved a polish pass after reviewing simulator screenshots. Keep Roost's colors, fonts, and two-person comparison:
 

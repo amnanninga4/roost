@@ -2,6 +2,7 @@
 // orient someone in one glance, so the sentence is the screen — and a sentence assembled inside a
 // SwiftUI body is a sentence no test can reach. Everything user-visible on Home comes through
 // this struct.
+import Foundation
 import RoostCore
 
 struct HomeSummary {
@@ -32,8 +33,10 @@ struct HomeSummary {
         let rows: [TodayRow]
         let dueCount: Int
         let isMine: Bool
+        let doneThisWeek: Int
     }
 
+    let date: Date
     let sentence: String
     let columns: [Column]
     let doors: [Door]
@@ -43,7 +46,33 @@ struct HomeSummary {
         columns.flatMap(\.rows)
     }
 
+    /// One row per open chore; together chores appear on both personal boards but only once here.
+    var openRows: [TodayRow] {
+        var together = Set<String>()
+        let rows = allRows.filter { row in
+            guard !row.isDone else { return false }
+            return !row.chore.together || together.insert(row.chore.id).inserted
+        }
+        func rank(_ row: TodayRow) -> Int {
+            switch HomeRowBuckets.bucket(for: row, calendar: HouseholdCalendar(), on: date) {
+            case .overdue: 0
+            case .today: 1
+            case .later: 2
+            }
+        }
+        return rows.enumerated().sorted {
+            let left = rank($0.element), right = rank($1.element)
+            if left != right {
+                return left < right
+            }
+            return $0.element.daysOverdue == $1.element.daysOverdue
+                ? $0.offset < $1.offset
+                : $0.element.daysOverdue > $1.element.daysOverdue
+        }.map(\.element)
+    }
+
     init(plan: TodayPlan, me: Person?, doorCounts: DoorCounts) {
+        date = plan.date
         let other = me.map { $0 == .anne ? Person.wes : Person.anne }
         let mine = me.map { plan.dueCount(for: $0) } ?? 0
         let theirs = other.map { plan.dueCount(for: $0) } ?? 0
@@ -53,7 +82,8 @@ struct HomeSummary {
                 person: person,
                 rows: TodayBoard.ordered(plan.rows(for: person)),
                 dueCount: plan.dueCount(for: person),
-                isMine: person == me
+                isMine: person == me,
+                doneThisWeek: plan.doneThisWeek[person] ?? 0
             )
         }
 

@@ -1,23 +1,4 @@
-// Roost type: the app's Dynamic Type ramp.
-//
-// `RoostFont` (still here, still working) gives a font at a literal point size. `RoostType`
-// is the ramp screens should actually use: every style is built with
-// `Font.custom(_:size:relativeTo:)`, so Fraunces / Nunito Sans / IBM Plex Mono grow and
-// shrink with the reader's text size instead of staying pinned at 15 pt while the rest of
-// iOS moves. Hardcoded point sizes in a screen are the thing this file exists to prevent.
-//
-// Each style's base size is the *system* size for the text style it tracks
-// (largeTitle 34, title 28, title2 22, headline/body 17, callout 16, subheadline 15,
-// footnote 13, caption 12). Two consequences worth knowing: the ramp is the native iOS
-// ramp wearing our typefaces, and when a custom face has not been registered the fallback
-// `Font.system(textStyle, design:weight:)` lands on exactly the same size.
-//
-// Face assignment follows the mockup and the house rule that custom faces never set body copy:
-//   - Fraunces (display)  — screen titles, hero numbers, card titles, and row titles.
-//     Row titles are serif on purpose: `.app-shell .item-title` in the mockup is Fraunces 600,
-//     and it is the single detail that stops the app reading as a stock list.
-//   - Nunito Sans (body)  — everything you read in sentences, plus subtitles and meta lines.
-//   - IBM Plex Mono (mono) — tallies, counts, and the uppercase eyebrow labels.
+// Native sans typography. Semantic text styles provide the system Dynamic Type ramp.
 import SwiftUI
 
 public enum RoostType {
@@ -36,9 +17,9 @@ public enum RoostType {
         /// The system design used when the custom family is missing (previews, tests, a failed register).
         public var fallbackDesign: Font.Design {
             switch self {
-            case .display: .serif
+            case .display: .default
             case .body: .default
-            case .mono: .monospaced
+            case .mono: .default
             }
         }
 
@@ -94,11 +75,9 @@ public enum RoostType {
             self.usage = usage
         }
 
-        /// The font: custom face when registered, matching system style when not. Scales with Dynamic Type either way.
+        /// Native semantic font, scaling with Dynamic Type independently of bundled fonts.
         public var font: Font {
-            var resolved: Font = face.isAvailable
-                ? .custom(face.family, size: size, relativeTo: textStyle).weight(weight)
-                : .system(textStyle, design: face.fallbackDesign, weight: weight)
+            var resolved = Font.system(textStyle, design: face.fallbackDesign, weight: weight)
             if tightLeading {
                 resolved = resolved.leading(.tight)
             }
@@ -135,7 +114,7 @@ public enum RoostType {
             case .rowTitle:
                 Spec(
                     name: "rowTitle", face: .display, size: 17, textStyle: .headline, weight: .semibold,
-                    usage: "The title of a chore row. Serif, per the mockup's .item-title."
+                    usage: "The title of a chore row."
                 )
             case .headline:
                 Spec(
@@ -267,7 +246,7 @@ public enum RoostType {
 
     /// The approximate rendered size of a rung at a Dynamic Type setting.
     ///
-    /// This is a reference number, not the mechanism: `Font.custom(_:size:relativeTo:)` does the real
+    /// This is a reference number, not the mechanism: The native semantic font does the real
     /// scaling, and the system compresses growth at the largest sizes for the big text styles. Use this
     /// for layout maths that has to reserve space, for measuring, and in tests.
     public static func scaledSize(_ style: Style, at size: DynamicTypeSize) -> CGFloat {

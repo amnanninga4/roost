@@ -1,194 +1,147 @@
-// Both people on one card, Sleeper-matchup style: names and leftover counts in the header,
-// then two compact columns. Full ChoreRowView stays on the board.
 import RoostCore
 import RoostDesign
 import SwiftUI
 
+/// A compact people summary. Each profile and the household comparison have distinct buttons.
 struct HomeMatchupView: View {
     let columns: [HomeSummary.Column]
-    let onToggle: (TodayRow) -> Void
-    /// Opens that person's own page. The header and the leftover count are the way in.
-    var onOpenPerson: (Person) -> Void = { _ in }
-
-    /// How many chores the matchup shows before "more" sends you to their page.
-    private static let previewLimit = 3
-
+    let onOpenPerson: (Person) -> Void
+    let onOpenMatchup: () -> Void
     @Environment(\.dynamicTypeSize) private var typeSize
 
-    private var stacked: Bool {
-        typeSize.isAccessibilitySize
-    }
-
     var body: some View {
-        VStack(spacing: RoostSpacing.md) {
-            if stacked {
+        VStack(alignment: .leading, spacing: RoostSpacing.md) {
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.md))
+                : AnyLayout(HStackLayout(spacing: RoostSpacing.md))
+            layout {
                 ForEach(columns) { column in
-                    VStack(alignment: .leading, spacing: RoostSpacing.sm) {
-                        headerSide(column, trailing: false)
-                        Divider().overlay(RoostColor.Role.separator.color)
-                        columnList(column)
-                    }
-                }
-            } else {
-                VStack(spacing: RoostSpacing.sm) {
-                    header
-                    Divider().overlay(RoostColor.Role.separator.color)
-                    lists
-                }
-            }
-        }
-        .padding(RoostSpacing.md)
-        .roostCard()
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("home.matchup")
-    }
-
-    private var header: some View {
-        HStack(alignment: .center, spacing: RoostSpacing.sm) {
-            if let left = columns.first {
-                headerSide(left, trailing: false)
-            }
-            if columns.count > 1, let right = columns.last {
-                headerSide(right, trailing: true)
-            }
-        }
-    }
-
-    private func headerSide(_ column: HomeSummary.Column, trailing: Bool) -> some View {
-        Button {
-            onOpenPerson(column.person)
-        } label: {
-            HStack(spacing: RoostSpacing.sm) {
-                if !trailing {
-                    RoostAvatar(person: column.person.design, label: column.person.displayName)
-                        .accessibilityHidden(true)
-                }
-                VStack(alignment: trailing ? .trailing : .leading, spacing: 0) {
-                    HStack(spacing: RoostSpacing.xs) {
-                        Text(column.person.displayName)
-                            .roostType(.monoLabel)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .foregroundStyle(RoostColor.Role.textSecondary.color)
-                        if column.isMine {
-                            Text(Strings.Tasks.you)
-                                .roostType(.monoLabel)
-                                .fixedSize(horizontal: true, vertical: false)
-                                .foregroundStyle(RoostColor.Role.onAccent.color)
-                                .padding(.horizontal, RoostSpacing.xs)
-                                .padding(.vertical, 2)
-                                .background(column.person.design.color, in: RoostRadius.pillShape)
-                                .accessibilityHidden(true)
+                    Button { onOpenPerson(column.person) } label: {
+                        HStack(spacing: RoostSpacing.md) {
+                            HouseholdAvatar(person: column.person)
+                            VStack(alignment: .leading, spacing: RoostSpacing.xs) {
+                                HStack {
+                                    Text(column.person.displayName).roostType(.headline)
+                                    Image(systemName: "chevron.right").font(.caption)
+                                        .foregroundStyle(RoostColor.Role.textSecondary.color)
+                                }
+                                Text(Strings.Home.left(column.dueCount))
+                                    .roostType(.subheadline)
+                                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+                            }
+                            Spacer(minLength: 0)
                         }
-                    }
-                    Text(Strings.Home.left(column.dueCount))
-                        .roostType(.title)
-                        .monospacedDigit()
-                        .foregroundStyle(RoostColor.Role.textPrimary.color)
-                        .contentTransition(.numericText(value: Double(column.dueCount)))
-                        .roostAnimation(.standard, value: column.dueCount)
-                }
-                .frame(maxWidth: .infinity, alignment: trailing ? .trailing : .leading)
-                if trailing {
-                    RoostAvatar(person: column.person.design, label: column.person.displayName)
-                        .accessibilityHidden(true)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.roostPressQuiet)
-        .frame(minHeight: RoostSpacing.minTapTarget)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint(Strings.Home.openPerson)
-        .accessibilityIdentifier("home.open.\(column.person.rawValue)")
-        .accessibilityLabel(column.person.displayName)
-        .accessibilityValue(Strings.Tasks.due(column.dueCount))
-    }
-
-    private var lists: some View {
-        HStack(alignment: .top, spacing: 0) {
-            ForEach(Array(columns.enumerated()), id: \.element.id) { index, column in
-                if index > 0 {
-                    Rectangle()
-                        .fill(RoostColor.Role.separator.color)
-                        .frame(width: 1)
-                        .padding(.horizontal, RoostSpacing.sm)
-                }
-                columnList(column)
-            }
-        }
-    }
-
-    private func columnList(_ column: HomeSummary.Column) -> some View {
-        let due = column.rows.filter { !$0.isDone }
-        return VStack(alignment: .leading, spacing: 0) {
-            if due.isEmpty {
-                Text(Strings.Home.allCaught)
-                    .roostType(.caption)
-                    .foregroundStyle(RoostColor.Role.textSecondary.color)
-                    .frame(maxWidth: .infinity, minHeight: RoostSpacing.minTapTarget, alignment: .leading)
-            } else {
-                ForEach(Array(due.prefix(Self.previewLimit))) { row in
-                    HomeMatchupRow(row: row) { onToggle(row) }
-                }
-                if due.count > Self.previewLimit {
-                    Button {
-                        onOpenPerson(column.person)
-                    } label: {
-                        Text(Strings.Home.more(due.count - Self.previewLimit))
-                            .roostType(.caption)
-                            .foregroundStyle(RoostColor.Role.accent.color)
-                            .frame(maxWidth: .infinity, minHeight: RoostSpacing.minTapTarget, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: RoostSpacing.minTapTarget, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.roostPressQuiet)
-                    .accessibilityIdentifier("home.more.\(column.person.rawValue)")
+                    .foregroundStyle(RoostColor.Role.textPrimary.color)
+                    .accessibilityLabel(column.person.displayName)
+                    .accessibilityValue(Strings.Home.left(column.dueCount))
+                    .accessibilityHint(Strings.Home.openPerson)
+                    .accessibilityIdentifier("home.open.\(column.person.rawValue)")
                 }
             }
+            Divider()
+            let footer = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.sm))
+                : AnyLayout(HStackLayout(spacing: RoostSpacing.md))
+            footer {
+                Text(Strings.Home.weeklySummary(
+                    anne: columns.first { $0.person == .anne }?.doneThisWeek ?? 0,
+                    wes: columns.first { $0.person == .wes }?.doneThisWeek ?? 0
+                ))
+                .roostType(.caption)
+                .foregroundStyle(RoostColor.Role.textSecondary.color)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Button(action: onOpenMatchup) {
+                    HStack(spacing: RoostSpacing.xs) {
+                        Text(Strings.Matchup.view)
+                        Image(systemName: "chevron.right")
+                    }
+                    .roostType(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(minHeight: RoostSpacing.minTapTarget)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.roostPressQuiet)
+                .foregroundStyle(RoostColor.Role.accent.color)
+                .accessibilityIdentifier("home.open.matchup")
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityIdentifier("home.list.\(column.person.rawValue)")
+        .padding(RoostSpacing.cardPadding)
+        .roostCard()
     }
 }
 
-struct HomeMatchupRow: View {
+/// Decorative initial; the surrounding profile button carries the complete accessible name.
+struct HouseholdAvatar: View {
+    let person: Person
+    @ScaledMetric(relativeTo: .title2) private var diameter = RoostSpacing.xxxl
+    var body: some View {
+        Text(String(person.displayName.prefix(1)))
+            .font(.system(.title2, weight: .bold))
+            .foregroundStyle(RoostColor.Role.onAccent.color)
+            .frame(width: diameter, height: diameter)
+            .background(person.design.color, in: Circle())
+            .accessibilityHidden(true)
+    }
+}
+
+struct HomeChoreRow: View {
     let row: TodayRow
+    let date: Date
     let onToggle: () -> Void
+
+    private var owner: String {
+        row.chore.together ? Strings.Tasks.togetherValue : row.person.displayName
+    }
+
+    private var timing: String {
+        if row.daysOverdue > 0 {
+            return Strings.Home.daysLate(row.daysOverdue)
+        }
+        if HomeRowBuckets.bucket(for: row, calendar: HouseholdCalendar(), on: date) == .later {
+            return WindowCopy.line(row.chore) ?? Strings.Home.ifYouHaveTime
+        }
+        return Strings.Home.today
+    }
 
     var body: some View {
         Button(action: onToggle) {
-            HStack(alignment: .center, spacing: RoostSpacing.sm) {
-                Image(systemName: "circle")
-                    .font(.system(size: 18, weight: .regular))
-                    .foregroundStyle(
-                        row.stage == .dueToday
-                            ? RoostColor.Role.textSecondary.color
-                            : row.stage.role.color
-                    )
-                    .frame(width: 22, height: 22)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+            HStack(spacing: RoostSpacing.md) {
+                if row.chore.together {
+                    Image(systemName: "person.2.fill")
+                        .font(.title3)
+                        .frame(width: RoostSpacing.xxl, height: RoostSpacing.xxl)
+                        .accessibilityHidden(true)
+                } else {
+                    RoostAvatar(person: row.person.design).accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: RoostSpacing.xs) {
                     Text(row.chore.title)
-                        .roostType(.subheadline)
+                        .roostType(.headline)
                         .foregroundStyle(RoostColor.Role.textPrimary.color)
                         .fixedSize(horizontal: false, vertical: true)
-                    if row.daysOverdue > 0 {
-                        Text(Strings.Home.daysLate(row.daysOverdue))
-                            .roostType(.caption)
-                            .foregroundStyle(RoostColor.Role.textSecondary.color)
-                            .monospacedDigit()
-                            .accessibilityHidden(true)
-                    }
+                    Text(timing)
+                        .roostType(.caption)
+                        .foregroundStyle(row.daysOverdue > 0
+                            ? RoostColor.Role.warning.color : RoostColor.Role.textSecondary.color)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: RoostSpacing.sm)
+                Image(systemName: "circle")
+                    .font(.title2)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+                    .accessibilityHidden(true)
             }
-            .padding(.vertical, RoostSpacing.xs)
+            .padding(.vertical, RoostSpacing.md)
             .frame(maxWidth: .infinity, minHeight: RoostSpacing.minTapTarget, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.roostPressQuiet)
-        .accessibilityElement(children: .combine)
         .accessibilityLabel(row.chore.title)
-        .accessibilityValue(row.daysOverdue > 0 ? Strings.daysLate(row.daysOverdue) : "")
+        .accessibilityValue(Strings.Home.rowValue(owner: owner, timing: timing))
         .accessibilityHint(Strings.Tasks.hintCheck)
-        .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("home.chore.\(row.chore.id)")
     }
 }
