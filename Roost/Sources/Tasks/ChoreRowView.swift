@@ -210,9 +210,9 @@ struct ChoreRowView: View {
             }
     }
 
-    /// An empty circle is the separator colour until the row is late, when it picks up the stage.
+    /// An empty circle stays visible until the row is late, when it picks up the stage.
     private var checkRing: RoostColor.Role {
-        row.stage == .dueToday ? .separator : row.stage.role
+        row.stage == .dueToday ? .textSecondary : row.stage.role
     }
 
     private var titleLine: some View {

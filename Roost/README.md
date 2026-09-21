@@ -2,6 +2,18 @@
 
 SwiftUI + SwiftData, iOS 26+, offline-first. The current tab shell is Home · Lists · More; Home shows both people side by side and provides access to the chore boards. The history and screenshots below also include earlier Tasks-tab layouts. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy; R-11 added the Shopping, Meals, and Projects tabs and their sync; R-17 added Kitchen mode, the counter display; D-2 was a craft pass over the Tasks tab (design tokens throughout, the check-off interaction, visible escalation, the empty and offline states, and one celebration a day); D-3 made the three list tabs finished screens (a composer, a Bought section, a five-second undo on every delete, drag-to-reorder steps, finished projects); D-4 added first-run onboarding, pairing by six-digit code, and the Settings screen; D-4b restyled Settings in the design system and gave it the server's own device label and pairing date from `GET /me`; D-5 registered this phone for the server's APNs pushes and added the Home Screen and Lock Screen widget; D-8 added handoffs — offering a turn to the other person — and moved the household start date onto the server. D-6 added the UI test target: an accessibility audit per screen that runs in CI, the fixes it found, and the Shopping list's scroll metrics. The 2026-09-13 bar change replaced the four tabs with Tasks · Lists · More, put Shopping, Meals, Projects and a new Wishlist under Lists, and moved the gear menu to the More page, and gave projects an optional due day and steps an optional owner, with a reminder on the morning a project is due. D-10 added the Appearance choice in Settings.
 
+## Home and list polish — September 20
+
+Home keeps both people side by side at normal text sizes, with three chore previews each and explicit “N left” / “Nd late” labels. At accessibility sizes, each person's full-width header sits directly above their chores. Shared list headings and gaps are tighter; input prompts and unchecked controls use the existing secondary-text color instead of faint defaults. Row tap targets and bottom safe-area handling are unchanged.
+
+These captures use the offline UI-test household, not live phone data.
+
+| Home | Dark Home | Largest text |
+| --- | --- | --- |
+| ![Home](docs/home.png) | ![Dark Home](docs/home-dark.png) | ![Home at the largest text size](docs/home-ax.png) |
+
+The screenshots below also document earlier layouts.
+
 | Tasks | Lists | Wishlist | More |
 | --- | --- | --- | --- |
 | ![Tasks tab](docs/tasks.png) | ![Lists tab](docs/lists.png) | ![Wishlist page](docs/wishlist.png) | ![More tab](docs/more.png) |
