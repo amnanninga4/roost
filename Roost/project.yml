@@ -25,7 +25,7 @@ settings:
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""
     MARKETING_VERSION: "0.1.0"
-    CURRENT_PROJECT_VERSION: "366"
+    CURRENT_PROJECT_VERSION: "376"
 
 # The App Group the app and the widget extension share. The app writes one JSON snapshot there after every
 # plan; the widget reads only that file. Both entitlements below have to name it or the widget goes blank.

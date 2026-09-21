@@ -49,4 +49,4 @@ scripts/release.sh
 
 ## Status
 
-The app has Home, Lists, and More tabs, pairs with the server by six-digit code, and syncs chores, shopping, wishlist, meals, projects, bonus, and handoffs. Home shows both people side by side. `docs/STATUS.md` is a generated server and GitHub snapshot; regenerate it before relying on it. `OPEN-ITEMS.md` tracks unresolved work. The release runbook exists (`docs/RELEASE.md`); current TestFlight distribution and the builds installed on each phone have not been verified.
+The app has Home, Lists, and More tabs, pairs with the server by six-digit code, and syncs chores, shopping, wishlist, meals, projects, bonus, and handoffs. Home shows both people side by side. `docs/STATUS.md` is a generated server and GitHub snapshot; regenerate it before relying on it. `OPEN-ITEMS.md` tracks unresolved work. TestFlight 0.1.0 (376) was verified available to the Household group on 2026-09-21; Anne and Wes are both members. Availability does not prove each phone has installed that build. See `docs/RELEASE.md` for the release process.

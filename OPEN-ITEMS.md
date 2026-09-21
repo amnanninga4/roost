@@ -24,7 +24,7 @@ for validation of the current revision.
 
 | Item | Since | Why it matters |
 |---|---|---|
-| Verify the build installed on each phone and distribution route | 2026-09-20 | Historical install notes do not establish either phone’s current build. Registered-device counts do not prove current installs or TestFlight use. Confirm before changing push environment. |
+| Confirm build 376 is installed on each phone | 2026-09-21 | Wes confirmed both phones use TestFlight. Apple reports build 376 valid and in beta testing, and the Household group containing Anne and Wes has access. Installation on each phone is not yet verified. |
 | Historical Tailscale credential follow-up | 2026-09-14 | September 14 notes reported an invalid `TAILSCALE_API_KEY` and working `fssh`. Neither the credential nor current fleet state was checked in this cleanup; revalidate before acting. |
 | peers-fleet decisions | 2026-09-14 | Report `~/claude-reports/peers-fleet-2026-09-14.md`. September 14 follow-ups: ponytail cuts, dashboard LaunchAgent, Kimi bridge, clarsmini push key. That report said the lead had stopped and no sessions were running; current session state was not checked. |
 
@@ -38,7 +38,7 @@ for validation of the current revision.
 
 | Item | Since | Note |
 |---|---|---|
-| APNs environment must match the installed builds | 2026-09-20 | Health reports `sandbox`. Confirm Debug versus TestFlight distribution before any production switch, then verify actual delivery. No server configuration change is part of this cleanup. |
+| Match APNs to the confirmed TestFlight route | 2026-09-21 | Wes confirmed both phones use TestFlight; health still reports `sandbox`. The server needs a separately authorized production-environment change and delivery verification. Uploading build 376 did not change server configuration. |
 | Handoffs ignore early due windows | 2026-09-15 | Shipped knowingly. `HandoffRules` counts calendar periods, so a chore with a `dueDay` of 1–6 (window opens in the previous month) refuses a handoff until the 1st. Documented in the due-windows spec. |
 | Density scorecard test unowned | 2026-09-13 | Flagged in the UX audit, never picked up. |
 | This Mac is on Xcode 27.0 / Swift 6.4; CI is on 26.6 | 2026-09-15 | Local green no longer proves CI green. CI is the authority on disagreement. |
