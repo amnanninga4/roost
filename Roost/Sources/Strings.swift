@@ -73,6 +73,14 @@ enum Strings {
         static let today = "Today"
         static let ifYouHaveTime = "If you have time"
 
+        static func left(_ count: Int) -> String {
+            "\(count) left"
+        }
+
+        static func daysLate(_ days: Int) -> String {
+            "\(days)d late"
+        }
+
         /// VoiceOver on a matchup header: opens that person's own page.
         static let openPerson = "Opens their day"
 

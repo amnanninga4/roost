@@ -53,7 +53,8 @@ struct WishlistScreen: View {
             Section {
                 ListComposer(placeholder: Strings.Wishlist.add, text: $draft, focused: $draftFocused, onSubmit: add) {
                     if !draft.isEmpty {
-                        TextField(Strings.Wishlist.price, text: $priceDraft)
+                        TextField(Strings.Wishlist.price, text: $priceDraft, prompt: Text(Strings.Wishlist.price)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color))
                             .roostType(.subheadline)
                             .foregroundStyle(RoostColor.Role.textSecondary.color)
                             .keyboardType(.decimalPad)

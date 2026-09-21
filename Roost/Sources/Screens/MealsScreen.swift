@@ -42,7 +42,8 @@ struct MealsScreen: View {
             Section {
                 ListComposer(placeholder: Strings.Meals.add, text: $title, focused: $titleFocused, onSubmit: add) {
                     if !title.isEmpty {
-                        TextField(Strings.Meals.tag, text: $tag)
+                        TextField(Strings.Meals.tag, text: $tag, prompt: Text(Strings.Meals.tag)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color))
                             .roostType(.subheadline)
                             .foregroundStyle(RoostColor.Role.textSecondary.color)
                             .submitLabel(.done)

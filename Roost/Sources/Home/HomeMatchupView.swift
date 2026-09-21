@@ -11,7 +11,7 @@ struct HomeMatchupView: View {
     var onOpenPerson: (Person) -> Void = { _ in }
 
     /// How many chores the matchup shows before "more" sends you to their page.
-    private static let previewLimit = 5
+    private static let previewLimit = 3
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -20,14 +20,22 @@ struct HomeMatchupView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Rectangle()
-                .fill(RoostColor.Role.separator.color)
-                .frame(height: 1)
-                .padding(.top, RoostSpacing.sm)
-            lists
-                .padding(.top, RoostSpacing.sm)
+        VStack(spacing: RoostSpacing.md) {
+            if stacked {
+                ForEach(columns) { column in
+                    VStack(alignment: .leading, spacing: RoostSpacing.sm) {
+                        headerSide(column, trailing: false)
+                        Divider().overlay(RoostColor.Role.separator.color)
+                        columnList(column)
+                    }
+                }
+            } else {
+                VStack(spacing: RoostSpacing.sm) {
+                    header
+                    Divider().overlay(RoostColor.Role.separator.color)
+                    lists
+                }
+            }
         }
         .padding(RoostSpacing.md)
         .roostCard()
@@ -59,10 +67,12 @@ struct HomeMatchupView: View {
                     HStack(spacing: RoostSpacing.xs) {
                         Text(column.person.displayName)
                             .roostType(.monoLabel)
+                            .fixedSize(horizontal: true, vertical: false)
                             .foregroundStyle(RoostColor.Role.textSecondary.color)
                         if column.isMine {
                             Text(Strings.Tasks.you)
                                 .roostType(.monoLabel)
+                                .fixedSize(horizontal: true, vertical: false)
                                 .foregroundStyle(RoostColor.Role.onAccent.color)
                                 .padding(.horizontal, RoostSpacing.xs)
                                 .padding(.vertical, 2)
@@ -70,7 +80,7 @@ struct HomeMatchupView: View {
                                 .accessibilityHidden(true)
                         }
                     }
-                    Text("\(column.dueCount)")
+                    Text(Strings.Home.left(column.dueCount))
                         .roostType(.title)
                         .monospacedDigit()
                         .foregroundStyle(RoostColor.Role.textPrimary.color)
@@ -94,25 +104,16 @@ struct HomeMatchupView: View {
         .accessibilityValue(Strings.Tasks.due(column.dueCount))
     }
 
-    @ViewBuilder
     private var lists: some View {
-        if stacked {
-            VStack(alignment: .leading, spacing: RoostSpacing.md) {
-                ForEach(columns) { column in
-                    columnList(column)
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Array(columns.enumerated()), id: \.element.id) { index, column in
+                if index > 0 {
+                    Rectangle()
+                        .fill(RoostColor.Role.separator.color)
+                        .frame(width: 1)
+                        .padding(.horizontal, RoostSpacing.sm)
                 }
-            }
-        } else {
-            HStack(alignment: .top, spacing: 0) {
-                ForEach(Array(columns.enumerated()), id: \.element.id) { index, column in
-                    if index > 0 {
-                        Rectangle()
-                            .fill(RoostColor.Role.separator.color)
-                            .frame(width: 1)
-                            .padding(.horizontal, RoostSpacing.sm)
-                    }
-                    columnList(column)
-                }
+                columnList(column)
             }
         }
     }
@@ -159,29 +160,27 @@ struct HomeMatchupRow: View {
                     .font(.system(size: 18, weight: .regular))
                     .foregroundStyle(
                         row.stage == .dueToday
-                            ? RoostColor.Role.separator.color
+                            ? RoostColor.Role.textSecondary.color
                             : row.stage.role.color
                     )
                     .frame(width: 22, height: 22)
                     .accessibilityHidden(true)
-                Text(row.chore.title)
-                    .roostType(.subheadline)
-                    .foregroundStyle(
-                        row.stage == .alert
-                            ? RoostColor.Role.danger.color
-                            : RoostColor.Role.textPrimary.color
-                    )
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if row.daysOverdue > 0 {
-                    Text("\(row.daysOverdue)")
-                        .roostType(.monoTally)
-                        .foregroundStyle(row.stage.role.color)
-                        .monospacedDigit()
-                        .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
+                    Text(row.chore.title)
+                        .roostType(.subheadline)
+                        .foregroundStyle(RoostColor.Role.textPrimary.color)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if row.daysOverdue > 0 {
+                        Text(Strings.Home.daysLate(row.daysOverdue))
+                            .roostType(.caption)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color)
+                            .monospacedDigit()
+                            .accessibilityHidden(true)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .padding(.vertical, RoostSpacing.xs)
             .frame(maxWidth: .infinity, minHeight: RoostSpacing.minTapTarget, alignment: .leading)
             .contentShape(Rectangle())
         }

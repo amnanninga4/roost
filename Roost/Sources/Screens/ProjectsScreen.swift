@@ -96,7 +96,8 @@ struct ProjectsScreen: View {
     /// The composer's second field: the steps to start with, one per line, and the button that starts.
     private var firstSteps: some View {
         VStack(alignment: .leading, spacing: RoostSpacing.sm) {
-            TextField(Strings.Projects.steps, text: $steps, axis: .vertical)
+            TextField(Strings.Projects.steps, text: $steps, prompt: Text(Strings.Projects.steps)
+                .foregroundStyle(RoostColor.Role.textSecondary.color), axis: .vertical)
                 .lineLimit(1 ... 6)
                 .roostType(.subheadline)
                 .foregroundStyle(RoostColor.Role.textSecondary.color)
@@ -528,7 +529,8 @@ private struct SubtaskComposer: View {
     var body: some View {
         HStack(spacing: RoostSpacing.md) {
             PlusBadge(isActive: !draft.isEmpty)
-            TextField(Strings.Projects.addStep, text: $draft)
+            TextField(Strings.Projects.addStep, text: $draft, prompt: Text(Strings.Projects.addStep)
+                .foregroundStyle(RoostColor.Role.textSecondary.color))
                 .roostType(.body)
                 .foregroundStyle(RoostColor.Role.textPrimary.color)
                 .focused($focused)

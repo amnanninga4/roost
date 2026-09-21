@@ -5,6 +5,29 @@
 import XCTest
 
 final class HomeScreenUITests: RoostUITestCase {
+    func testPersonHeadersHaveFullWidthAtLargestTextSize() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-roostUITestState", "paired",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ]
+        app.launch()
+        let anne = app.buttons["home.open.anne"]
+        XCTAssertTrue(anne.waitForExistence(timeout: Self.timeout))
+        XCTAssertGreaterThan(
+            anne.frame.width, app.frame.width * 0.75,
+            "large-text person headers need their own full-width section"
+        )
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Home-largest-text"
+        shot.lifetime = .keepAlways
+        add(shot)
+        let wes = app.buttons["home.open.wes"]
+        scrollIntoView(wes, in: app)
+        XCTAssertTrue(wes.isHittable, "Wes's section remains reachable below Anne's chores")
+        XCTAssertGreaterThan(wes.frame.width, app.frame.width * 0.75)
+    }
+
     func testTheAppOpensOnHomeNotTheBoard() {
         let app = launch(.paired)
         XCTAssertTrue(

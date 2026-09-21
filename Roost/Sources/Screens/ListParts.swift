@@ -75,7 +75,7 @@ struct ListScreenHeader: View {
     var body: some View {
         VStack(alignment: .leading, spacing: RoostSpacing.xxs) {
             Text(title)
-                .roostType(.display)
+                .roostType(.title)
                 .foregroundStyle(RoostColor.Role.textPrimary.color)
             Text(line)
                 .roostType(.monoTally)
@@ -120,7 +120,7 @@ struct ListComposer<Extra: View>: View {
     }
 
     private var border: Color {
-        isFocused ? RoostColor.Role.accent.color : RoostColor.Role.separator.color
+        isFocused ? RoostColor.Role.accent.color : RoostColor.Role.textSecondary.color
     }
 
     private var borderStyle: StrokeStyle {
@@ -133,7 +133,8 @@ struct ListComposer<Extra: View>: View {
         VStack(alignment: .leading, spacing: RoostSpacing.sm) {
             HStack(spacing: RoostSpacing.md) {
                 PlusBadge(isActive: !text.isEmpty)
-                TextField(placeholder, text: $text)
+                TextField(placeholder, text: $text, prompt: Text(placeholder)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color))
                     .roostType(.body)
                     .foregroundStyle(RoostColor.Role.textPrimary.color)
                     .focused(focused)
@@ -153,7 +154,7 @@ struct ListComposer<Extra: View>: View {
         .roostAnimation(.quick, value: text.isEmpty)
         .listRowBackground(Color.clear)
         .listRowInsets(EdgeInsets(
-            top: RoostSpacing.xs, leading: listCardMargin, bottom: RoostSpacing.md, trailing: listCardMargin
+            top: 0, leading: listCardMargin, bottom: RoostSpacing.sm, trailing: listCardMargin
         ))
         .listRowSeparator(.hidden)
     }
@@ -184,7 +185,8 @@ struct ListEditSheet: View {
             VStack(spacing: RoostSpacing.md) {
                 ListComposer(placeholder: fieldPlaceholder, text: $draft, focused: $focused, onSubmit: onSave) {
                     if let priceText {
-                        TextField(Strings.Wishlist.price, text: priceText)
+                        TextField(Strings.Wishlist.price, text: priceText, prompt: Text(Strings.Wishlist.price)
+                            .foregroundStyle(RoostColor.Role.textSecondary.color))
                             .roostType(.subheadline)
                             .foregroundStyle(RoostColor.Role.textSecondary.color)
                             .keyboardType(.decimalPad)
@@ -249,7 +251,7 @@ struct CheckCircle: View {
     var body: some View {
         Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
             .roostType(.title)
-            .foregroundStyle(isOn ? RoostColor.Role.success.color : RoostColor.Role.separator.color)
+            .foregroundStyle(isOn ? RoostColor.Role.success.color : RoostColor.Role.textSecondary.color)
             .contentTransition(.symbolEffect(.replace))
             .roostAnimation(.quick, value: isOn)
             .accessibilityAddTraits(.isButton)
@@ -451,7 +453,8 @@ extension View {
     /// The chrome every list tab shares: inset cards on the page colour, the app title in the bar.
     func listTabChrome() -> some View {
         listStyle(.insetGrouped)
-            .listSectionSpacing(RoostSpacing.md)
+            .listSectionSpacing(RoostSpacing.sm)
+            .contentMargins(.top, RoostSpacing.sm, for: .scrollContent)
             .scrollContentBackground(.hidden)
             .background(RoostColor.Role.background.color)
             .scrollDismissesKeyboard(.interactively)
@@ -463,7 +466,7 @@ extension View {
     func listHeaderRow() -> some View {
         listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets(
-                top: RoostSpacing.xs, leading: listCardMargin, bottom: RoostSpacing.sm, trailing: listCardMargin
+                top: RoostSpacing.xs, leading: listCardMargin, bottom: RoostSpacing.xs, trailing: listCardMargin
             ))
     }
 
