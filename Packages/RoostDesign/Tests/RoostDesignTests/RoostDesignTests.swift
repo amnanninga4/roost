@@ -3,29 +3,33 @@ import SwiftUI
 import XCTest
 
 final class RoostColorTests: XCTestCase {
-    /// Spot checks straight from roost-app-mockup.html.
-    func testHexValuesMatchMockup() {
-        XCTAssertEqual(RoostColor.bgToken.hex(.light), "#F3F6F2")
-        XCTAssertEqual(RoostColor.bgToken.hex(.dark), "#121A15")
-        // .app-shell overrides (the app palette) for light; :root dark block for dark
-        XCTAssertEqual(RoostColor.accentToken.hex(.light), "#2F8F72")
-        XCTAssertEqual(RoostColor.accentToken.hex(.dark), "#6FC2A6")
-        XCTAssertEqual(RoostColor.accentSoftToken.hex(.light), "#CFEEE1")
-        XCTAssertEqual(RoostColor.goldToken.hex(.light), "#E08F2E")
-        XCTAssertEqual(RoostColor.goldSoftToken.hex(.light), "#FBE3C2")
-        XCTAssertEqual(RoostColor.infoToken.hex(.light), "#4C7FE0")
-        XCTAssertEqual(RoostColor.infoSoftToken.hex(.light), "#DEE6FC")
-        XCTAssertEqual(RoostColor.teaseToken.hex(.light), "#D6487A")
-        XCTAssertEqual(RoostColor.teaseSoftToken.hex(.light), "#FBDCE8")
-        XCTAssertEqual(RoostColor.alertToken.hex(.light), "#E2233F")
-        XCTAssertEqual(RoostColor.alertToken.hex(.dark), "#FF6478")
-        XCTAssertEqual(RoostColor.alertSoftToken.hex(.light), "#FCD9DF")
-        // tokens .app-shell does not override keep the :root light value
-        XCTAssertEqual(RoostColor.mealToken.hex(.light), "#C2571F")
-        XCTAssertEqual(RoostColor.assignSoftToken.hex(.light), "#E6DFF5")
-        XCTAssertEqual(RoostColor.assignSoftToken.hex(.dark), "#332750")
-        XCTAssertEqual(RoostColor.inkToken.hex(.light), "#1F2A22")
-        XCTAssertEqual(RoostColor.inkToken.hex(.dark), "#EAF2EC")
+    func testHouseholdPaletteIdentity() {
+        XCTAssertEqual(RoostColor.bgToken.hex(.dark), "#071323")
+        XCTAssertEqual(RoostColor.accentToken.hex(.dark), "#00DDD3")
+        XCTAssertEqual(RoostColor.anneToken.hex(.dark), "#A0ECD5")
+        XCTAssertEqual(RoostColor.wesToken.hex(.dark), "#F3A0C1")
+    }
+
+    func testTextAndActionsHaveReadableContrastInBothAppearances() {
+        func luminance(_ token: RoostColorToken, _ scheme: ColorScheme) -> Double {
+            let c = token.rgba(scheme)
+            func linear(_ v: Double) -> Double {
+                v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * linear(c.r) + 0.7152 * linear(c.g) + 0.0722 * linear(c.b)
+        }
+        for scheme in [ColorScheme.light, .dark] {
+            for background in [RoostColor.bgToken, RoostColor.surfaceToken, RoostColor.surface2Token] {
+                for foreground in [RoostColor.inkToken, RoostColor.inkSoftToken,
+                                   RoostColor.accentToken, RoostColor.anneToken, RoostColor.wesToken,
+                                   RoostColor.nudgeToken, RoostColor.teaseToken, RoostColor.alertToken]
+                {
+                    let a = luminance(foreground, scheme), b = luminance(background, scheme)
+                    XCTAssertGreaterThanOrEqual((max(a, b) + 0.05) / (min(a, b) + 0.05), 4.5,
+                                                "\(foreground.name) on \(background.name), \(scheme)")
+                }
+            }
+        }
     }
 
     func testShadowAlpha() {
@@ -48,15 +52,6 @@ final class RoostColorTests: XCTestCase {
         XCTAssertEqual(RoostColor.Page.alertToken.hex(.light), "#C81E3A")
         XCTAssertEqual(RoostColor.Page.alertSoftToken.hex(.light), "#FBDCE1")
         XCTAssertEqual(RoostColor.Page.all.count, 10)
-        let appTokens = [
-            RoostColor.accentToken, RoostColor.accentSoftToken, RoostColor.goldToken, RoostColor.goldSoftToken,
-            RoostColor.infoToken, RoostColor.infoSoftToken, RoostColor.teaseToken, RoostColor.teaseSoftToken,
-            RoostColor.alertToken, RoostColor.alertSoftToken,
-        ]
-        for (page, app) in zip(RoostColor.Page.all, appTokens) {
-            XCTAssertEqual(page.dark, app.dark, "\(page.name) dark matches app dark")
-            XCTAssertNotEqual(page.light, app.light, "\(page.name) light differs from app light")
-        }
     }
 
     func testTokenCountAndUniqueNames() {

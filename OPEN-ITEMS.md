@@ -24,7 +24,7 @@ for validation of the current revision.
 
 | Item | Since | Why it matters |
 |---|---|---|
-| Confirm build 376 is installed on each phone | 2026-09-21 | Wes confirmed both phones use TestFlight. Apple reports build 376 valid and in beta testing, and the Household group containing Anne and Wes has access. Installation on each phone is not yet verified. |
+| Confirm Anne’s installed TestFlight build | 2026-09-21 | Wes confirmed both phones use TestFlight. Apple reports build 376 valid and in beta testing, and the Household group containing Anne and Wes has access. Wes confirmed his phone is on build 376; Anne’s installed build has not been independently verified. Build 377 is the pending release candidate, not a confirmed upload or installed build. |
 | Historical Tailscale credential follow-up | 2026-09-14 | September 14 notes reported an invalid `TAILSCALE_API_KEY` and working `fssh`. Neither the credential nor current fleet state was checked in this cleanup; revalidate before acting. |
 | peers-fleet decisions | 2026-09-14 | Report `~/claude-reports/peers-fleet-2026-09-14.md`. September 14 follow-ups: ponytail cuts, dashboard LaunchAgent, Kimi bridge, clarsmini push key. That report said the lead had stopped and no sessions were running; current session state was not checked. |
 

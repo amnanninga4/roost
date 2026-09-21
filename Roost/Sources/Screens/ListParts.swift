@@ -124,9 +124,7 @@ struct ListComposer<Extra: View>: View {
     }
 
     private var borderStyle: StrokeStyle {
-        isFocused
-            ? StrokeStyle(lineWidth: ComposerBorder.width)
-            : StrokeStyle(lineWidth: ComposerBorder.width, dash: ComposerBorder.dash)
+        StrokeStyle(lineWidth: ComposerBorder.width)
     }
 
     var body: some View {
@@ -458,7 +456,7 @@ extension View {
             .scrollContentBackground(.hidden)
             .background(RoostColor.Role.background.color)
             .scrollDismissesKeyboard(.interactively)
-            .navigationTitle(Strings.appTitle)
+            .navigationTitle(Strings.Tabs.lists)
             .toolbarTitleDisplayMode(.inline)
     }
 

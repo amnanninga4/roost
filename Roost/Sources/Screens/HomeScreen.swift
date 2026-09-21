@@ -14,6 +14,8 @@ import SwiftUI
 
 struct HomeScreen: View {
     var onOpenPerson: (Person) -> Void = { _ in }
+    var onOpenMatchup: () -> Void = {}
+    @State private var showsAll = false
 
     @Environment(\.modelContext) private var context
     @Environment(SyncCoordinator.self) private var sync
@@ -58,6 +60,7 @@ struct HomeScreen: View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             content(asOf: context.date)
         }
+        .background(RoostColor.Role.background.color)
         .refreshable { await sync.syncNow() }
         .roostHaptic(.checkOff, trigger: checkOffs)
         .roostHaptic(.undo, trigger: undos)
@@ -69,13 +72,12 @@ struct HomeScreen: View {
         return ScrollView {
             VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
                 Text(dateLine(now))
-                    .roostType(.monoLabel)
-                    .foregroundStyle(RoostColor.Role.accent.color)
+                    .roostType(.caption)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
                     .accessibilityIdentifier("dateEyebrow")
 
-                HomeMatchupView(columns: summary.columns, onToggle: { row in
-                    toggle(row, among: summary.allRows)
-                }, onOpenPerson: onOpenPerson)
+                HomeMatchupView(columns: summary.columns, onOpenPerson: onOpenPerson, onOpenMatchup: onOpenMatchup)
+                choreList(summary)
 
                 HomeDoorsView(doors: summary.doors) { id in
                     navigation.selected = .lists
@@ -94,10 +96,56 @@ struct HomeScreen: View {
         .scrollBounceBehavior(.basedOnSize)
     }
 
+    private func choreList(_ summary: HomeSummary) -> some View {
+        let rows = summary.openRows
+        return VStack(alignment: .leading, spacing: RoostSpacing.sm) {
+            HStack {
+                Text(Strings.Home.chores).roostType(.title)
+                Spacer()
+                Text(Strings.Home.left(rows.count)).roostType(.subheadline)
+                    .foregroundStyle(RoostColor.Role.textSecondary.color)
+            }
+            .accessibilityAddTraits(.isHeader)
+            VStack(spacing: 0) {
+                if rows.isEmpty {
+                    Text(Strings.Home.allCaught)
+                        .roostType(.body)
+                        .padding(RoostSpacing.cardPadding)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                ForEach(Array((showsAll ? rows : Array(rows.prefix(5))).enumerated()), id: \.element.id) { index, row in
+                    if index > 0 {
+                        Divider()
+                    }
+                    HomeChoreRow(row: row, date: summary.date) { toggle(row, among: summary.allRows) }
+                }
+                if rows.count > 5 {
+                    Divider()
+                    Button {
+                        showsAll.toggle()
+                    } label: {
+                        HStack {
+                            Text(showsAll ? Strings.Home.showLess : Strings.Home.showAll(rows.count))
+                            Spacer()
+                            Image(systemName: showsAll ? "chevron.up" : "chevron.down")
+                        }
+                        .roostType(.subheadline)
+                        .frame(minHeight: RoostSpacing.minTapTarget)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.roostPressQuiet)
+                    .foregroundStyle(RoostColor.Role.accent.color)
+                    .accessibilityIdentifier("home.showAll")
+                }
+            }
+            .padding(.horizontal, RoostSpacing.cardPadding)
+            .roostCard()
+        }
+    }
+
     private func dateLine(_ date: Date) -> String {
         date
             .formatted(.dateTime.weekday(.wide).month(.wide).day().locale(.autoupdatingCurrent))
-            .uppercased()
     }
 
     /// Check off, or un-check, with the same meaning the board's rows have — one function, so the two

@@ -1,8 +1,6 @@
 import CoreText
 
-// Roost type: Fraunces for display, Nunito Sans for body, IBM Plex Mono for labels.
-// Custom fonts are used when registered (see RoostFonts.register()); otherwise system fallbacks
-// that match the mockup's CSS fallback stacks (Georgia / system sans / system mono).
+// Native font helpers for explicitly scaled drawing. Screens use RoostType.
 import SwiftUI
 
 public enum RoostFont {
@@ -19,28 +17,19 @@ public enum RoostFont {
         return names.contains(family)
     }
 
-    /// Fraunces. Headline sizes; falls back to a serif design when not registered.
+    /// Native sans display at a caller-scaled point size.
     public static func display(size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        if isAvailable(Family.display) {
-            return Font.custom(Family.display, size: size).weight(weight)
-        }
-        return Font.system(size: size, weight: weight, design: .serif)
+        Font.system(size: size, weight: weight)
     }
 
-    /// Nunito Sans. Body copy; falls back to the system sans.
+    /// Native sans body at a caller-scaled point size.
     public static func body(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        if isAvailable(Family.body) {
-            return Font.custom(Family.body, size: size).weight(weight)
-        }
-        return Font.system(size: size, weight: weight, design: .default)
+        Font.system(size: size, weight: weight)
     }
 
-    /// IBM Plex Mono. Eyebrows, counts, badges; falls back to the system mono.
+    /// Native sans with fixed-width digits for caller-scaled counts.
     public static func mono(size: CGFloat, weight: Font.Weight = .medium) -> Font {
-        if isAvailable(Family.mono) {
-            return Font.custom(Family.mono, size: size).weight(weight)
-        }
-        return Font.system(size: size, weight: weight, design: .monospaced)
+        Font.system(size: size, weight: weight).monospacedDigit()
     }
 
     /// The mockup's recurring sizes, so screens don't invent new ones.

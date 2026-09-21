@@ -67,6 +67,13 @@ final class RoostRadiusTests: XCTestCase {
 }
 
 final class RoostElevationTests: XCTestCase {
+    func testRestingCardsAreFlat() {
+        XCTAssertEqual(RoostElevation.card.radius, 0)
+        XCTAssertEqual(RoostElevation.card.yOffset, 0)
+        XCTAssertEqual(RoostElevation.card.lightOpacity, 0)
+        XCTAssertEqual(RoostElevation.card.darkOpacity, 0)
+    }
+
     func testStepsAscend() {
         let radii = RoostElevation.all.map(\.radius)
         XCTAssertEqual(radii, radii.sorted())
@@ -76,8 +83,8 @@ final class RoostElevationTests: XCTestCase {
 
     func testDarkModeIsQuieterGeometryAndNeverFullyOpaque() {
         for level in RoostElevation.all {
-            XCTAssertLessThan(level.blurRadius(.dark), level.blurRadius(.light), "\(level.name) blur")
-            XCTAssertLessThan(level.offsetY(.dark), level.offsetY(.light), "\(level.name) offset")
+            XCTAssertLessThanOrEqual(level.blurRadius(.dark), level.blurRadius(.light), "\(level.name) blur")
+            XCTAssertLessThanOrEqual(level.offsetY(.dark), level.offsetY(.light), "\(level.name) offset")
             XCTAssertGreaterThan(level.darkHairline, 0, "\(level.name) needs a dark hairline")
             XCTAssertLessThan(level.lightOpacity, 1)
             XCTAssertLessThan(level.darkOpacity, 1)
@@ -199,16 +206,14 @@ final class RoostColorRoleTests: XCTestCase {
         }
     }
 
-    /// The mockup's mapping: Anne is the green (.avatar-a / .tally-fill-a), Wes is the blue
-    /// (.avatar-p / .tally-fill-p), cat care is the green badge, chores are the gold one.
-    /// Anne/Wes/nudge each own a token now (same hex as what they used to borrow).
-    func testPeopleAndCategoriesKeepTheMockupsTints() {
+    /// Identity and status roles remain independent when the palette changes.
+    func testPeopleAndCategoriesKeepIndependentRoles() {
         XCTAssertEqual(RoostPerson.anne.role.token.name, "anne")
         XCTAssertEqual(RoostPerson.anne.softRole.token.name, "anneSoft")
         XCTAssertEqual(RoostPerson.wes.role.token.name, "wes")
         XCTAssertEqual(RoostPerson.wes.softRole.token.name, "wesSoft")
-        XCTAssertEqual(RoostPerson.anne.role.token.hex(.light), RoostColor.accentToken.hex(.light))
-        XCTAssertEqual(RoostPerson.wes.role.token.hex(.light), RoostColor.infoToken.hex(.light))
+        XCTAssertNotEqual(RoostPerson.anne.role.token.hex(.light), RoostColor.accentToken.hex(.light))
+        XCTAssertNotEqual(RoostPerson.wes.role.token.hex(.light), RoostColor.infoToken.hex(.light))
         XCTAssertEqual(RoostCategory.catCare.role.token.name, "accent")
         XCTAssertEqual(RoostCategory.home.role.token.name, "gold")
         XCTAssertEqual(RoostCategory.meals.role.token.name, "meal")
@@ -233,7 +238,7 @@ final class RoostColorRoleTests: XCTestCase {
     func testNudgeStageHasItsOwnToken() {
         XCTAssertEqual(RoostColor.Role.nudge.token.name, "nudge")
         XCTAssertEqual(RoostColor.Role.nudgeSoft.token.name, "nudgeSoft")
-        XCTAssertEqual(RoostColor.Role.nudge.token.hex(.light), RoostColor.infoToken.hex(.light))
+        XCTAssertNotEqual(RoostColor.Role.nudge.token.hex(.light), RoostColor.infoToken.hex(.light))
         XCTAssertNotEqual(
             RoostColor.Role.nudge.token,
             RoostColor.Role.notice.token,

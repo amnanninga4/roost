@@ -12,6 +12,26 @@ final class HomeSummaryTests: XCTestCase {
         TodayPlanTestBuilder.plan(anne: anne, wes: wes)
     }
 
+    func testSharedRosterShowsTogetherChoreOnceWithoutChangingPersonalCounts() throws {
+        let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-21T17:00:00Z"))
+        let chore = Chore(id: "together", title: "Clean the fridge", cadence: .daily, category: .chore, together: true)
+        let plan = TodayPlanner.plan(chores: [chore], completions: [], asOf: now, activeFrom: now)
+        let summary = HomeSummary(plan: plan, me: .anne, doorCounts: noDoors)
+        XCTAssertEqual(summary.columns.map(\.dueCount), [1, 1])
+        XCTAssertEqual(summary.openRows.map(\.chore.id), ["together"])
+    }
+
+    func testSharedRosterPutsTodayBeforeAnEarlyWeeklyWindow() throws {
+        let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-21T17:00:00Z"))
+        let chores = [
+            Chore(id: "later", title: "Weekly", cadence: .weekly, fixedAssignee: .anne, category: .chore),
+            Chore(id: "today", title: "Daily", cadence: .daily, fixedAssignee: .wes, category: .chore),
+        ]
+        let plan = TodayPlanner.plan(chores: chores, completions: [], asOf: now, activeFrom: now)
+        let summary = HomeSummary(plan: plan, me: .anne, doorCounts: noDoors)
+        XCTAssertEqual(summary.openRows.map(\.chore.id), ["today", "later"])
+    }
+
     func testBothOweShowsTheSplit() {
         let summary = HomeSummary(plan: plan(anne: 4, wes: 5), me: .wes, doorCounts: noDoors)
         XCTAssertEqual(summary.sentence, "5 for you, 4 for Anne.")

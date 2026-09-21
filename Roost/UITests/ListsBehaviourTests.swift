@@ -50,6 +50,48 @@ final class ListsBehaviourTests: RoostUITestCase {
         }
     }
 
+    func testBoughtHeaderAndClearActionScaleAtLargestTextSize() {
+        let app = XCUIApplication()
+        var normalHeadingHeight: CGFloat = 0
+        var normalActionWidth: CGFloat = 0
+        for category in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            app.launchArguments = [
+                "-roostUITestState", "paired",
+                "-UIPreferredContentSizeCategoryName", category,
+            ]
+            app.launch()
+            openList("Shopping", in: app)
+            let clear = app.buttons["Clear bought"]
+            scrollIntoView(clear, in: app)
+            let heading = app.staticTexts["BOUGHT"]
+            XCTAssertTrue(heading.waitForExistence(timeout: Self.timeout))
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "Shopping-bought-\(category)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            if normalHeadingHeight == 0 {
+                normalHeadingHeight = heading.frame.height
+                normalActionWidth = clear.frame.width
+                XCTAssertGreaterThan(normalHeadingHeight, 0)
+                XCTAssertGreaterThan(normalActionWidth, 0)
+            } else {
+                XCTAssertGreaterThan(heading.frame.height, normalHeadingHeight * 1.5)
+                XCTAssertGreaterThan(clear.frame.width, normalActionWidth * 1.5)
+                XCTAssertLessThanOrEqual(heading.frame.maxY, clear.frame.minY,
+                                         "the action gets its own line at accessibility sizes")
+                clear.tap()
+                let removed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: clear)
+                wait(for: [removed], timeout: Self.timeout)
+                let unbought = app.buttons["Cat litter"]
+                for _ in 0 ..< 4 where !unbought.exists {
+                    app.collectionViews["shoppingList"].swipeDown()
+                }
+                XCTAssertTrue(unbought.exists, "clearing bought items preserves the running list")
+            }
+            app.terminate()
+        }
+    }
+
     func testADraftSurvivesSwitchingPagesAndBack() {
         let app = launch(.paired)
         waitForTasks(in: app)

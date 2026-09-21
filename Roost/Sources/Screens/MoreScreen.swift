@@ -13,6 +13,11 @@ struct MoreScreen: View {
         NavigationStack(path: $navigation.morePath) {
             List {
                 Section {
+                    Button { navigation.showBoard() } label: {
+                        MoreRow(title: Strings.More.board, symbol: "checklist")
+                    }
+                    .accessibilityIdentifier("more.choreBoard")
+                    .listRowBackground(RoostColor.Role.surface.color)
                     Button { showKitchen = true } label: {
                         MoreRow(title: Strings.Kitchen.menuEntry, symbol: "rectangle.on.rectangle")
                     }

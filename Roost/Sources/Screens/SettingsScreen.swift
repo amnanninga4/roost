@@ -27,7 +27,7 @@ struct SettingsScreen: View {
     /// The same key `RoostApp` reads. Two `@AppStorage`s on one key are one value: writing it here moves
     /// the window's `preferredColorScheme` in the same frame, so the sheet and the screen behind it change
     /// together with nothing to relaunch.
-    @AppStorage(Appearance.storageKey) private var storedAppearance = Appearance.system.rawValue
+    @AppStorage(Appearance.storageKey) private var storedAppearance = Appearance.defaultChoice.rawValue
 
     @State private var model: SettingsModel?
     @State private var confirmingUnpair = false

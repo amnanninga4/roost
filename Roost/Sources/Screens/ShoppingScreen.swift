@@ -11,6 +11,7 @@ import SwiftUI
 struct ShoppingScreen: View {
     @Environment(\.modelContext) private var context
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @Query(filter: #Predicate<ShoppingItemRecord> { !$0.removed }, sort: \ShoppingItemRecord.createdAt, order: .reverse)
     private var items: [ShoppingItemRecord]
@@ -89,18 +90,26 @@ struct ShoppingScreen: View {
         }
     }
 
-    /// "Bought" over the action that empties it. The button is the only chrome in a section header,
-    /// so it carries the accent and its own tap target.
+    /// At accessibility sizes the section action gets its own line instead of competing with the heading.
     private var boughtHeader: some View {
-        HStack {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
+            : AnyLayout(HStackLayout(spacing: RoostSpacing.sm))
+        return layout {
             Text(Strings.Shopping.boughtSection.uppercased())
-                .roostType(.monoLabel)
+                .font(.caption.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(RoostColor.Role.textSecondary.color)
-            Spacer(minLength: RoostSpacing.sm)
-            Button(Strings.Shopping.clearBought, action: clearBought)
-                .roostType(.footnote)
-                .foregroundStyle(RoostColor.Role.accent.color)
-                .buttonStyle(.roostTrailingTextAction)
+            if !typeSize.isAccessibilitySize {
+                Spacer(minLength: RoostSpacing.sm)
+            }
+            Button(action: clearBought) {
+                Text(Strings.Shopping.clearBought)
+                    .font(.footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .foregroundStyle(RoostColor.Role.accent.color)
+            .buttonStyle(.roostTrailingTextAction)
         }
         .textCase(nil)
     }

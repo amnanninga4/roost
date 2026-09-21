@@ -29,6 +29,18 @@ enum Strings {
     enum Home {
         /// The tab's title in the bar.
         static let title = "Home"
+        static let chores = "Chores"
+        static func showAll(_ count: Int) -> String {
+            "Show all \(count) chores"
+        }
+
+        static func weeklySummary(anne: Int, wes: Int) -> String {
+            "This week: Anne \(anne) done · Wes \(wes) done"
+        }
+
+        static func rowValue(owner: String, timing: String) -> String {
+            "\(owner), \(timing)"
+        }
 
         /// The two segments inside the Home tab.
         static let segmentHome = "Home"
@@ -92,6 +104,7 @@ enum Strings {
 
     /// The More tab: what the gear menu held, as a page.
     enum More {
+        static let board = "Chore board"
         /// Section headers, in the mono eyebrow like Settings', so written in caps here.
         static let household = "HOUSEHOLD"
         static let thisPhone = "THIS PHONE"

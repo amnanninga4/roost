@@ -20,6 +20,7 @@ struct PersonColumnView: View {
     /// other phone has to answer already reads on this one as "Asked Wes · waiting" on the row it came
     /// from, and a card with two buttons nobody here may press would be the same news twice.
     var offers: [IncomingOffer] = []
+    var showsHeader = true
     let toggle: (TodayRow) -> Void
     /// Offers a row's turn to the other person. Nil on a column this phone cannot act in.
     var offer: ((TodayRow) -> Void)?
@@ -37,8 +38,47 @@ struct PersonColumnView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: RoostSpacing.sm) {
-            header
-            card
+            if showsHeader {
+                header
+            }
+            if showsHeader {
+                card
+            } else {
+                profileSections
+            }
+        }
+    }
+
+    private var profileSections: some View {
+        VStack(alignment: .leading, spacing: RoostSpacing.sectionGap) {
+            if rows.isEmpty {
+                clearLine(Strings.Tasks.nothingDue)
+            }
+            profileSection(groups.overdue, title: Strings.Home.overdue, style: .standard)
+            profileSection(groups.today, title: Strings.Home.today, style: .standard)
+            profileSection(groups.later, title: Strings.Home.ifYouHaveTime, style: .quiet)
+        }
+        .onAppear { entered = true }
+    }
+
+    @ViewBuilder
+    private func profileSection(_ rows: [TodayRow], title: String, style: ChoreRowView.Style) -> some View {
+        if !rows.isEmpty {
+            VStack(alignment: .leading, spacing: RoostSpacing.sm) {
+                Text(title).roostType(.title)
+                    .foregroundStyle(RoostColor.Role.textPrimary.color)
+                    .accessibilityAddTraits(.isHeader)
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        if index > 0 {
+                            Divider()
+                        }
+                        choreRow(row, style: style, index: index)
+                    }
+                }
+                .padding(.horizontal, RoostSpacing.sm)
+                .roostCard()
+            }
         }
     }
 
@@ -190,6 +230,7 @@ struct PersonColumnView: View {
         ChoreRowView(
             row: row,
             style: style,
+            compactPresentation: !showsHeader,
             onOffer: offerAction(for: row),
             onWithdraw: withdrawAction(for: row),
             onShowInAllChores: showInAllChores

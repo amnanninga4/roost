@@ -34,7 +34,6 @@ struct RoostSegmentedControl<Item: Identifiable & Hashable>: View where Item.ID 
             }
         }
         .padding(RoostSpacing.xxs)
-        .background(RoostColor.Role.surfaceElevated.color, in: RoostRadius.pillShape)
     }
 
     @ViewBuilder
@@ -50,16 +49,17 @@ struct RoostSegmentedControl<Item: Identifiable & Hashable>: View where Item.ID 
                     .fontWeight(selected ? .semibold : .regular)
             }
         }
-        .foregroundStyle(selected ? RoostColor.Role.textPrimary.color : RoostColor.Role.textSecondary.color)
+        .foregroundStyle(selected ? RoostColor.Role.accent.color : RoostColor.Role.textSecondary.color)
         .frame(maxWidth: .infinity)
         .frame(minHeight: RoostSpacing.minTapTarget)
-        .background {
+        .overlay(alignment: .bottom) {
             if selected {
-                RoostRadius.pillShape
-                    .fill(RoostColor.Role.surface.color)
-                    .matchedGeometryEffect(id: "pill", in: pill)
+                Rectangle()
+                    .fill(RoostColor.Role.accent.color)
+                    .frame(height: RoostSpacing.xxs)
+                    .matchedGeometryEffect(id: "underline", in: pill)
             }
         }
-        .contentShape(RoostRadius.pillShape)
+        .contentShape(Rectangle())
     }
 }
