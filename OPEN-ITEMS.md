@@ -8,46 +8,47 @@ tracks the lane in flight; anything that outlives the lane belongs here instead.
 An item that has not moved gets louder, not quieter. Delete an item only when it is done or
 explicitly dropped; say which in the commit message.
 
-_Last swept: 2026-09-16 01:35 CDT (home-screen visual pass)_
+_Last swept: 2026-09-20 (source and read-only GitHub reconciliation)._
 
-Five items came off the Fable list in that sweep. Four were done: Home's sync notice, the remembered
-Home/board segment, `TodayScreen`'s nested `NavigationStack`, and the UI-test launch reset (now driven
-off `UITestSeed.rememberedKeys` rather than three hand-written lines). The fifth — "scroll screens do
-not reserve room for the floating tab bar" — was **dropped as misdiagnosed, not fixed**; the bar's
-whole 83-pt band is already in the bottom safe area and the `ScrollView` already insets for it. The
-measurement is in NOTES.md so the 96-pt constant it asked for does not get proposed again.
+No pull requests were open at this sweep. Appearance (#65), simulator setup (#90),
+package CI (#94), and Home work are merged. Home's tab-bar clearance concern was
+dropped as misdiagnosed; preserve the measurement in `NOTES.md`.
+
+The cleanup adds a verified empty-room fixture and Home navigation test, pins the
+Node runtime used locally and in CI, and covers Shopping composer scaling and
+submission at the largest text size. The matching custom-font audit false positive
+is narrowly allowed; the remaining accessibility checks still run. See GitHub CI
+for validation of the current revision.
 
 ## Blocked on Wes
 
 | Item | Since | Why it matters |
 |---|---|---|
-| Anne's phone has never appeared on this Mac | 2026-09-13 | Wes's phone now runs main (installed 2026-09-15 12:32, build f5aff0e). Anne's is still on whatever it had on 09-13. It needs its own install session: unlock the phone, have it on this network, then `./scripts/install-device.sh <id>`. |
-| PR #65 — Appearance choice in Settings | 2026-09-14 | Green. Unreviewed. |
-| `TAILSCALE_API_KEY` in `~/.fleet-secrets/live/integrations.env` is invalid | 2026-09-14 | Needs minting. Nothing currently depends on it; `fssh` works. |
-| peers-fleet decisions | 2026-09-14 | Report `~/claude-reports/peers-fleet-2026-09-14.md`. Open: ponytail cuts, dashboard LaunchAgent, Kimi bridge, clarsmini push key. No sessions are running; that lead is stopped, not working. |
+| Verify the build installed on each phone and distribution route | 2026-09-20 | Historical install notes do not establish either phone’s current build. Registered-device counts do not prove current installs or TestFlight use. Confirm before changing push environment. |
+| Historical Tailscale credential follow-up | 2026-09-14 | September 14 notes reported an invalid `TAILSCALE_API_KEY` and working `fssh`. Neither the credential nor current fleet state was checked in this cleanup; revalidate before acting. |
+| peers-fleet decisions | 2026-09-14 | Report `~/claude-reports/peers-fleet-2026-09-14.md`. September 14 follow-ups: ponytail cuts, dashboard LaunchAgent, Kimi bridge, clarsmini push key. That report said the lead had stopped and no sessions were running; current session state was not checked. |
 
 ## Waiting on Anne
 
 | Item | Since | Why it matters |
 |---|---|---|
-| Three questions on issue #1 | 2026-09-13 | Garbage third location; which months mowing runs; whether the hair chore is right as every-two-months pinned to Anne. Asked 09-13, re-asked 09-14 twice, no reply since. Chore data is not final until these land. This sat under **Blocked on Wes** for two days, which was simply wrong — Wes cannot answer them for her. |
+| Three questions on issue #1 | 2026-09-13 | Garbage third location; which months mowing runs; whether the hair chore is right as every-two-months pinned to Anne. All 19 issue #1 comments were checked September 20. These questions were asked September 14 and repeated September 15; the latest comment (September 15, 02:13 UTC) still lists all three as open, with no later reply. No explicit confirmation was found in the thread; do not infer approval from shipped chore data. |
 
 ## Owned by Fable
 
 | Item | Since | Note |
 |---|---|---|
-| APNs key is live — `env` must flip to `production` for TestFlight | 2026-09-15 | Installed 17:53 CDT: `/etc/roost/AuthKey_2K6FF2VMGK.p8` + `apns.json`, root:roost 0640, `/health` reports `push: "sandbox"`. Debug builds get sandbox tokens and TestFlight builds get production ones; a mismatch fails silently with no error. The key itself covers both environments, so this is a one-line config change on the day the phones move to TestFlight. Backup of the `.p8` is in `~/.fleet-secrets/live/` — Apple will not reissue it. |
-| Push over SSH, not HTTPS, for anything under `.github/workflows/` | 2026-09-15 | `remote.origin.pushurl` is now `git@github.com:amnanninga4/roost.git` in this clone. The HTTPS remote uses gh's OAuth token, which is refused on workflow files without the `workflow` scope; an SSH key is not an OAuth app and is not checked. This sat on the blocked-on-Wes list for an hour as "needs `gh auth refresh`" — it was never his to unblock. Wes caught it: "you literally have ssh". |
-| CI runner sometimes has no iPhone 17 Pro simulator | 2026-09-14 | Seen once: `xcodebuild` found no matching destination on the macos-26 image. Fix is a step that creates the simulator on the newest installed runtime when it is missing. **PR #90, open.** |
+| APNs environment must match the installed builds | 2026-09-20 | Health reports `sandbox`. Confirm Debug versus TestFlight distribution before any production switch, then verify actual delivery. No server configuration change is part of this cleanup. |
 | Handoffs ignore early due windows | 2026-09-15 | Shipped knowingly. `HandoffRules` counts calendar periods, so a chore with a `dueDay` of 1–6 (window opens in the previous month) refuses a handoff until the 1st. Documented in the due-windows spec. |
 | Density scorecard test unowned | 2026-09-13 | Flagged in the UX audit, never picked up. |
 | This Mac is on Xcode 27.0 / Swift 6.4; CI is on 26.6 | 2026-09-15 | Local green no longer proves CI green. CI is the authority on disagreement. |
-| No UI-test fixture with empty rooms | 2026-09-15 | `paired` fills all four lists, so the empty-household door strip — the state the spec designs for, and the one a new household actually arrives in — cannot be audited or screenshotted by the suite. It was checked once by hand against a throwaway fixture and reads correctly (four titles over four grey dashes). A `paired-empty-rooms` seed would make that checkable. |
 
 ## In flight
 
 | Item | State |
 |---|---|
-| Lane 2 — litter rotations | **Done.** Merged as #87 (main f5aff0e); server deployed and verified at chores v5 / schema v5. A stale worktree for it is still checked out at `~/Developer/roost-bot-work/worktrees/l1-litter` on the bot's machine-side clone. |
-| Home screen — the front door | **Built.** Tasks 1–8 of the lane are done and sitting in the working tree on `feat/home-screen`; Wes commits and opens the PR. The measurement is in the spec's "What it measured": 156 pt to the first checkable row against ~190–210 pt on the old screen. What outlived the lane is on the Fable list above. |
-| Lanes 3–6, unstarted | daily cap + bonus list; step deadlines + approaching notifications; add-a-chore from the app; Movies & TV watchlist. Order is Fable's; 4 and 6 depend on the APNs key above. |
+| Lanes 3–6, unstarted | daily cap + bonus list; step deadlines + approaching notifications; add-a-chore from the app; Movies & TV watchlist. Retained backlog, not authorized by the cleanup. |
+
+Litter rotations merged as #87, and Home is on main (latest change `ea0c0c2`).
+The previously noted litter worktree on another clone has not been inspected or removed.
+Fleet-only entries above are retained historical follow-ups, not verified current fleet faults.

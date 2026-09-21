@@ -27,7 +27,7 @@ jobs:
       # lockfile and nothing to install.
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
 
       - name: Node version
         run: node --version
@@ -50,8 +50,8 @@ jobs:
       # The macos-26 image ships Xcode 26.6 (default), 26.5, 26.4.1, 26.3, 26.2,
       # 26.1.1 and 26.0.1 under /Applications/Xcode_<version>.app. 26.6 is pinned
       # rather than left to /Applications/Xcode.app so an image default bump is a
-      # deliberate edit here. (26.3 is what the Mac builds with today, if we ever
-      # need CI and local to be byte-identical toolchains.)
+      # deliberate edit here. The Mac currently runs Xcode 27.0; CI remains the
+      # authority when the two toolchains disagree.
       - name: Select Xcode 26.6
         run: |
           sudo xcode-select -s /Applications/Xcode_26.6.app

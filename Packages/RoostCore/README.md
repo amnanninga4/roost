@@ -1,6 +1,6 @@
 # RoostCore
 
-Pure-logic Swift package for Roost. No UI, no SwiftData, no networking. The app and the server both stay dumb about scheduling; this package is the one place that decides what is due, for whom, how overdue it is, and how the tallies and streaks read.
+Pure-logic Swift package for Roost. No UI, no SwiftData, no networking. This package decides what is due, for whom, how overdue it is, and how the tallies and streaks read for the app. `server/src/rules.js` mirrors these rules for server digests and push; changes must keep the two implementations aligned.
 
 ## What's in it
 
@@ -15,9 +15,9 @@ Pure-logic Swift package for Roost. No UI, no SwiftData, no networking. The app 
 - **EscalationStage** — `dueToday` (0 days), `nudge` (1–2), `pointed` (3–4), `alert` (5+). The mockup's copy for each stage lives in the app.
 - **Tallies** — `doneThisWeek(asOf:completions:)` and `streak(for:asOf:completions:handoffs:)`.
 
-## Rules (provisional)
+## Implemented rules
 
-These are defaults so the app can be built. None of them are confirmed by Anne or Wes yet; change them here and everything downstream follows.
+These describe current behavior. Dated product decisions are in `NOTES.md` and their linked specs; unresolved confirmations are in `OPEN-ITEMS.md`. Changing a shared rule requires updating the server mirror as well.
 
 - **Periods.** Daily = each Chicago day. Weekly = Monday–Sunday. Biweekly = two of those, counted from the anchor. Monthly = calendar month. Bimonthly = two calendar months, quarterly = three, both counted from January 2026 (Jan–Feb, Mar–Apr, …; Jan–Mar, Apr–Jun, …).
 - **Due / overdue.** A chore is complete for a period if any completion falls inside it. The scheduler shows the *oldest* incomplete period on or after `activeFrom` (the day the household started using Roost). `daysOverdue` is 0 while the window (or period) is still open, otherwise whole days past `dueLastDay`. Completing the chore now clears all older missed periods: one nag, not a backlog.
@@ -83,4 +83,4 @@ cd Packages/RoostCore
 swift build && swift test
 ```
 
-The tests read the real `data/chores.json` from the repo (41 chores, 10 pinned, 15 windows) via a path computed from `#filePath`, so moving the package or the data file will fail loudly. RoostCore currently runs 64 tests.
+The tests read the real `data/chores.json` from the repo (41 chores, 10 pinned, 15 windows) via a path computed from `#filePath`, so moving the package or the data file will fail loudly. Run `swift test` from this package for the current suite.

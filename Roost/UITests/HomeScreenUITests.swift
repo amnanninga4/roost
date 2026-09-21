@@ -29,9 +29,7 @@ final class HomeScreenUITests: RoostUITestCase {
         )
     }
 
-    /// The doors are drawn whether or not their rooms hold anything. The `paired` fixture fills all
-    /// four, so what this covers is that every door reaches the screen; the empty-room case is
-    /// `HomeSummaryTests.testEmptyRoomsShowNoCount`, where it can be asserted rather than looked at.
+    /// All four populated rooms remain reachable from Home.
     func testEveryDoorIsOnTheStrip() {
         let app = launch(.paired)
         XCTAssertTrue(
@@ -40,6 +38,33 @@ final class HomeScreenUITests: RoostUITestCase {
         )
         for room in ["shopping", "meals", "projects", "wishlist"] {
             XCTAssertTrue(app.buttons["home.door.\(room)"].exists, "missing door: \(room)")
+        }
+    }
+
+    func testEmptyRoomsKeepTheirDoorsAndOpenTheirEmptyStates() {
+        let app = launch(.pairedEmptyRooms)
+        XCTAssertTrue(app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout))
+        let rooms = [
+            ("shopping", "Shopping", "Nothing on the list."),
+            ("meals", "Meals", "No ideas saved yet."),
+            ("projects", "Projects", "No projects yet."),
+            ("wishlist", "Wishlist", "Nothing on the wishlist."),
+        ]
+        for (id, title, _) in rooms {
+            let door = app.buttons["home.door.\(id)"]
+            XCTAssertTrue(door.exists, "missing empty-room door: \(title)")
+            XCTAssertEqual(door.label, title, "an empty room must not announce a count")
+        }
+        for (id, title, emptyState) in rooms {
+            let door = app.buttons["home.door.\(id)"]
+            scrollIntoView(door, in: app)
+            door.tap()
+            XCTAssertTrue(
+                app.staticTexts[emptyState].waitForExistence(timeout: Self.timeout),
+                "\(title)'s door did not reach its empty state"
+            )
+            app.tabBars.buttons["Home"].tap()
+            XCTAssertTrue(app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout))
         }
     }
 

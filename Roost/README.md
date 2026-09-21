@@ -1,6 +1,6 @@
 # Roost/ — the iOS app
 
-SwiftUI + SwiftData, iOS 26+, offline-first. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy; R-11 added the Shopping, Meals, and Projects tabs and their sync; R-17 added Kitchen mode, the counter display; D-2 was a craft pass over the Tasks tab (design tokens throughout, the check-off interaction, visible escalation, the empty and offline states, and one celebration a day); D-3 made the three list tabs finished screens (a composer, a Bought section, a five-second undo on every delete, drag-to-reorder steps, finished projects); D-4 added first-run onboarding, pairing by six-digit code, and the Settings screen; D-4b restyled Settings in the design system and gave it the server's own device label and pairing date from `GET /me`; D-5 registered this phone for the server's APNs pushes and added the Home Screen and Lock Screen widget; D-8 added handoffs — offering a turn to the other person — and moved the household start date onto the server. D-6 added the UI test target: an accessibility audit per screen that runs in CI, the fixes it found, and the Shopping list's scroll metrics. The 2026-09-13 bar change replaced the four tabs with Tasks · Lists · More, put Shopping, Meals, Projects and a new Wishlist under Lists, and moved the gear menu to the More page, and gave projects an optional due day and steps an optional owner, with a reminder on the morning a project is due. D-10 added the Appearance choice in Settings.
+SwiftUI + SwiftData, iOS 26+, offline-first. The current tab shell is Home · Lists · More; Home shows both people side by side and provides access to the chore boards. The history and screenshots below also include earlier Tasks-tab layouts. The phone keeps its own store and syncs it against `server/` when it can reach it. R-2 built the store and the chore list; R-8 added the Today screen, check-off, pairing, and the sync client; R-10 added the tab shell, the streak header, and the escalation copy; R-11 added the Shopping, Meals, and Projects tabs and their sync; R-17 added Kitchen mode, the counter display; D-2 was a craft pass over the Tasks tab (design tokens throughout, the check-off interaction, visible escalation, the empty and offline states, and one celebration a day); D-3 made the three list tabs finished screens (a composer, a Bought section, a five-second undo on every delete, drag-to-reorder steps, finished projects); D-4 added first-run onboarding, pairing by six-digit code, and the Settings screen; D-4b restyled Settings in the design system and gave it the server's own device label and pairing date from `GET /me`; D-5 registered this phone for the server's APNs pushes and added the Home Screen and Lock Screen widget; D-8 added handoffs — offering a turn to the other person — and moved the household start date onto the server. D-6 added the UI test target: an accessibility audit per screen that runs in CI, the fixes it found, and the Shopping list's scroll metrics. The 2026-09-13 bar change replaced the four tabs with Tasks · Lists · More, put Shopping, Meals, Projects and a new Wishlist under Lists, and moved the gear menu to the More page, and gave projects an optional due day and steps an optional owner, with a reminder on the morning a project is due. D-10 added the Appearance choice in Settings.
 
 | Tasks | Lists | Wishlist | More |
 | --- | --- | --- | --- |
@@ -254,13 +254,15 @@ Every test launches the app with `-roostUITestState <name>`. That is a DEBUG-onl
   returns `.unpaired` on that nil before it builds a request, so no test ever waits on a network call or
   reaches the real server. That is a guarantee rather than a timeout — there is no URL to reach.
 
-Three fixtures:
+UI-test fixtures:
 
 | name | what it is |
 | --- | --- |
 | `onboarding` | no token, so `RootGate` shows the first-run flow |
 | `paired` | paired as Anne: ten daily chores, the whole escalation ladder, one of each handoff state (plus one offer still on this phone, so a row can offer Withdraw), four shopping rows, two wishlist rows, four meals, two projects (one project due in three days with a step that is Wes's) |
+| `paired-empty-rooms` | `paired` chores and handoffs, with Shopping, Meals, Projects, and Wishlist empty; Home's doors still lead to each empty state |
 | `shopping-large` | `paired` plus 200 more shopping rows, every fifth one long enough to wrap |
+| `paired-windows` | `paired` plus a completed quarterly chore with a due-day window for All chores |
 
 Every date in the fixture is an offset from the start of today, and the chores are daily and pinned, so the
 same launch draws the same screen on any day: a chore last done N days ago is N−1 days overdue, which is
@@ -585,7 +587,7 @@ iOS answers at `application(_:didRegisterForRemoteNotificationsWithDeviceToken:)
 
 **Entitlement.** `Roost.entitlements` is generated by xcodegen from `project.yml` and carries `aps-environment: development` plus the App Group. `development` is the only honest value for a repo with no team, and it matches the `"env": "sandbox"` the host's `apns.json` uses; TestFlight and the App Store rewrite it at export. `UIBackgroundModes: [remote-notification]` is in the Info.plist. `DEVELOPMENT_TEAM` stays blank, and no Team ID, certificate, APNs key, or device token is anywhere in the repo — **a real device needs Wes's team for signing**, set in Xcode locally and never committed. The simulator needs none of that: it applies entitlements from the binary rather than a provisioning profile, so the App Group works there, and a build with `CODE_SIGNING_ALLOWED=NO` simply has no entitlements at all (see below).
 
-Push is off server-side until the APNs key is on the host; `GET /health` reports `push` as `no key`, `sandbox`, or `production`.
+`GET /health` reports push configuration as `no key`, `sandbox`, or `production`; see the regenerated `docs/STATUS.md` for the observed environment. Configuration alone does not establish delivery to either phone.
 
 ## Widget
 

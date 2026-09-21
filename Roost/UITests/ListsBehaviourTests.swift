@@ -3,6 +3,53 @@
 import XCTest
 
 final class ListsBehaviourTests: RoostUITestCase {
+    /// Check the rendered input, not just the design system's reference scale. XCTest sometimes
+    /// reports custom-font UITextFields as partially unsupported even when SwiftUI scales them.
+    func testShoppingComposerScalesAndSubmitsAtLargestTextSize() {
+        let app = XCUIApplication()
+        var normalHeight: CGFloat = 0
+        for category in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            app.launchArguments = [
+                "-roostUITestState", "paired",
+                "-UIPreferredContentSizeCategoryName", category,
+            ]
+            app.launch()
+            openList("Shopping", in: app)
+            let field = app.textFields["Add an item…"]
+            XCTAssertTrue(field.waitForExistence(timeout: Self.timeout))
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "Shopping-\(category)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            if normalHeight == 0 {
+                normalHeight = field.frame.height
+                XCTAssertGreaterThan(normalHeight, 0)
+            } else {
+                XCTAssertGreaterThan(field.frame.height, normalHeight * 1.5, "the input must grow with Dynamic Type")
+                field.tap()
+                field.typeText("Paper towels")
+                XCTAssertEqual(field.value as? String, "Paper towels")
+                field.typeText("\n")
+                let cleared = NSPredicate(format: "value == %@ OR value == %@", "", "Add an item…")
+                let emptyField = expectation(for: cleared, evaluatedWith: field)
+                wait(for: [emptyField], timeout: Self.timeout)
+                // Return keeps focus for another item. An empty Return dismisses the keyboard;
+                // at accessibility XXXL the new row may be below it and not yet built by List.
+                field.tap()
+                field.typeText("\n")
+                let row = app.buttons["Paper towels"]
+                for _ in 0 ..< 4 where !row.exists {
+                    app.collectionViews["shoppingList"].swipeUp()
+                }
+                XCTAssertTrue(
+                    row.waitForExistence(timeout: Self.timeout),
+                    "Return must still add the item"
+                )
+            }
+            app.terminate()
+        }
+    }
+
     func testADraftSurvivesSwitchingPagesAndBack() {
         let app = launch(.paired)
         waitForTasks(in: app)
