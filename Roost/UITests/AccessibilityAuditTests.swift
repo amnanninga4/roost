@@ -88,7 +88,9 @@ final class AccessibilityAuditTests: RoostUITestCase {
     /// amount of bottom padding changes it. The scroll is settled before the audit runs, so what is
     /// audited is where the doors come to rest.
     func testHomeScrolledToTheDoorsAudit() throws {
-        let app = launch(.paired)
+        let app = XCUIApplication()
+        app.launchArguments = ["-roostUITestState", "paired", "-appearance", "dark"]
+        app.launch()
         XCTAssertTrue(
             app.staticTexts["dateEyebrow"].waitForExistence(timeout: Self.timeout),
             "the app never reached Home"

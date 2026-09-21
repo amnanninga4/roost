@@ -24,6 +24,7 @@ struct HomeMatchupView: View {
                                     Text(column.person.displayName).roostType(.headline)
                                     Image(systemName: "chevron.right").font(.caption)
                                         .foregroundStyle(RoostColor.Role.textSecondary.color)
+                                        .accessibilityHidden(true)
                                 }
                                 Text(Strings.Home.left(column.dueCount))
                                     .roostType(.subheadline)
@@ -36,8 +37,6 @@ struct HomeMatchupView: View {
                     }
                     .buttonStyle(.roostPressQuiet)
                     .foregroundStyle(RoostColor.Role.textPrimary.color)
-                    .accessibilityLabel(column.person.displayName)
-                    .accessibilityValue(Strings.Home.left(column.dueCount))
                     .accessibilityHint(Strings.Home.openPerson)
                     .accessibilityIdentifier("home.open.\(column.person.rawValue)")
                 }

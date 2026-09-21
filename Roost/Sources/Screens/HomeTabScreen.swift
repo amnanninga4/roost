@@ -11,6 +11,8 @@ struct HomeTabScreen: View {
             HomeScreen(onOpenPerson: navigation.showPerson, onOpenMatchup: navigation.showMatchup)
                 .navigationTitle(Strings.appTitle)
                 .toolbarTitleDisplayMode(.inline)
+                .toolbarBackground(RoostColor.Role.background.color, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
                 .navigationDestination(for: HomeRoute.self) { route in
                     switch route {
                     case let .person(person):
