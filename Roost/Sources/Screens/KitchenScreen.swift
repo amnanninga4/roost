@@ -10,20 +10,9 @@ import SwiftData
 // through sync), the coordinator's last sync is observed for the bottom line, and a 60-second timeline
 // moves the date, the days-late counts, and the "Synced …" wording without a store change.
 //
-// D-6 moved this screen onto the design system, which it had been the last holdout from. Three things came
-// out of that, all of them things the accessibility audit was failing on:
-//
-//   - Type is `RoostType` rungs rather than `RoostFont.<face>(size:)`, so every line here follows the
-//     reader's text size. The one literal size left is the due count, which is the point of the screen —
-//     a number you can read from the other side of the kitchen — and it scales through `@ScaledMetric`
-//     with a ceiling so the largest accessibility size cannot push the two columns off the screen.
-//   - A card's colour is now its fill and its border; the words on it are `textPrimary` and
-//     `textSecondary`. The old version set the title and the badge in the stage's own colour, and in this
-//     palette that is 2.1:1 for the nudge stage against its own soft partner — the one contrast finding on
-//     this screen that no amount of squinting excused.
-//   - The stage's colour comes from `EscalationStage.role` / `.fillRole` (Tasks/TaskStyle.swift) instead of
-//     a second private mapping here, which is what the old comment already claimed. A chore now looks the
-//     same on the counter as it does on the phone, because there is one table.
+// Native semantic fonts preserve Dynamic Type. At accessibility sizes the people stack vertically,
+// allowing counts and metadata to grow without squeezing two columns into the phone's width.
+// Stage fills and borders come from the shared task style; text uses readable semantic roles.
 //
 // Close holds 44 pt: its padding is inside the button's label, not wrapped around the button, which is the
 // difference between a 44-pt target and a 30-pt one that merely looks like a 44-pt one.
@@ -32,6 +21,7 @@ import UIKit
 
 struct KitchenScreen: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(SyncCoordinator.self) private var sync
 
     @Query(filter: #Predicate<ChoreRecord> { !$0.retired }, sort: \ChoreRecord.sortOrder)
@@ -44,10 +34,6 @@ struct KitchenScreen: View {
 
     /// What the idle timer was before this screen disabled it, put back on dismiss.
     @State private var idleTimerWasDisabled = false
-    /// The due count's point size at the reader's text size. 52 at the default, which is the size the
-    /// counter was drawn at before it scaled at all.
-    @ScaledMetric(relativeTo: .largeTitle) private var scaledCount: CGFloat = 52
-
     private let calendar = HouseholdCalendar()
 
     var body: some View {
@@ -115,15 +101,21 @@ struct KitchenScreen: View {
     // MARK: pieces
 
     private func topBar(now: Date) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.sm))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+        return layout {
             Text(now.formatted(.dateTime.weekday(.wide).month(.wide).day().locale(.autoupdatingCurrent)).uppercased())
                 .roostType(.monoLabel)
                 .foregroundStyle(RoostColor.Role.accent.color)
                 // The same identifier the Tasks tab's date line carries, for the same reason: its label is
                 // today's date. See Roost/UITests/AccessibilityAuditTests.swift.
+                .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("dateEyebrow")
                 .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: RoostSpacing.sm)
+            if !dynamicTypeSize.isAccessibilitySize {
+                Spacer(minLength: RoostSpacing.sm)
+            }
             closeButton
         }
     }
@@ -147,7 +139,10 @@ struct KitchenScreen: View {
     }
 
     private func columns(_ model: KitchenModel) -> some View {
-        HStack(alignment: .top, spacing: RoostSpacing.md) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xl))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: RoostSpacing.md))
+        return layout {
             ForEach(model.columns, id: \.person) { column in
                 VStack(alignment: .leading, spacing: RoostSpacing.md) {
                     columnHead(column)
@@ -174,26 +169,18 @@ struct KitchenScreen: View {
                 .roostType(.display)
                 .foregroundStyle(RoostColor.Role.textPrimary.color)
             Text("\(column.dueCount)")
-                .font(RoostFont.mono(size: countSize, weight: .semibold))
+                .font(.largeTitle.scaled(by: 1.5).weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(RoostColor.Role.textPrimary.color)
                 .padding(.top, RoostSpacing.xxs)
             Text(Strings.Kitchen.dueTodayLabel)
                 .roostType(.monoLabel)
+                .fixedSize(horizontal: false, vertical: true)
                 .foregroundStyle(RoostColor.Role.textSecondary.color)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(column.person.displayName), \(Strings.Kitchen.dueToday(column.dueCount))")
     }
-
-    /// The due count, the one number on the screen that is meant to be read from a distance. It grows with
-    /// the reader's text size and stops at `Self.countCeiling`, past which two three-digit columns would
-    /// not fit side by side on any phone.
-    private var countSize: CGFloat {
-        min(scaledCount, Self.countCeiling)
-    }
-
-    private static let countCeiling: CGFloat = 76
 }
 
 /// The shared shout: every alert-stage chore from either person, named, until it is done.
@@ -202,12 +189,14 @@ private struct AlertBanner: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: RoostSpacing.md) {
-            Label {
-                Text(Strings.Kitchen.alertHeading)
-                    .roostType(.monoLabel)
-            } icon: {
+            HStack(alignment: .top, spacing: RoostSpacing.sm) {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .roostType(.caption)
+                    .accessibilityHidden(true)
+                Text(Strings.Kitchen.alertHeading)
+                    .roostType(.monoLabel)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .foregroundStyle(RoostColor.Role.danger.color)
             ForEach(items) { item in

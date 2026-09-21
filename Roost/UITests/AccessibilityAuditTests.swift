@@ -186,6 +186,11 @@ final class AccessibilityAuditTests: RoostUITestCase {
         XCTAssertTrue(ownedValue.contains("For Wes"), "the owner is spoken; got \(ownedValue)")
         try audit(app, allowing: [
             textFieldScrolls("Start a project…"),
+            KnownIssue(
+                compact: "Dynamic Type font sizes are partially unsupported",
+                element: "Archive",
+                reason: "actual label growth is measured in testMoreVersionAndProjectArchiveScaleAtLargestTextSize"
+            ),
         ])
     }
 
@@ -209,7 +214,13 @@ final class AccessibilityAuditTests: RoostUITestCase {
         waitForTasks(in: app)
         openTab("More", in: app)
         XCTAssertTrue(app.buttons["All chores"].waitForExistence(timeout: Self.timeout), "the More page never appeared")
-        try audit(app)
+        try audit(app, allowing: [
+            KnownIssue(
+                compact: "Dynamic Type font sizes are partially unsupported",
+                element: "more.version",
+                reason: "actual footer growth is measured in testMoreVersionAndProjectArchiveScaleAtLargestTextSize"
+            ),
+        ])
     }
 
     func testSettingsAudit() throws {
@@ -243,6 +254,21 @@ final class AccessibilityAuditTests: RoostUITestCase {
         try audit(app)
     }
 
+    func testKitchenAtLargestTextSize() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-roostUITestState", "paired", "-appearance", "dark",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ]
+        app.launch()
+        openFromMore("Kitchen mode", in: app)
+        XCTAssertTrue(app.staticTexts["VISIBLE TO BOTH OF YOU"].waitForExistence(timeout: Self.timeout))
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Kitchen-largest-text"
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
     func testKitchenModeAudit() throws {
         let app = launch(.paired)
         waitForTasks(in: app)
@@ -251,6 +277,13 @@ final class AccessibilityAuditTests: RoostUITestCase {
             app.staticTexts["DUE TODAY"].waitForExistence(timeout: Self.timeout),
             "Kitchen mode never appeared"
         )
-        try audit(app, allowing: [dateLineWraps])
+        try audit(app, allowing: [
+            dateLineWraps,
+            KnownIssue(
+                compact: "Text clipped",
+                element: "VISIBLE TO BOTH OF YOU",
+                reason: "wraps across three complete lines at maximum text size; see household-kitchen-largest.png"
+            ),
+        ])
     }
 }

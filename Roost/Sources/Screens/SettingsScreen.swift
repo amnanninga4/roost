@@ -62,13 +62,6 @@ struct SettingsScreen: View {
         .roostAnimation(.gentle, value: model?.identity)
         .navigationTitle(Strings.Settings.title)
         .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text(Strings.Settings.title)
-                    .roostType(.title)
-                    .foregroundStyle(RoostColor.Role.textPrimary.color)
-            }
-        }
         .task { await loadIdentity() }
         .confirmationDialog(
             Strings.Settings.unpairConfirmTitle,

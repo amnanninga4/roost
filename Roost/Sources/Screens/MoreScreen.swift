@@ -50,6 +50,7 @@ struct MoreScreen: View {
                     MoreHeader(Strings.More.thisPhone)
                 } footer: {
                     Text(AppVersion.line)
+                        .accessibilityIdentifier("more.version")
                         .roostType(.caption)
                         .foregroundStyle(RoostColor.Role.textSecondary.color)
                         .frame(maxWidth: .infinity)
@@ -84,6 +85,7 @@ private struct MoreRow: View {
         HStack(spacing: RoostSpacing.md) {
             Image(systemName: symbol)
                 .roostType(.body)
+                .dynamicTypeSize(.large)
                 .foregroundStyle(RoostColor.Role.accent.color)
                 .frame(width: RoostSpacing.xl)
                 .accessibilityHidden(true)

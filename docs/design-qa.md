@@ -28,4 +28,6 @@ Full-view comparisons resolved composition and density. At the normalized size, 
 - Largest-text Home switches the people summary to a vertical stack with full-width profile buttons.
 - Shopping's Bought controls have a dedicated normal/largest-text sizing and clear-action test. Both labels grew by more than 1.5×, stacked without overlap, and clearing bought items preserved unbought items. The native supplementary-header audit still reports those two nodes as partially unsupported; narrow, named exceptions cite this measured regression test and `household-shopping-largest.png`.
 
+The broader screen pass also reviewed Meals, Projects, Wishlist, More, Settings, and the legacy board. More version and Projects Archive labels passed measured >1.5× largest-text growth checks; exact audit exceptions cite that evidence. Settings now uses its standard native navigation title. Kitchen mode uses uncapped semantic counts and stacked columns at accessibility sizes. Its shared-alert heading is visibly complete across three lines in `household-kitchen-largest.png`; a named clipping-audit exception records this evidence.
+
 Visual comparison final result: passed. No remaining P0/P1/P2 visual discrepancy in the approved native adaptation. Full application tests and CI remain release gates; this document does not establish upload or installation.
