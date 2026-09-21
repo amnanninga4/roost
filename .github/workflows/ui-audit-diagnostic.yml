@@ -1,0 +1,53 @@
+name: Home audit diagnostic
+on:
+  push:
+    branches: [diag/meal-home-audit]
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select matching Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.6.app
+      - name: Run only the Home audit sequence
+        run: |
+          mkdir -p build
+          xcodebuild -project Roost/Roost.xcodeproj -scheme Roost \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
+            -only-testing:RoostUITests/AccessibilityAuditTests/testAllChoresAudit \
+            -only-testing:RoostUITests/AccessibilityAuditTests/testHomeAudit \
+            -only-testing:RoostUITests/AccessibilityAuditTests/testHomeScrolledToTheDoorsAudit \
+            -parallel-testing-enabled NO -collect-test-diagnostics never \
+            -resultBundlePath build/home-audit.xcresult test > build/private-test.log 2>&1
+      - name: Export screenshots only
+        if: always()
+        run: |
+          xcrun xcresulttool export attachments --path build/home-audit.xcresult --output-path build/raw-attachments
+          python3 - <<'PY'
+          import json, shutil
+          from pathlib import Path
+          source = Path('build/raw-attachments')
+          output = Path('build/audit-screenshots')
+          output.mkdir(parents=True, exist_ok=True)
+          names = []
+          for test in json.loads((source / 'manifest.json').read_text()):
+              if 'Home' not in test.get('testIdentifier', ''):
+                  continue
+              for attachment in test.get('attachments', []):
+                  filename = attachment['exportedFileName']
+                  if not filename.lower().endswith('.png'):
+                      continue
+                  target = f'screen-{len(names) + 1:02d}.png'
+                  shutil.copy(source / filename, output / target)
+                  names.append({'file': target, 'test': test.get('testIdentifier', '')})
+          (output / 'screens.json').write_text(json.dumps(names, indent=2))
+          PY
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: home-audit-screenshots
+          path: build/audit-screenshots/
+          retention-days: 2
