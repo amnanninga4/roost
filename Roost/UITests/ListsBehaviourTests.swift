@@ -136,6 +136,40 @@ final class ListsBehaviourTests: RoostUITestCase {
         }
     }
 
+    func testMealIdeaIsAddedFromASheet() {
+        let app = launch(.paired)
+        openList("Meals", in: app)
+        XCTAssertFalse(app.textFields["Add an idea…"].exists)
+        let page = XCTAttachment(screenshot: app.screenshot())
+        page.name = "Meals-with-add-button"
+        page.lifetime = .keepAlways
+        add(page)
+        app.buttons["meals.add"].tap()
+        let field = app.textFields["meals.idea"]
+        XCTAssertTrue(field.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(app.buttons["Save"].isEnabled)
+        field.tap()
+        field.typeText("Sheet-pan tofu")
+        let tag = app.textFields["Tag, like Weeknight"]
+        tag.tap()
+        tag.typeText("Weeknight")
+        let sheet = XCTAttachment(screenshot: app.screenshot())
+        sheet.name = "Meal-idea-sheet"
+        sheet.lifetime = .keepAlways
+        add(sheet)
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.buttons["meals.add"].waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(field.exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "Sheet-pan tofu").firstMatch.exists)
+        app.buttons["meals.add"].tap()
+        XCTAssertTrue(field.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(app.buttons["Save"].isEnabled)
+        field.tap()
+        field.typeText("Discard this meal")
+        app.buttons["Cancel"].tap()
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "Discard this meal").firstMatch.exists)
+    }
+
     func testADraftSurvivesSwitchingPagesAndBack() {
         let app = launch(.paired)
         waitForTasks(in: app)

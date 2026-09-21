@@ -154,7 +154,7 @@ final class AccessibilityAuditTests: RoostUITestCase {
         let app = launch(.paired)
         waitForTasks(in: app)
         openList("Meals", in: app)
-        try audit(app, allowing: [textFieldScrolls("Add an idea…")])
+        try audit(app)
     }
 
     func testProjectsAudit() throws {

@@ -207,6 +207,7 @@ enum Strings {
             "\(count) saved \(count == 1 ? "idea" : "ideas")"
         }
 
+        static let newIdea = "Add meal idea"
         static let add = "Add an idea…"
         static let tag = "Tag, like Weeknight"
         static let empty = "No ideas saved yet."
