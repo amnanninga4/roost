@@ -27,9 +27,22 @@ final class ListsBehaviourTests: RoostUITestCase {
             } else {
                 XCTAssertGreaterThan(field.frame.height, normalHeight * 1.5, "the input must grow with Dynamic Type")
                 field.tap()
-                field.typeText("Paper towels\n")
+                field.typeText("Paper towels")
+                XCTAssertEqual(field.value as? String, "Paper towels")
+                field.typeText("\n")
+                let cleared = NSPredicate(format: "value == %@ OR value == %@", "", "Add an item…")
+                let emptyField = expectation(for: cleared, evaluatedWith: field)
+                wait(for: [emptyField], timeout: Self.timeout)
+                // Return keeps focus for another item. An empty Return dismisses the keyboard;
+                // at accessibility XXXL the new row may be below it and not yet built by List.
+                field.tap()
+                field.typeText("\n")
+                let row = app.buttons["Paper towels"]
+                for _ in 0 ..< 4 where !row.exists {
+                    app.collectionViews["shoppingList"].swipeUp()
+                }
                 XCTAssertTrue(
-                    app.buttons["Paper towels"].waitForExistence(timeout: Self.timeout),
+                    row.waitForExistence(timeout: Self.timeout),
                     "Return must still add the item"
                 )
             }
