@@ -137,6 +137,55 @@ final class ListsBehaviourTests: RoostUITestCase {
         }
     }
 
+    func testMealsHeaderScalesAndAddRemainsReachableAtLargestTextSize() {
+        let app = XCUIApplication()
+        var normalHeights: [CGFloat] = []
+        for category in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            app.launchArguments = [
+                "-roostUITestState", "paired", "-appearance", "dark",
+                "-UIPreferredContentSizeCategoryName", category,
+            ]
+            app.launch()
+            waitForTasks(in: app)
+            openList("Meals", in: app)
+            let list = app.collectionViews["mealsList"]
+            let labels = [
+                list.staticTexts["Meals"],
+                list.staticTexts["4 saved ideas"],
+                list.staticTexts["Not paired · More → Settings"],
+            ]
+            for label in labels {
+                XCTAssertTrue(label.waitForExistence(timeout: Self.timeout))
+            }
+            let heights = labels.map(\.frame.height)
+            if normalHeights.isEmpty {
+                normalHeights = heights
+            } else {
+                for (normal, large) in zip(normalHeights, heights) {
+                    XCTAssertGreaterThan(large, normal * 1.5)
+                }
+            }
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "Meals-header-\(category)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            let addMeal = app.buttons["meals.add"]
+            XCTAssertTrue(addMeal.isHittable)
+            addMeal.tap()
+            XCTAssertTrue(app.textFields["meals.idea"].waitForExistence(timeout: Self.timeout))
+            app.buttons["Cancel"].tap()
+            if category == "UICTContentSizeCategoryAccessibilityXXXL" {
+                let meal = list.descendants(matching: .any).matching(identifier: "Sheet pan chicken").firstMatch
+                scrollIntoView(meal, in: app)
+                let rowShot = XCTAttachment(screenshot: app.screenshot())
+                rowShot.name = "Meals-largest-row"
+                rowShot.lifetime = .keepAlways
+                add(rowShot)
+            }
+            app.terminate()
+        }
+    }
+
     func testMealIdeaIsAddedFromASheet() {
         let app = launch(.paired)
         openList("Meals", in: app)

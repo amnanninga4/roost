@@ -38,10 +38,6 @@ enum Strings {
             "This week: Anne \(anne) done · Wes \(wes) done"
         }
 
-        static func rowValue(owner: String, timing: String) -> String {
-            "\(owner), \(timing)"
-        }
-
         /// The two segments inside the Home tab.
         static let segmentHome = "Home"
         static let segmentBoard = "Anne & Wes"

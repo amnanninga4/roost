@@ -63,6 +63,7 @@ struct MealsScreen: View {
                 }
             }
         }
+        .accessibilityIdentifier("mealsList")
         .roostAnimation(.standard, value: ordered.map(\.id))
         .roostHaptic(.selection, trigger: added)
         .roostHaptic(.checkOff, trigger: marked)
@@ -216,7 +217,9 @@ private struct MealRow: View {
 
     var body: some View {
         HStack(spacing: RoostSpacing.md) {
-            MealGlyph()
+            if !typeSize.isAccessibilitySize {
+                MealGlyph()
+            }
 
             VStack(alignment: .leading, spacing: RoostSpacing.xs) {
                 Text(meal.title)
@@ -225,7 +228,10 @@ private struct MealRow: View {
                 if hasMeta {
                     // At an accessibility size the badge cannot sit beside the title without
                     // crushing it, so it joins the meta line under it.
-                    HStack(spacing: RoostSpacing.sm) {
+                    let metadataLayout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
+                        : AnyLayout(HStackLayout(spacing: RoostSpacing.sm))
+                    metadataLayout {
                         if meal.nextUp, typeSize.isAccessibilitySize {
                             nextUpBadge
                         }

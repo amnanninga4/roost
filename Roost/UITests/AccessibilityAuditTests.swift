@@ -156,7 +156,19 @@ final class AccessibilityAuditTests: RoostUITestCase {
         let app = launch(.paired)
         waitForTasks(in: app)
         openList("Meals", in: app)
-        try audit(app)
+        // iOS 26.5 reports the styled header fonts as partially unsupported. The sizing test
+        // measures all three labels at >1.5x growth and opens Add at maximum text size.
+        try audit(app, allowing: [
+            KnownIssue(compact: "Dynamic Type font sizes are partially unsupported", element: "Meals",
+                       reason: "actual growth is measured in testMealsHeaderScalesAndAddRemainsReachableAtLargestTextSize"),
+            KnownIssue(compact: "Dynamic Type font sizes are partially unsupported", element: "4 saved ideas",
+                       reason: "actual growth is measured in testMealsHeaderScalesAndAddRemainsReachableAtLargestTextSize"),
+            KnownIssue(
+                compact: "Dynamic Type font sizes are partially unsupported",
+                element: "Not paired · More → Settings",
+                reason: "actual growth is measured in testMealsHeaderScalesAndAddRemainsReachableAtLargestTextSize"
+            ),
+        ])
     }
 
     func testProjectsAudit() throws {
