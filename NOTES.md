@@ -1,8 +1,8 @@
-# Roost — initial notes (Apple Dev 3.0)
+# Roost — decisions and historical notes
 
 **From:** Apple Dev 3.0 (Wes / Hines Creative)  
 **Date:** 2026-09-13  
-**Repo state:** concept HTML + this notes file; see commits on `main`.
+**Historical baseline:** the notes below began with the concept on September 13. The app and sync server are now implemented; use `README.md`, `OPEN-ITEMS.md`, and regenerated `docs/STATUS.md` for current state.
 
 ## Org
 
@@ -13,7 +13,7 @@
 
 ## What this is
 
-Shared household app for Anne & Wes: recurring chores + cat care, light competition (streaks / bonus points), shopping, meal ideas, and multi-step projects. Still design-stage — mockup is static HTML (no JS data model).
+Shared household app for Anne & Wes: recurring chores + cat care, light competition (streaks / bonus points), shopping, meal ideas, and multi-step projects. The original design-stage mockup is static HTML; the implemented app lives in `Roost/`.
 
 ## What’s already locked in the chore list
 
@@ -23,7 +23,9 @@ Shared household app for Anne & Wes: recurring chores + cat care, light competit
 
 **2026-09-15 — Litter:** scoop-litter takes a two-week weekdayCycle (Anne 4 / Wes 3, swapping); change-litter alternates from Wes and the miss penalty fires only when exactly one person missed more than two scoop days that month (both over or neither → rotation stands). Assignment order is accepted handoff, pin, miss penalty, rotation. Spec docs/superpowers/specs/2026-09-15-litter-rotations-design.md.
 
-**Source of truth for task data:** `chore-master-list.html` (locked Sep 13, 2026). Seed from this list only.
+**Current source of truth for task data:** `data/chores.json` (41 chores, version 5), validated by `scripts/validate-chores.py`. `chore-master-list.html` is the original reference.
+
+The following counts describe the original September 13 list, before the updates above:
 
 | Cadence   | Count | Notes |
 |-----------|------:|-------|
@@ -66,7 +68,7 @@ What was mistaken for the bug is content passing under the glass **during** a fl
 drawing content under the bar deliberately and is not changed by any amount of padding. The audit that
 was believed to fail on this state (`testHomeScrolledToTheDoorsAudit`) passes and is now in the suite.
 
-## Gaps / open questions (Wes + Anne)
+## Original gaps / questions (September 13 history)
 
 **Decided by Wes, 2026-09-13:** native iOS, SwiftUI. Wes has an Apple Developer account. Web/PWA is off the table.
 
@@ -84,7 +86,9 @@ Other open items:
 - **Naming:** mockup still says “Partner” on one streak side — should be Wes.
 - **Data seed:** promote `chore-master-list.html` → structured data (`chores.json` / app models) before UI rewrite.
 
-## Suggested first build slice (proposal)
+These were the original planning questions, not a current backlog. The implemented sync server is self-hosted behind a Cloudflare Tunnel; scheduling and streak behavior are documented in `Packages/RoostCore/README.md`, and local notifications plus APNs are documented in `Roost/README.md`. Unresolved product confirmations remain in `OPEN-ITEMS.md`.
+
+## Original first build slice (historical proposal)
 
 Don’t boil the ocean. Smallest useful app:
 

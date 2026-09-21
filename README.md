@@ -9,7 +9,7 @@ A shared household app for Anne & Wes: chores, cat care, a head-to-head streak, 
 - **`Roost/`** — the iOS app (SwiftUI, SwiftData). The Xcode project is generated from `Roost/project.yml` with XcodeGen; never hand-edit the pbxproj. See `Roost/README.md`.
 - **`Packages/RoostCore`** — scheduling, rotation, escalation, and streak logic. Pure Swift, no UI, no storage. See `Packages/RoostCore/README.md`.
 - **`Packages/RoostDesign`** — colors, type scale, and the bundled fonts. See `Packages/RoostDesign/README.md`.
-- **`server/`** — the sync server. Node 22 with the built-in SQLite, no dependencies. Runs on a home machine behind a Cloudflare Tunnel. See `server/README.md`.
+- **`server/`** — the sync server. Node 22.13+ with the built-in SQLite, no dependencies. Runs on a home machine behind a Cloudflare Tunnel. See `server/README.md`.
 - **`data/chores.json`** — the master list of recurring chores. Source of truth for both the app and the server. See `data/README.md`.
 - **`roost-app-mockup.html`** and **`chore-master-list.html`** — the original concept mockup and the reference chore list the JSON came from. Open either in a browser.
 - **`NOTES.md`** — decisions and how the work is organized.
@@ -20,12 +20,13 @@ A shared household app for Anne & Wes: chores, cat care, a head-to-head streak, 
 App (needs Xcode 26 and the iPhone 17 Pro simulator):
 
 ```bash
-xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
+xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' test
 ```
 
 Server:
 
 ```bash
+nvm use
 cd server && npm test
 ```
 
@@ -48,4 +49,4 @@ scripts/release.sh
 
 ## Status
 
-Early working build. The app runs in the simulator, pairs with the server by six-digit code, and syncs chores, shopping, wishlist, meals, projects, bonus, and handoffs. The release mechanism exists (`docs/RELEASE.md`); nothing has been uploaded to TestFlight yet.
+The app has Home, Lists, and More tabs, pairs with the server by six-digit code, and syncs chores, shopping, wishlist, meals, projects, bonus, and handoffs. Home shows both people side by side. `docs/STATUS.md` is a generated server and GitHub snapshot; regenerate it before relying on it. `OPEN-ITEMS.md` tracks unresolved work. The release runbook exists (`docs/RELEASE.md`); current TestFlight distribution and the builds installed on each phone have not been verified.

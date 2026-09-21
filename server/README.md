@@ -1,6 +1,6 @@
 # server/ — Roost sync API
 
-Small HTTP API the phones sync against. Node 22+ with the built-in `node:sqlite`, no npm dependencies. One process, one SQLite file.
+Small HTTP API the phones sync against. Node >=22.13 with the built-in `node:sqlite`, no npm dependencies. One process, one SQLite file. Development and CI use the version in the root `.nvmrc`.
 
 Runs on theoldone, bound to `127.0.0.1:8790`. Public path is a Cloudflare Tunnel at `https://roost.hinescreative.xyz`. Tailscale is the admin path only.
 
@@ -187,6 +187,7 @@ No auth. Names and titles only (no token hashes). Shape:
 ## Run locally
 
 ```bash
+nvm use # from the repo root; selects the version in .nvmrc
 cd server
 ROOST_DB=/tmp/roost.db ROOST_TOKENS=/tmp/tokens.json npm start
 ROOST_DB=/tmp/roost.db npm run mkcode -- anne "Anne iPhone"
@@ -194,6 +195,8 @@ ROOST_DB=/tmp/roost.db ROOST_TOKENS=/tmp/tokens.json npm run devices -- list
 ROOST_DB=/tmp/roost.db npm run household -- active-from
 npm test
 ```
+
+If `node:sqlite` cannot be found, check `node --version` in this directory. An older system Node can precede nvm on `PATH`; run `nvm use` before testing. Without nvm, use a Node executable meeting `package.json`'s engine requirement.
 
 ## Deploy (theoldone)
 

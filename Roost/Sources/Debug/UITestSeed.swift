@@ -26,6 +26,8 @@
         case onboarding
         /// Paired as Anne, with the escalation ladder and a few rows on each list tab.
         case paired
+        /// `paired` chores and handoffs, with all four list rooms empty.
+        case pairedEmptyRooms = "paired-empty-rooms"
         /// `paired`, plus 200 shopping items — the scroll-performance fixture.
         case shoppingLarge = "shopping-large"
         /// `paired`, plus one quarterly chore with a dueDay so All chores can show a window line.
@@ -135,10 +137,12 @@
             }
 
             seedHandoffs(into: context, day: day, calendar: calendar)
-            seedShopping(into: context, day: day)
-            seedWishlist(into: context, day: day)
-            seedMeals(into: context, day: day)
-            seedProjects(into: context, day: day)
+            if self != .pairedEmptyRooms {
+                seedShopping(into: context, day: day)
+                seedWishlist(into: context, day: day)
+                seedMeals(into: context, day: day)
+                seedProjects(into: context, day: day)
+            }
             try context.save()
         }
 

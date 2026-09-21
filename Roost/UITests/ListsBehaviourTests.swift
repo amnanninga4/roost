@@ -3,6 +3,40 @@
 import XCTest
 
 final class ListsBehaviourTests: RoostUITestCase {
+    /// Check the rendered input, not just the design system's reference scale. XCTest sometimes
+    /// reports custom-font UITextFields as partially unsupported even when SwiftUI scales them.
+    func testShoppingComposerScalesAndSubmitsAtLargestTextSize() {
+        let app = XCUIApplication()
+        var normalHeight: CGFloat = 0
+        for category in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            app.launchArguments = [
+                "-roostUITestState", "paired",
+                "-UIPreferredContentSizeCategoryName", category,
+            ]
+            app.launch()
+            openList("Shopping", in: app)
+            let field = app.textFields["Add an item…"]
+            XCTAssertTrue(field.waitForExistence(timeout: Self.timeout))
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "Shopping-\(category)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            if normalHeight == 0 {
+                normalHeight = field.frame.height
+                XCTAssertGreaterThan(normalHeight, 0)
+            } else {
+                XCTAssertGreaterThan(field.frame.height, normalHeight * 1.5, "the input must grow with Dynamic Type")
+                field.tap()
+                field.typeText("Paper towels\n")
+                XCTAssertTrue(
+                    app.buttons["Paper towels"].waitForExistence(timeout: Self.timeout),
+                    "Return must still add the item"
+                )
+            }
+            app.terminate()
+        }
+    }
+
     func testADraftSurvivesSwitchingPagesAndBack() {
         let app = launch(.paired)
         waitForTasks(in: app)

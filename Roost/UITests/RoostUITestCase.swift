@@ -11,6 +11,7 @@ import XCTest
 enum UITestState: String {
     case onboarding
     case paired
+    case pairedEmptyRooms = "paired-empty-rooms"
     case shoppingLarge = "shopping-large"
     case pairedWindows = "paired-windows"
 }

@@ -166,6 +166,9 @@ final class AccessibilityAuditTests: RoostUITestCase {
         try audit(app, allowing: [
             customFontScales("BOUGHT"),
             customFontScales("Clear bought"),
+            // The rendered field grows and Return still submits at accessibility XXXL;
+            // ListsBehaviourTests.testShoppingComposerScalesAndSubmitsAtLargestTextSize checks both.
+            customFontScales("Add an item…"),
             textFieldScrolls("Add an item…"),
         ])
     }
