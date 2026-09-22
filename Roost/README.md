@@ -197,7 +197,7 @@ Roost/
   docs/tasks-streak.png       the same screen with the streak card expanded
   docs/tasks-streak-dark.png  the expanded streak card in dark mode
   docs/tasks-ax.png           the same screen at the largest accessibility text size
-  docs/lists.png              simulator screenshot, Lists tab on Shopping with the sliding-pill segmented control; docs/lists-dark.png in dark mode
+  docs/lists.png              simulator screenshot, Lists tab on Shopping; docs/lists-dark.png in dark mode. shopping.png is the same screen.
   docs/wishlist.png           simulator screenshot, Wishlist page; docs/wishlist-dark.png in dark mode
   docs/more.png               simulator screenshot, More tab
   docs/shopping.png           simulator screenshot, Shopping page inside Lists; docs/shopping-dark.png in dark mode
