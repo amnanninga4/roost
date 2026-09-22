@@ -14,6 +14,7 @@ struct MealsScreen: View {
     @Query(filter: #Predicate<MealRecord> { !$0.removed }, sort: \MealRecord.createdAt, order: .reverse)
     private var meals: [MealRecord]
 
+    @State private var showingAdd = false
     @State private var title = ""
     @State private var tag = ""
     @FocusState private var titleFocused: Bool
@@ -32,26 +33,24 @@ struct MealsScreen: View {
     var body: some View {
         List {
             Section {
-                ListScreenHeader(
-                    title: Strings.Tabs.meals,
-                    line: Strings.Meals.header(count: meals.count),
-                    status: sync.statusLine
-                )
-                .listHeaderRow()
-            }
-            Section {
-                ListComposer(placeholder: Strings.Meals.add, text: $title, focused: $titleFocused, onSubmit: add) {
-                    if !title.isEmpty {
-                        TextField(Strings.Meals.tag, text: $tag, prompt: Text(Strings.Meals.tag)
-                            .foregroundStyle(RoostColor.Role.textSecondary.color))
-                            .roostType(.subheadline)
-                            .foregroundStyle(RoostColor.Role.textSecondary.color)
-                            .submitLabel(.done)
-                            .onSubmit(add)
-                            .padding(.leading, RoostSpacing.xl + RoostSpacing.md)
-                            .accessibilityLabel(Strings.Meals.tag)
+                HStack(alignment: .top, spacing: RoostSpacing.md) {
+                    ListScreenHeader(
+                        title: Strings.Tabs.meals,
+                        line: Strings.Meals.header(count: meals.count),
+                        status: sync.statusLine
+                    )
+                    Button { showingAdd = true } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .roostType(.title)
+                            .foregroundStyle(RoostColor.Role.accent.color)
+                            .frame(minWidth: RoostSpacing.minTapTarget, minHeight: RoostSpacing.minTapTarget)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.roostPressQuiet)
+                    .accessibilityLabel(Strings.Meals.newIdea)
+                    .accessibilityIdentifier("meals.add")
                 }
+                .listHeaderRow()
             }
             Section {
                 if meals.isEmpty {
@@ -64,10 +63,50 @@ struct MealsScreen: View {
                 }
             }
         }
+        .accessibilityIdentifier("mealsList")
         .roostAnimation(.standard, value: ordered.map(\.id))
         .roostHaptic(.selection, trigger: added)
         .roostHaptic(.checkOff, trigger: marked)
         .undoBar(undo)
+        .sheet(isPresented: $showingAdd) { addSheet }
+    }
+
+    private var addSheet: some View {
+        NavigationStack {
+            Form {
+                TextField(Strings.Meals.add, text: $title)
+                    .focused($titleFocused)
+                    .submitLabel(.done)
+                    .onSubmit(add)
+                    .accessibilityIdentifier("meals.idea")
+                    .listRowBackground(RoostColor.Role.surface.color)
+                TextField(Strings.Meals.tag, text: $tag)
+                    .submitLabel(.done)
+                    .onSubmit(add)
+                    .listRowBackground(RoostColor.Role.surface.color)
+            }
+            .scrollContentBackground(.hidden)
+            .background(RoostColor.Role.background.color)
+            .navigationTitle(Strings.Meals.newIdea)
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Strings.Settings.cancel) {
+                        title = ""
+                        tag = ""
+                        showingAdd = false
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(Strings.Lists.save, action: add)
+                        .disabled(ListActions.cleaned(title) == nil)
+                }
+            }
+            .task { titleFocused = true }
+        }
+        .tint(RoostColor.Role.accent.color)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private func row(_ meal: MealRecord) -> some View {
@@ -103,8 +142,6 @@ struct MealsScreen: View {
     private func add() {
         do {
             guard try ListActions.addMeal(title, tag: tag, in: context) != nil else {
-                title = "" // blank: let Return put the keyboard away, and take the stray spaces with it
-                tag = ""
                 return
             }
         } catch {
@@ -114,7 +151,7 @@ struct MealsScreen: View {
         tag = ""
         added += 1
         sync.syncSoon()
-        refocus($titleFocused) // keep the keyboard up: ideas come in batches too
+        showingAdd = false
     }
 
     private func setNextUp(_ meal: MealRecord, _ isOn: Bool) {
@@ -180,7 +217,9 @@ private struct MealRow: View {
 
     var body: some View {
         HStack(spacing: RoostSpacing.md) {
-            MealGlyph()
+            if !typeSize.isAccessibilitySize {
+                MealGlyph()
+            }
 
             VStack(alignment: .leading, spacing: RoostSpacing.xs) {
                 Text(meal.title)
@@ -189,7 +228,10 @@ private struct MealRow: View {
                 if hasMeta {
                     // At an accessibility size the badge cannot sit beside the title without
                     // crushing it, so it joins the meta line under it.
-                    HStack(spacing: RoostSpacing.sm) {
+                    let metadataLayout = typeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: RoostSpacing.xs))
+                        : AnyLayout(HStackLayout(spacing: RoostSpacing.sm))
+                    metadataLayout {
                         if meal.nextUp, typeSize.isAccessibilitySize {
                             nextUpBadge
                         }

@@ -28,7 +28,8 @@ final class ListsBehaviourTests: RoostUITestCase {
                 XCTAssertGreaterThan(field.frame.height, normalHeight * 1.5, "the input must grow with Dynamic Type")
                 field.tap()
                 field.typeText("Paper towels")
-                XCTAssertEqual(field.value as? String, "Paper towels")
+                let typed = expectation(for: NSPredicate(format: "value == %@", "Paper towels"), evaluatedWith: field)
+                wait(for: [typed], timeout: Self.timeout)
                 field.typeText("\n")
                 let cleared = NSPredicate(format: "value == %@ OR value == %@", "", "Add an item…")
                 let emptyField = expectation(for: cleared, evaluatedWith: field)
@@ -134,6 +135,89 @@ final class ListsBehaviourTests: RoostUITestCase {
             }
             app.terminate()
         }
+    }
+
+    func testMealsHeaderScalesAndAddRemainsReachableAtLargestTextSize() {
+        let app = XCUIApplication()
+        var normalHeights: [CGFloat] = []
+        for category in ["UICTContentSizeCategoryL", "UICTContentSizeCategoryAccessibilityXXXL"] {
+            app.launchArguments = [
+                "-roostUITestState", "paired", "-appearance", "dark",
+                "-UIPreferredContentSizeCategoryName", category,
+            ]
+            app.launch()
+            waitForTasks(in: app)
+            openList("Meals", in: app)
+            let list = app.collectionViews["mealsList"]
+            let labels = [
+                list.staticTexts["Meals"],
+                list.staticTexts["4 saved ideas"],
+                list.staticTexts["Not paired · More → Settings"],
+            ]
+            for label in labels {
+                XCTAssertTrue(label.waitForExistence(timeout: Self.timeout))
+            }
+            let heights = labels.map(\.frame.height)
+            if normalHeights.isEmpty {
+                normalHeights = heights
+            } else {
+                for (normal, large) in zip(normalHeights, heights) {
+                    XCTAssertGreaterThan(large, normal * 1.5)
+                }
+            }
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "Meals-header-\(category)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            let addMeal = app.buttons["meals.add"]
+            XCTAssertTrue(addMeal.isHittable)
+            addMeal.tap()
+            XCTAssertTrue(app.textFields["meals.idea"].waitForExistence(timeout: Self.timeout))
+            app.buttons["Cancel"].tap()
+            if category == "UICTContentSizeCategoryAccessibilityXXXL" {
+                let meal = list.descendants(matching: .any).matching(identifier: "Sheet pan chicken").firstMatch
+                scrollIntoView(meal, in: app)
+                let rowShot = XCTAttachment(screenshot: app.screenshot())
+                rowShot.name = "Meals-largest-row"
+                rowShot.lifetime = .keepAlways
+                add(rowShot)
+            }
+            app.terminate()
+        }
+    }
+
+    func testMealIdeaIsAddedFromASheet() {
+        let app = launch(.paired)
+        openList("Meals", in: app)
+        XCTAssertFalse(app.textFields["Add an idea…"].exists)
+        let page = XCTAttachment(screenshot: app.screenshot())
+        page.name = "Meals-with-add-button"
+        page.lifetime = .keepAlways
+        add(page)
+        app.buttons["meals.add"].tap()
+        let field = app.textFields["meals.idea"]
+        XCTAssertTrue(field.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(app.buttons["Save"].isEnabled)
+        field.tap()
+        field.typeText("Sheet-pan tofu")
+        let tag = app.textFields["Tag, like Weeknight"]
+        tag.tap()
+        tag.typeText("Weeknight")
+        let sheet = XCTAttachment(screenshot: app.screenshot())
+        sheet.name = "Meal-idea-sheet"
+        sheet.lifetime = .keepAlways
+        add(sheet)
+        app.buttons["Save"].tap()
+        XCTAssertTrue(app.buttons["meals.add"].waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(field.exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "Sheet-pan tofu").firstMatch.exists)
+        app.buttons["meals.add"].tap()
+        XCTAssertTrue(field.waitForExistence(timeout: Self.timeout))
+        XCTAssertFalse(app.buttons["Save"].isEnabled)
+        field.tap()
+        field.typeText("Discard this meal")
+        app.buttons["Cancel"].tap()
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "Discard this meal").firstMatch.exists)
     }
 
     func testADraftSurvivesSwitchingPagesAndBack() {

@@ -9,6 +9,8 @@ final class HomeScreenUITests: RoostUITestCase {
         let app = launch(.paired)
         let row = app.buttons["home.chore.uitest-litter"]
         XCTAssertTrue(row.waitForExistence(timeout: Self.timeout))
+        XCTAssertTrue(row.label.contains("Anne"), "the chore's responsible person is part of its accessible name")
+        XCTAssertTrue(row.label.contains("Scoop the litter box"))
         scrollIntoView(row, in: app)
         row.tap()
         let removed = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: row)

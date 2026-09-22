@@ -38,10 +38,6 @@ enum Strings {
             "This week: Anne \(anne) done · Wes \(wes) done"
         }
 
-        static func rowValue(owner: String, timing: String) -> String {
-            "\(owner), \(timing)"
-        }
-
         /// The two segments inside the Home tab.
         static let segmentHome = "Home"
         static let segmentBoard = "Anne & Wes"
@@ -207,6 +203,7 @@ enum Strings {
             "\(count) saved \(count == 1 ? "idea" : "ideas")"
         }
 
+        static let newIdea = "Add meal idea"
         static let add = "Add an idea…"
         static let tag = "Tag, like Weeknight"
         static let empty = "No ideas saved yet."

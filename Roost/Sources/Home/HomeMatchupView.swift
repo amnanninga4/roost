@@ -24,6 +24,7 @@ struct HomeMatchupView: View {
                                     Text(column.person.displayName).roostType(.headline)
                                     Image(systemName: "chevron.right").font(.caption)
                                         .foregroundStyle(RoostColor.Role.textSecondary.color)
+                                        .accessibilityHidden(true)
                                 }
                                 Text(Strings.Home.left(column.dueCount))
                                     .roostType(.subheadline)
@@ -36,8 +37,6 @@ struct HomeMatchupView: View {
                     }
                     .buttonStyle(.roostPressQuiet)
                     .foregroundStyle(RoostColor.Role.textPrimary.color)
-                    .accessibilityLabel(column.person.displayName)
-                    .accessibilityValue(Strings.Home.left(column.dueCount))
                     .accessibilityHint(Strings.Home.openPerson)
                     .accessibilityIdentifier("home.open.\(column.person.rawValue)")
                 }
@@ -93,10 +92,6 @@ struct HomeChoreRow: View {
     let date: Date
     let onToggle: () -> Void
 
-    private var owner: String {
-        row.chore.together ? Strings.Tasks.togetherValue : row.person.displayName
-    }
-
     private var timing: String {
         if row.daysOverdue > 0 {
             return Strings.Home.daysLate(row.daysOverdue)
@@ -114,9 +109,9 @@ struct HomeChoreRow: View {
                     Image(systemName: "person.2.fill")
                         .font(.title3)
                         .frame(width: RoostSpacing.xxl, height: RoostSpacing.xxl)
-                        .accessibilityHidden(true)
+                        .accessibilityLabel(Strings.Tasks.togetherValue)
                 } else {
-                    RoostAvatar(person: row.person.design).accessibilityHidden(true)
+                    RoostAvatar(person: row.person.design, label: Strings.Tasks.forPerson(row.person.displayName))
                 }
                 VStack(alignment: .leading, spacing: RoostSpacing.xs) {
                     Text(row.chore.title)
@@ -139,8 +134,6 @@ struct HomeChoreRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.roostPressQuiet)
-        .accessibilityLabel(row.chore.title)
-        .accessibilityValue(Strings.Home.rowValue(owner: owner, timing: timing))
         .accessibilityHint(Strings.Tasks.hintCheck)
         .accessibilityIdentifier("home.chore.\(row.chore.id)")
     }
