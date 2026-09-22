@@ -85,8 +85,9 @@ final class AccessibilityAuditTests: RoostUITestCase {
     /// 83-pt band to the bottom safe area, the `ScrollView` insets its content by that, and the 32 pt
     /// is breathing room on top — at rest the door strip ends 38 pt above the bar. Content passing
     /// under the glass *during* a flick is iOS 26 drawing content under the bar on purpose, and no
-    /// amount of bottom padding changes it. The scroll is settled before the audit runs, so what is
-    /// audited is where the doors come to rest.
+    /// amount of bottom padding changes it. The scroll is settled before the audit runs.
+    /// On hosted Xcode 26.6, `performAccessibilityAudit` then shifts that content by 31 pt
+    /// and reports three unattributed text hits. The waiver is that shift.
     func testHomeScrolledToTheDoorsAudit() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-roostUITestState", "paired", "-appearance", "dark"]
@@ -107,7 +108,17 @@ final class AccessibilityAuditTests: RoostUITestCase {
             lastDoor.frame.intersects(bar),
             "the last door rests under the floating tab bar: door \(lastDoor.frame), bar \(bar)"
         )
-        try audit(app, allowing: [dateLineWraps])
+        // Runs 35652405767, 35659816474, and 35663998109 each report exactly three hits
+        // with element none. Diag screenshots screen-02 and screen-03 are the settled frame
+        // and the frame after the audit moves it. Main ac778db run 35643850498 passed.
+        try audit(app, allowing: [
+            dateLineWraps,
+            KnownIssue(
+                compact: "Potentially inaccessible text",
+                element: nil,
+                reason: "performAccessibilityAudit shifts the settled scroll by 31pt and reports element none"
+            ),
+        ])
     }
 
     func testMatchupAudit() throws {
