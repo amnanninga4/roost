@@ -17,10 +17,10 @@ A shared household app for Anne & Wes: chores, cat care, a head-to-head streak, 
 
 ## Checks
 
-App (needs Xcode 26 and the iPhone 17 Pro simulator):
+App (needs Xcode 26 and the iPhone 17 simulator on iOS 27.0):
 
 ```bash
-xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' test
+xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' test
 ```
 
 Server:

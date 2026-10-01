@@ -24,7 +24,7 @@ Still ask before: anything irreversible, anything that spends money, anything ou
 ## Working rules
 
 - Branch, push, let CI run, merge on green. Rebase onto current `main` first. Parallel branches that both regenerate the Xcode project conflict on the pbxproj; resolve by running `xcodegen generate` on the merged tree.
-- Before calling app work done: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1' test` prints `** TEST SUCCEEDED **`, and any new or changed screen has been rendered in the simulator and looked at.
+- Before calling app work done: `xcodebuild -project Roost/Roost.xcodeproj -scheme Roost -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0' test` prints `** TEST SUCCEEDED **`, and any new or changed screen has been rendered in the simulator and looked at.
 - Before calling server work done: run `nvm use` at the repo root, then `cd server && npm test` with no network. The root `.nvmrc` is shared with CI; this Mac's system Node 22.12 cannot load the built-in SQLite without an experimental flag.
 - Swift files are formatted by swiftformat and linted by swiftlint through the committed hook in `.claude/hooks`. Configs are `.swiftformat` and `.swiftlint.yml`.
 - Agent worktrees live under `.claude/worktrees/`, and swiftformat applies the main clone's config there, so `.swiftformat` must not exclude `.claude`. Run whole-tree formatting only in CI or from a fresh worktree outside the clone; the hook formats one file at a time.
@@ -37,7 +37,7 @@ Still ask before: anything irreversible, anything that spends money, anything ou
 Every one of these has cost real time. None are obvious from reading the code.
 
 - **Never run two `xcodebuild` test runs at once.** Fable and Apple-Dev-3 share this Mac and its simulators. Concurrent runs against one simulator is the only thing that has genuinely broken it. Serialize.
-- **Pin `OS=26.3.1` in every destination.** The Mac carries iOS 26.3 and 27.0; `OS:latest` resolves to 27.0, which has no iPhone 17 Pro. Unpinned destinations fail with "Unable to find a device matching the provided destination specifier" — a red run that has nothing to do with the diff.
+- **Pin `name=iPhone 17,OS=27.0` in every destination.** The Mac carries only iOS 27.0 (26.3.1 removed 2026-10-01 for disk space), and 27.0 has no iPhone 17 Pro. Unpinned destinations fail with "Unable to find a device matching the provided destination specifier" — a red run that has nothing to do with the diff.
 - **Push and merge `.github/workflows/**` over SSH.** The HTTPS remote uses gh's OAuth token, which GitHub refuses on workflow files without the `workflow` scope — on the merge API as well as on push. An SSH key is not an OAuth app and is not checked. `remote.origin.pushurl` is set to SSH in the main clones.
 - **CI is the authority when it disagrees with this machine.** CI runs Xcode 26.6; the Mac is on 27.0. Local green does not prove CI green.
 - **The app job takes ~18 minutes.** Every merge decision is that far away. The `packages (swift test)` and `server` jobs run in parallel and finish in about a minute.
