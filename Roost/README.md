@@ -29,21 +29,19 @@ These captures use the offline UI-test household, not live phone data.
 | --- | --- | --- |
 | ![Home](docs/home.png) | ![Dark Home](docs/home-dark.png) | ![Home at the largest text size](docs/home-ax.png) |
 
-The screenshots below also document earlier layouts.
-
-| Tasks | Lists | Wishlist | More |
+| Chore board | Lists | Wishlist | More |
 | --- | --- | --- | --- |
-| ![Tasks tab](docs/tasks.png) | ![Lists tab](docs/lists.png) | ![Wishlist page](docs/wishlist.png) | ![More tab](docs/more.png) |
-| ![Tasks tab in dark mode](docs/tasks-dark.png) | ![Lists tab in dark mode](docs/lists-dark.png) | ![Wishlist page in dark mode](docs/wishlist-dark.png) | |
+| ![Chore board](docs/tasks.png) | ![Lists tab](docs/lists.png) | ![Wishlist page](docs/wishlist.png) | ![More tab](docs/more.png) |
+| ![Chore board in dark mode](docs/tasks-dark.png) | ![Lists tab in dark mode](docs/lists-dark.png) | ![Wishlist page in dark mode](docs/wishlist-dark.png) | |
 
 | Shopping | Meals | Projects |
 | --- | --- | --- |
 | ![Shopping page](docs/shopping.png) | ![Meals page](docs/meals.png) | ![Projects page](docs/projects.png) |
 | ![Shopping page in dark mode](docs/shopping-dark.png) | ![Meals page in dark mode](docs/meals-dark.png) | ![Projects page in dark mode](docs/projects-dark.png) |
 
-| Kitchen mode | Tasks, largest accessibility size |
+| Kitchen mode | Chore board, largest text |
 | --- | --- |
-| ![Kitchen mode](docs/kitchen.png) | ![Tasks tab at accessibility size 5](docs/tasks-ax.png) |
+| ![Kitchen mode](docs/kitchen.png) | ![Chore board at the largest text size](docs/tasks-ax.png) |
 
 | First run | The code | A code that didn't work | Settings |
 | --- | --- | --- | --- |
@@ -63,13 +61,7 @@ The screenshots below also document earlier layouts.
 
 One file per screen state, replaced in place rather than kept per ticket.
 
-The Tasks screenshots are one phone paired as Anne against a local server seeded with the week's history (the household started that Monday), so
-the whole escalation ladder is on screen at once: 5 days late in the danger role, 3 days late in the warning
-role, two rows 1 day late in the notice role, then the rows that are simply due today — loudest first, so the
-colour only gets calmer going down the card. Wes's own column, its rows, and the celebration are below the fold.
-`tasks-ax.png` is the same screen at the largest accessibility text size, where the two streak cards stack
-instead of sitting side by side; further down, the person header stacks name / YOU / count and the week tally
-goes one line per person.
+The chore board shots are More → Chore board on the paired UI-test household. The streak line is collapsed except in `tasks-streak.png` and `tasks-streak-dark.png`, where the two cards sit side by side. `tasks-ax.png` is that board at the largest accessibility text size: the date wraps, and Anne's header stacks the name, YOU, and the count.
 
 Kitchen mode is the `paired` UI-test fixture (`-roostUITestState paired`), so it is the one screenshot here
 anybody can reproduce with a single command: both alert-stage chores in the shared banner, then each person's
@@ -192,11 +184,11 @@ Roost/
   docs/pairing-error.png      simulator screenshot, a code the server answered 404 to
   docs/settings.png           simulator screenshot, Settings while paired against a local server (the device line and date are the server's)
   docs/settings-dark.png      simulator screenshot, the same screen in dark mode
-  docs/tasks.png              simulator screenshot, Tasks tab (paired as Anne, collapsed streak line, edge bars, two-slot meta)
+  docs/tasks.png              simulator screenshot, chore board from More (paired as Anne, streak line collapsed)
   docs/tasks-dark.png         the same screen in dark mode
   docs/tasks-streak.png       the same screen with the streak card expanded
   docs/tasks-streak-dark.png  the expanded streak card in dark mode
-  docs/tasks-ax.png           the same screen at the largest accessibility text size
+  docs/tasks-ax.png           the chore board at the largest accessibility text size
   docs/lists.png              simulator screenshot, Lists tab on Shopping; docs/lists-dark.png in dark mode. shopping.png is the same screen.
   docs/wishlist.png           simulator screenshot, Wishlist page; docs/wishlist-dark.png in dark mode
   docs/more.png               simulator screenshot, More tab
